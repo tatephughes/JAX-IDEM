@@ -1,0 +1,60 @@
+#+TITLE: Org Notebook for the IDEM project
+
+:BOILERPLATE:
+#+BIBLIOGRAPHY: ../../../bibliography.bib
+#+LATEX_CLASS: article
+#+LATEX_CLASS_OPTIONS: [letterpaper]
+#+OPTIONS: toc:nil
+#+LATEX_HEADER: \usepackage{amsmath,amsfonts,amsthm,amssymb,bm,bbm,tikz,tkz-graph, graphicx, subcaption, mathtools, algpseudocode}
+#+LATEX_HEADER: \usepackage[cache=false]{minted}
+#+LATEX_HEADER: \usetikzlibrary{arrows}
+#+LATEX_HEADER: \usetikzlibrary{bayesnet}
+#+LATEX_HEADER: \usetikzlibrary{matrix}
+#+LATEX_HEADER: \usepackage[margin=1in]{geometry}
+#+LATEX_HEADER: \usepackage[english]{babel}
+#+LATEX_HEADER: \newtheorem{theorem}{Theorem}[section]
+#+LATEX_HEADER: \newtheorem{corollary}[theorem]{Corollary}
+#+LATEX_HEADER: \newtheorem{lemma}[theorem]{Lemma}
+#+LATEX_HEADER: \newtheorem{definition}[theorem]{Definition}
+#+LATEX_HEADER: \newtheorem*{remark}{Remark}
+#+LATEX_HEADER: \DeclareMathOperator{\E}{\mathbb E}
+#+LATEX_HEADER: \DeclareMathOperator{\prob}{\mathbb P}
+#+LATEX_HEADER: \DeclareMathOperator{\var}{\mathbb V\mathrm{ar}}
+#+LATEX_HEADER: \DeclareMathOperator{\cov}{\mathbb C\mathrm{ov}}
+#+LATEX_HEADER: \DeclareMathOperator{\cor}{\mathbb C\mathrm{or}}
+#+LATEX_HEADER: \DeclareMathOperator{\normal}{\mathcal N}
+#+LATEX_HEADER: \DeclareMathOperator{\invgam}{\mathcal{IG}}
+#+LATEX_HEADER: \newcommand*{\mat}[1]{\bm{#1}}
+#+LATEX_HEADER: \newcommand{\norm}[1]{\left\Vert #1 \right\Vert}
+#+LATEX_HEADER: \renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
+#+EXPORT_EXCLUDE_TAGS: noexport
+:END:
+
+* Import the Project
+
+#+begin_src python :session example :results none
+from IDEM import *
+from utilities import create_grid
+#+end_src
+
+* Constructing the Process Grid and Kernel
+
+Closely following [cite:@wikle2019spatio];
+
+#+begin_src python :session example :results none
+d = 2 # set the spatial dimension
+
+ds = 0.01
+
+# creates a grid 
+s_grid = create_grid(jnp.array([[0,1],[0,1]]),
+                     jnp.array([0.01, 0.01]))
+N = len(s_grid)
+
+nT = 201
+t_grid = jnp.arange(0, nT-1)
+
+st_grid = jnp.stack(jnp.meshgrid(s_grid, t_grid), axis=-1)
+#+end_src
+
+
