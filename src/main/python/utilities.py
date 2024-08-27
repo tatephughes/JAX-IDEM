@@ -7,8 +7,7 @@ import jax.random as rand
 from jax.numpy.linalg import solve
 
 def create_grid(bounds,
-                deltas,
-                ):
+                deltas):
 
     """
     Creates an n-dimensional grid based on the given bounds and deltas.
@@ -36,3 +35,28 @@ def create_grid(bounds,
                      axis=-1).reshape(-1,dimension)
     
     return grid
+
+def outer_op(a, b, op = lambda x,y: x*y):
+
+    """
+    Computes the outer operation of two vectors, a generalisation of the outer product.
+    Adapted from the JAX source code for ~outer~.
+
+    Parameters:
+    vec1: JAX array of the first vector
+    vec2: JAX array of the second vector
+    operation: A function acting on an element of vec1 and an element of vec2.
+               By default, this is the outer product.
+
+    Returns:
+    The matrix of the result of applying operation to every pair of elements from the
+    two vectors.
+    """
+
+    def ascan(aval, bvec):
+        return jl.map(lambda bval: op(aval,bval), bvec)
+    
+    return jl.map(lambda aval: ascan(aval, b), a)
+
+    
+  
