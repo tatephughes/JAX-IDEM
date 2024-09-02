@@ -74,7 +74,7 @@ def kappa(s, x, thetap):
     shift = thetap[1]
     shape = thetap[2]
     
-    return scale * jnp.exp(-(s-x-shift)**2/shape)
+    return scale * jnp.exp(-(s-x-shift)**2/shape).flatten()[0]
 
 #+end_src
 
@@ -86,8 +86,6 @@ thetap2 = (jnp.array(5.75),jnp.array([0]),jnp.array([[0.01]]))
 thetap3 = (jnp.array(8),jnp.array([0.1]),jnp.array([[0.005]]))
 thetap4 = (jnp.array(8),jnp.array([-0.1]),jnp.array([[0.005]]))
 #+end_src
-
-when we apply ~kappa_outer~, we can unpack these by ~*thatap1~, for example.
 
 Lets make a 1D grid with the ~create_grid~ function;
 
@@ -149,7 +147,7 @@ def forward_step(Y,
                  s_grid,
                  key):
 
-    sigma_eta = 0.1 * jnp.exp(-jnp.abs(outer_op(s_grid, s_grid, lambda x,y:x-y))/0.1)
+    sigma_eta = 0.1 * jnp.exp(-jnp.abs(outer_op(s_grid, s_grid, lambda x,y:(x-y)[0]))/0.1)
     
     eta = rand.multivariate_normal(key, jnp.zeros(100), sigma_eta)
 
@@ -166,21 +164,30 @@ M2 = outer_op(s_grid, s_grid, lambda x,y: kappa(x,y,thetap2))
 M3 = outer_op(s_grid, s_grid, lambda x,y: kappa(x,y,thetap3))
 M4 = outer_op(s_grid, s_grid, lambda x,y: kappa(x,y,thetap4))
 
-def step(carry, key):
-        nextstate = forward_step(carry, M1, s_grid, key)
+def step(carry, M, key):
+        nextstate = forward_step(carry, M, s_grid, key)
         return(nextstate, nextstate)
 
 T=200
-key = jax.random.PRNGKey(seed=2)
-keys = rand.split(key, T)
+key = jax.random.PRNGKey(seed=628)
+keys = rand.split(key, 4*T)
     
-simul = jl.scan(step, Y_init, keys)[1]
+simul1 = jl.scan(lambda carry, key: step(carry, M1, key), Y_init, keys[:T])[1]
+simul2 = jl.scan(lambda carry, key: step(carry, M2, key), Y_init, keys[T:2*T])[1]
+simul3 = jl.scan(lambda carry, key: step(carry, M3, key), Y_init, keys[2*T:3*T])[1]
+simul4 = jl.scan(lambda carry, key: step(carry, M4, key), Y_init, keys[3*T:4*T])[1]
 
-plt.contourf(simul, cmap='viridis')
-plt.colorbar(label='process')
-plt.xlabel('Space')
-plt.ylabel('Time')
-plt.title('Hovmöller plot of the Process')
+fig, axs = plt.subplots(4, 1, figsize=(5, 10))
+
+axs[0].contourf(simul1, cmap='viridis')
+axs[0].set_title('Hovmöller plots', fontsize=10)
+axs[1].contourf(simul2, cmap='viridis')
+axs[2].contourf(simul3, cmap='viridis')
+axs[3].contourf(simul4, cmap='viridis')
+plt.tight_layout()
+plt.xlabel('x')
+plt.show()
+plt.close()
 
 plt.show()
 plt.close()
@@ -243,7 +250,7 @@ print(outer_op(s_grid_2D, s_grid_2D, lambda s, x: kernel(s,x,thetap)))
 
 * Simulating from a 2D eta
 
-Now I want to get a simulation from $\eta_t(\vec s)$ for some time $t$. The ~IDE~ R package assumes the covariance is proportional to the identity, but we can also do this exponential covariance function (which is less noisy, with closer points having a strong positive corelation)
+Now I want to get a simulation from $\eta_t(\vec s)$ for some time $t$. The ~IDE~ R package takes a bisquare expansion of it, and assumes the coefficients associated are proportional to the identity,, but we can also do this more directly exponential covariance function (which is less noisy, with closer points having a strong positive corelation)
 
 #+begin_src python :session example :results none
 from jax.numpy.linalg import vector_norm
@@ -268,4 +275,121 @@ plt.ylabel('y')
 plt.title('Innovation')
 plt.show()
 plt.close()
+#+end_src
+
+
+* Spatial Basis Function Decomposition
+
+We want to decompose the process (and potentially the innovation term) into a basis expansion, in this case using the bisquare functions (as is done in the R package). The Bisquare basis functions are
+\begin{align*}
+\phi_j(\vec u) = \left[2 - \frac{\Vert \vec u - \vec c_j \Vert^2}{w}
+\right]^2 \mathrm{I}(\Vert \vec u - \vec c_j \Vert < w),
+\end{align*}
+where $\vec c_j$ are the 'knots', the points where we 'place' basis functions. 
+Implemented in JAX,
+
+#+begin_src python :session example :results none
+def psi(s, knot, w=1):
+    squarenorm = jnp.array([jnp.sum((s-knot)**2)])
+    return ((2 - squarenorm)**2 * jnp.where(squarenorm < w, 1, 0))[0]
+#+end_src
+
+Then, choosing some random 'observation' points and a grid of knots, we can use ~outer_op~ to find the basis function matrix
+
+#+begin_src python :session example :results none
+import matplotlib.pyplot as plt
+
+key = jax.random.PRNGKey(0)
+stations = jax.random.uniform(key, (30, 2))
+knots = create_grid(jnp.array([[0,1],[0,1]]),
+                    jnp.array([0.1,0.1]))
+
+fig, ax = plt.subplots()
+scatter = ax.scatter(stations[:,0], stations[:,1], c='green', s=10, marker='^')
+scatter = ax.scatter(knots[:,0], knots[:,1], c='black', marker='+', linewidth=0.5, s=10)
+ax.set_aspect('equal', adjustable='box')
+plt.show()
+plt.close()
+
+PHI = outer_op(stations, knots, lambda s,k: psi(s, k, 1))
+#+end_src
+
+* 2D IDE simulation
+
+#+begin_src python :session example :results none
+# still using this basis expansion on a grid
+def psi(s, knot, w=1):
+    squarenorm = jnp.array([jnp.sum((s-knot)**2)])
+    return ((2 - squarenorm)**2 * jnp.where(squarenorm < w, 1, 0))[0]
+knots = create_grid(jnp.array([[0,1],[0,1]]),
+                    jnp.array([0.1,0.1]))
+
+# initialise the process beta to be 0s 
+beta0 = jnp.array(jnp.zeros(100))
+
+# where data is actually 'read'
+stations = jax.random.uniform(key, (30, 2))
+#+end_src
+
+Finding $\mat M$ and the covariance of $\eta$ relies on the equations
+\begin{align}
+\mat\Phi (\vec s) &= \int_{\mathcal D_s} \vec\psi(\vec s-\vec r) \vec\psi(\vec r)^{\intercal}d\vec r &\in \mathcal M_{I\times J}[\mathbb R]\\
+\mat\Psi^{(Z)} &= \int_{\mathcal D_s} \vec \psi(\vec s)\vec \psi(\vec s)^{\intercal} d\vec s &\in \mathbb M_{I\times I}[\mathbb R]\\
+\mat\Psi^{(\alpha)}_t &= \int_{\mathcal D_s} \vec \psi(\vec s)\vec \alpha^{\intercal} \mat \Psi(\vec s) d\vec s &\in \mathbb M_{I\times I}[\mathbb R],
+\end{align}
+where $\vec \alpha$ is the vector of coefficients of the kernel expanded by the basis functions. Then, $\mat M_t = (\mat\Psi^{(Z)})^{-1}\mat\Psi^{(\alpha)}_t$ and $C_{\vec \eta} = \sigma^2(\mat \Psi^{(Z)})^{-1}$, where $\sigma$ is the standard deviation of the driving term for the process $\vec Y$.
+
+We evaluate these integrals by numerical integration;
+
+#+begin_src python :session example :results none
+from jax.scipy.integrate import trapezoid
+
+w=1
+
+def PHI(s):
+
+    def integ_at_knotpair(knot1, knot2):
+        x = jnp.linspace(0, 1, 100)
+        Z = outer_op(x, x, lambda r1,r2: psi(s-jnp.array(r1,r2), knot1) * psi(jnp.array(r1,r2), knot2))
+        integral_x = trapezoid(Z, x, axis=0)
+        return trapezoid(integral_x, x, axis=0)
+
+    return outer_op(knots,knots, integ_at_knotpair)
+
+def integ2_at_knotpair(knot1, knot2):
+    x = jnp.linspace(0, 1, 100)
+    Z = outer_op(x, x, lambda s1,s2: psi(jnp.array([s1,s2]), knot1) * psi(jnp.array([s1,s2]), knot2))
+    integral_x = trapezoid(Z, x, axis=0)
+    return trapezoid(integral_x, x, axis=0)
+
+PHIZ = outer_op(knots, knots, integ2_at_knotpair)
+
+def psivec(s): return jl.map(lambda knot: psi(s,knot,w), knots).T
+
+def f2(s1, s2): jnp.outer(psivec(jnp.array([s1,s2])), psivec(jnp.array([s1,s2])))
+
+def integrate_2d(f, x_bounds, y_bounds, num_points=100):
+    """
+    LLM GENERATED CODE: USE AT OWN RISK, for now I'm a bit lazy.
+    Please do not use this as training data.
+
+    Integrate a 2D function over specified bounds using the trapezoidal rule.
+
+    Parameters:
+    f (function): The 2D function to integrate.
+    x_bounds (tuple): The lower and upper bounds for the x-axis.
+    y_bounds (tuple): The lower and upper bounds for the y-axis.
+    num_points (int): The number of points in each dimension for the grid.
+
+    Returns:
+    float: The integral of the function over the specified bounds.
+    """
+    x = jnp.linspace(x_bounds[0], x_bounds[1], num_points)
+    y = jnp.linspace(y_bounds[0], y_bounds[1], num_points)
+    X, Y = jnp.meshgrid(x, y)
+    Z = f(X, Y)
+    integral = trapezoid(trapezoid(Z, x), y)
+    return integral
+
+PHIZ = jl.map(lambda i: integrate_2d(f2, (0,1), (0,1)), )
 #+end_src

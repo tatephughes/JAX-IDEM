@@ -13,10 +13,10 @@ def create_grid(bounds,
     Creates an n-dimensional grid based on the given bounds and deltas.
 
     Parameters:
-    bounds: JAX array of shape 2xdimension, the bounds for each dimension
-    deltas: JAX array of the increment for each dimension.
+    bounds: Array[[Double, Double]]; The bounds for each dimension
+    deltas: Array[Double]; The increment for each dimension.
 
-    Returns:
+    Returns: Array[Array[Double]]
     JAX array of coordinate arrays for the grid.
     """
     
@@ -40,15 +40,14 @@ def outer_op(a, b, op = lambda x,y: x*y):
 
     """
     Computes the outer operation of two vectors, a generalisation of the outer product.
-    Adapted from the JAX source code for ~outer~.
 
     Parameters:
-    vec1: JAX array of the first vector
-    vec2: JAX array of the second vector
-    operation: A function acting on an element of vec1 and an element of vec2.
+    vec1: Array[A]; array of the first vector
+    vec2: Array[B]; array of the second vector
+    operation: A, B -> C; A function acting on an element of vec1 and an element of vec2.
                By default, this is the outer product.
 
-    Returns:
+    Returns: Array[C]
     The matrix of the result of applying operation to every pair of elements from the
     two vectors.
     """

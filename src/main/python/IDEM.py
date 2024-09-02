@@ -33,11 +33,28 @@ def kernel(s, x, thetap):
 
     return scale*jnp.exp(-jnp.sum((x - s - shifts)**2)/shape)
 
-def forward_step(Y, kernel, locations, key):
+def forward_step(beta, kernel, locations, M, key):
 
     sigma_eta = 0.1 * jnp.exp(-outer_operation(
         locations, locations, lambda s,x: vector_norm(s-x))
                               /0.1)
     eta = rand.multivariate_normal(key, jnp.zeros(locations.shape[0]), sigma_eta)
+
+def eval_basis(basis_func, locations, knots, alpha):
+
+    """
+    Evaluates the basis expansion defined by the coefficients alpha at vector of locations.
+
+    Parameters:
+    basis_func: Double, Double -> Double;  the basis functions, taking a location and a
+                                           knot to the 
+    locations: Array[Array[Double]]; Array of coordinates on which to evaluate the function
+    knots: The centres of the basis functions
+
+    Returns: Array[Double]
+    The array of values of the expanded function at each coordinate point.
+    """
+
+    PHIalpha = outer_op(stations, knots, basis_func) @ alpha
 
     
