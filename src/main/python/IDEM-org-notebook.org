@@ -335,11 +335,13 @@ Finding $\mat M$ and the covariance of $\eta$ relies on the equations
 \begin{align}
 \mat\Phi (\vec s) &= \int_{\mathcal D_s} \vec\psi(\vec s-\vec r) \vec\psi(\vec r)^{\intercal}d\vec r &\in \mathcal M_{I\times J}[\mathbb R]\\
 \mat\Psi^{(Z)} &= \int_{\mathcal D_s} \vec \psi(\vec s)\vec \psi(\vec s)^{\intercal} d\vec s &\in \mathbb M_{I\times I}[\mathbb R]\\
-\mat\Psi^{(\alpha)}_t &= \int_{\mathcal D_s} \vec \psi(\vec s)\vec \alpha^{\intercal} \mat \Psi(\vec s) d\vec s &\in \mathbb M_{I\times I}[\mathbb R],
+\mat\Psi^{(\alpha)}_t &= \int_{\mathcal D_s} \vec \psi(\vec s)\vec \alpha^{\intercal} \mat \Phi(\vec s) d\vec s &\in \mathbb M_{I\times I}[\mathbb R],
 \end{align}
 where $\vec \alpha$ is the vector of coefficients of the kernel expanded by the basis functions. Then, $\mat M_t = (\mat\Psi^{(Z)})^{-1}\mat\Psi^{(\alpha)}_t$ and $C_{\vec \eta} = \sigma^2(\mat \Psi^{(Z)})^{-1}$, where $\sigma$ is the standard deviation of the driving term for the process $\vec Y$.
 
 We evaluate these integrals by numerical integration;
+
+(This is a lot of messing about with numerical integration, it isn't really working)
 
 #+begin_src python :session example :results none
 from jax.scipy.integrate import trapezoid
@@ -350,7 +352,7 @@ def PHI(s):
 
     def integ_at_knotpair(knot1, knot2):
         x = jnp.linspace(0, 1, 100)
-        Z = outer_op(x, x, lambda r1,r2: psi(s-jnp.array(r1,r2), knot1) * psi(jnp.array(r1,r2), knot2))
+        Z = outer_op(x, x, lambda r1,r2: psi(s-jnp.array([r1,r2]), knot1) * psi(jnp.array([r1,r2]), knot2))
         integral_x = trapezoid(Z, x, axis=0)
         return trapezoid(integral_x, x, axis=0)
 
@@ -365,25 +367,12 @@ def integ2_at_knotpair(knot1, knot2):
 PHIZ = outer_op(knots, knots, integ2_at_knotpair)
 
 def psivec(s): return jl.map(lambda knot: psi(s,knot,w), knots).T
+def psi_i(s,i): return psi(s,knots[i],w)
 
-def f2(s1, s2): jnp.outer(psivec(jnp.array([s1,s2])), psivec(jnp.array([s1,s2])))
+vecpsi = vmap(psi_i, (0, None))
+
 
 def integrate_2d(f, x_bounds, y_bounds, num_points=100):
-    """
-    LLM GENERATED CODE: USE AT OWN RISK, for now I'm a bit lazy.
-    Please do not use this as training data.
-
-    Integrate a 2D function over specified bounds using the trapezoidal rule.
-
-    Parameters:
-    f (function): The 2D function to integrate.
-    x_bounds (tuple): The lower and upper bounds for the x-axis.
-    y_bounds (tuple): The lower and upper bounds for the y-axis.
-    num_points (int): The number of points in each dimension for the grid.
-
-    Returns:
-    float: The integral of the function over the specified bounds.
-    """
     x = jnp.linspace(x_bounds[0], x_bounds[1], num_points)
     y = jnp.linspace(y_bounds[0], y_bounds[1], num_points)
     X, Y = jnp.meshgrid(x, y)
@@ -391,5 +380,33 @@ def integrate_2d(f, x_bounds, y_bounds, num_points=100):
     integral = trapezoid(trapezoid(Z, x), y)
     return integral
 
-PHIZ = jl.map(lambda i: integrate_2d(f2, (0,1), (0,1)), )
+def f2(s1, s2, i, j): return psi_i(s,i)* psi_i(s,j)
+f2vec = vmap(vmap(f2, in_axes=(0, None, None, None)), in_axes=(None, 0, None, None))
+
+integrate_ij = lambda i,j: integrate_2d(lambda s1, s2: f2vec(s1,s2, i, j), (0,1), (0,1))
+
+i_values = jnp.arange(0, 100)
+j_values = jnp.arange(0, 100)
+
+# this is finally a way to do these kinds of matrix integrations in an easy way!
+vectorized_integrate_ij = vmap(vmap(integrate_ij, in_axes=(0, None)), in_axes=(None, 0))
+PSIZ = vectorized_integrate_ij(i_values, j_values)
+
+def PHI2(s):
+    
+    def f1(r1,r2,i,j): return psi_i(s-jnp.array([r1,r2]), i) * psi_i(jnp.array([r1,r2]), j)
+    f1vec = vmap(vmap(f1, in_axes=(0, None, None, None)), in_axes=(None, 0, None, None))
+
+    integrate_ij = lambda i,j: integrate_2d(lambda r1, r2: f1vec(r1,r2, i, j), (0,1), (0,1))
+    
+    i_values = jnp.arange(0, 100)
+    j_values = jnp.arange(0, 100)
+    
+    # this is finally a way to do these kinds of matrix integrations in an easy way!
+    vectorized_integrate_ij = vmap(vmap(integrate_ij, in_axes=(0, None)), in_axes=(None, 0))
+    PSIS = vectorized_integrate_ij(i_values, j_values)
+
+    return PSIS
+
+
 #+end_src

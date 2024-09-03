@@ -1,0 +1,214 @@
+%& /home/tate/.config/emacs/var/org/persist/f8/7931a3-1b13-4451-91ef-1285654e4e99-5ef526f2ddf3447bb47cc32e176cd002
+% Created 2024-08-23 Fri 14:45
+% Intended LaTeX compiler: pdflatex
+\documentclass[letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{amsmath,amsfonts,amsthm,amssymb,bm,bbm,tikz,tkz-graph, graphicx, subcaption, mathtools, algpseudocode}
+\usepackage[cache=false]{minted}
+\usetikzlibrary{arrows}
+\usetikzlibrary{bayesnet}
+\usetikzlibrary{matrix}
+\usepackage[margin=1in]{geometry}
+\usepackage[english]{babel}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem*{remark}{Remark}
+\DeclareMathOperator{\E}{\mathbb E}
+\DeclareMathOperator{\prob}{\mathbb P}
+\DeclareMathOperator{\var}{\mathbb V\mathrm{ar}}
+\DeclareMathOperator{\cov}{\mathbb C\mathrm{ov}}
+\DeclareMathOperator{\cor}{\mathbb C\mathrm{or}}
+\DeclareMathOperator{\normal}{\mathcal N}
+\DeclareMathOperator{\invgam}{\mathcal{IG}}
+\newcommand*{\mat}[1]{\bm{#1}}
+\newcommand{\norm}[1]{\left\Vert #1 \right\Vert}
+\renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
+
+%% ox-latex features:
+%   !announce-start, !guess-pollyglossia, !guess-babel, !guess-inputenc,
+%   maths, !announce-end.
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+%% end ox-latex features
+
+
+% end precompiled preamble
+\ifcsname endofdump\endcsname\endofdump\fi
+
+\author{Evan Tate Paterson Hughes}
+\date{\today}
+\title{Org Notebook for the IDEM project}
+\begin{document}
+
+\maketitle
+
+\section{Import the Project}
+\label{sec:org5c5669b}
+
+\begin{minted}[]{python}
+from IDEM import *
+from utilities import create_grid
+\end{minted}
+\section{Constructing the Process Grid and Kernel}
+\label{sec:org7509ec5}
+
+Closely following (Wikle, Christopher K and Zammit-Mangion, Andrew and Cressie, Noel, 2019);
+
+\begin{minted}[]{python}
+d = 2 # set the spatial dimension
+
+ds = 0.01
+
+# creates a grid 
+s_grid = create_grid(jnp.array([[0,1],[0,1]]),
+                     jnp.array([0.01, 0.01]))
+N = len(s_grid)
+
+nT = 201
+t_grid = jnp.arange(0, nT-1)
+
+st_grid = jnp.stack(jnp.meshgrid(s_grid, t_grid), axis=-1)
+\end{minted}
+
+We then define the transition kernel; as an example, this is using a Gaussian kernel
+
+\begin{align*}
+\kappa(\vec s, \vec x; \alpha, \vec\mu, \mat\Sigma) = \alpha\exp \left[ -(\vec s - \vec x - \vec \mu) \mat\Sigma^{-1} (\vec s - \vec x - \vec \mu) \right].
+\end{align*}
+
+Implemented as a JAX function,
+
+\begin{minted}[]{python}
+def make_kernel(alpha,
+          mu,
+          sigma):
+
+    def kappa(s, x): 
+        
+        return alpha * jnp.exp(-(s-x-mu) @ solve(sigma, (s-x-mu).T))
+
+    kappa_vmap = jax.vmap(
+        jax.vmap(kappa, in_axes=(0, None)),  # Vectorize over s
+        in_axes=(None, 0)  # Vectorize over x
+    )
+
+    return kappa_vmap
+
+#example values
+alpha = 1
+mu = jnp.array([0,0])
+sigma = jnp.array([[1,0],[0,2]])
+\end{minted}
+
+\begin{minted}[]{python}
+
+s_vec = jnp.array([[1,1],[2,2]])
+x_vec = jnp.array([[-1,2],[-2,2]])
+
+result = kappa_vmap(s_vec, x_vec, alpha, mu, sigma)
+\end{minted}
+
+Lets first try to recreate the results in the original R book; here, the dimension is 1, and we consider the point \(s=0.5\) for the following parameter options
+
+\begin{minted}[]{python}
+thetap1 = (jnp.array(40),jnp.array([0]),jnp.array([[0.0002]]))
+thetap2 = (jnp.array(5.75),jnp.array([0]),jnp.array([[0.01]]))
+thetap3 = (jnp.array(8),jnp.array([0.1]),jnp.array([[0.005]]))
+thetap4 = (jnp.array(8),jnp.array([-0.1]),jnp.array([[0.005]]))
+\end{minted}
+
+when we apply \texttt{kappa\_outer}, we can unpack these by \texttt{*thatap1}, for example.
+
+Lets make a 1D grid with the \texttt{create\_grid} function;
+
+\begin{minted}[]{python}
+s_grid_1D = create_grid(jnp.array([[0,1]]), jnp.array([0.01]))
+
+kappa_1 = make_kernel(*thetap1)
+
+k_x_1 = kappa_1(jnp.array([[0.5]]),
+                    s_grid_1D)
+
+import matplotlib.pyplot as plt
+plt.plot(s_grid_1D, k_x_1)
+plt.title('k_x_1')
+plt.xlabel('x')
+plt.show()
+plt.close()
+\end{minted}
+
+We should also define \(\eta_t\). Being independent in time, this is simply a multivariate Gaussian with some covariance matrix \(\mat \Sigma_{\eta}\). In the R book examples, they define this covariance as an exponential function as follows;
+
+\begin{minted}[]{python}
+sigma_eta = 0.1 * jnp.exp(-jnp.abs(
+    s_grid_1D - s_grid_1D.T)/0.1)
+\end{minted}
+
+and then simulation can be done through the \texttt{jax.random.multivariate\_normal} operation (or otherwise, of course).
+
+\begin{minted}[]{python}
+key = jax.random.PRNGKey(seed=3)
+
+sim = rand.multivariate_normal(key, jnp.zeros(100), sigma_eta)
+
+plt.plot(s_grid_1D, sim)
+plt.show()
+plt.close()
+\end{minted}
+\section{Simulation of the Process}
+\label{sec:org9e21e8c}
+
+We can now consider how to actually simulate a realisation of such a system. In the R book, they do this with a for loop; this simply won't do. Instead, we define how the model should step forward with a function, which we can then iterate across.
+
+\begin{minted}[]{python}
+def forward_step(Y,
+                 M,
+                 s_grid,
+                 key):
+
+    sigma_eta = 0.1 * jnp.exp(-jnp.abs(
+        s_grid - s_grid.T)/0.1)
+    eta = rand.multivariate_normal(key, jnp.zeros(100), sigma_eta)
+
+    ds=0.01 # for now :(
+    
+    Y_next = (M @ Y)*ds + eta
+
+    return Y_next
+
+Y_init = jnp.zeros(100)
+
+kappa_1 = make_kernel(*thetap1)
+kappa_3 = make_kernel(*thetap3)
+
+M = kappa_3(s_grid_1D, s_grid_1D)
+
+def step(carry, key):
+        nextstate = forward_step(carry, M, s_grid_1D, key)
+        return(nextstate, nextstate)
+
+T=200
+key = jax.random.PRNGKey(seed=2)
+keys = rand.split(key, T)
+    
+simul = jl.scan(step, Y_init, keys)[1]
+
+# Create the Hovmöller plot
+plt.figure(figsize=(100, 6))
+plt.contourf([jnp.arange(T),s_grid_1D.flatten()], simul, cmap='viridis', levels=200)
+plt.colorbar(label='process')
+plt.xlabel('Space')
+plt.ylabel('Time')
+plt.title('Hovmöller Plot')
+
+# Show the plot
+plt.show()
+plt.close()
+\end{minted}
+\end{document}
