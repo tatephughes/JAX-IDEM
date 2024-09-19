@@ -57,4 +57,22 @@ def eval_basis(basis_func, locations, knots, alpha):
 
     PHIalpha = outer_op(stations, knots, basis_func) @ alpha
 
+def simIDEM(T, nobs = 100, nres = 40, nint=200):
+
+    """
+    Simulates from a given IDE model.
+    Partially implemented, for now this will use a pre-defined model, similar to AZM's package
+
+    Parameters:
+    T: Int; the number of time increments to simulate
+    nobs: Int; the number of observation points to simulate
+    nres: Int; the grid size of the discretised process
+    nint: Int; The resolution at which to compute the Riemann integrals
+    """
+
+    # Bisquare basis functions
+    def psi(s, knot, w=1):
+        squarenorm = jnp.array([jnp.sum((s-knot)**2)])
+        return ((2 - squarenorm)**2 * jnp.where(squarenorm < w, 1, 0))[0]
     
+    return "WOW"
