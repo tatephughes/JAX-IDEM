@@ -256,6 +256,7 @@ Now I want to get a simulation from $\eta_t(\vec s)$ for some time $t$. The ~IDE
 from jax.numpy.linalg import vector_norm
 import jax.random as rand
 import matplotlib.pyplot as plt
+from utilities import outer_op
 
 key = jax.random.PRNGKey(seed=42)
 
@@ -402,9 +403,15 @@ Great, that's about what I want (though not usable in a jit-loop).
 Now I want to test the function;
 
 #+begin_src python :session example :results none
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.random as rand
+
 import importlib
-importlib.reload(utilities)
+import utilities
 from utilities import place_basis
+importlib.reload(utilities)
 
 # just using the default values; creates a list of 90 basis funcs regularily places across the
 # unit square across two resolutions
@@ -425,6 +432,120 @@ vec_phi = jax.vmap(psi, in_axes=(None, 0))
 phis = vec_phi(s, basis_params)
 
 # then we can recreate FRK's eval_basis (kinda) by further vectorisation
-eval_basis = jax.vmap(vec_phim, in_axes=(0, None))
+eval_basis = jax.vmap(vec_phi, in_axes=(0, None))
 #+end_src
 
+* ~construct_M~
+
+#+begin_src python :session example :results none
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.random as rand
+
+import matplotlib.pyplot as plt
+
+import importlib
+import utilities
+from utilities import place_basis
+from utilities import create_grid
+import IDEM
+from IDEM import construct_M
+importlib.reload(utilities)
+importlib.reload(IDEM)
+
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 2)
+
+process_basis = place_basis()
+nbasis = process_basis.shape[0]
+
+def psi(s, params):
+    squarenorm = jnp.array([jnp.sum((s-params[0:2])**2)])
+    return ((2 - squarenorm)**2 * jnp.where(squarenorm < params[2], 1, 0))[0]
+
+vec_phi = jax.vmap(psi, in_axes=(None, 0))
+
+K_basis = (jnp.array(1),
+           jnp.array(1),
+           place_basis(nres=1),
+           place_basis(nres=1))
+k = (jnp.array(200),
+     jnp.array(0.2),
+     0.01*rand.normal(keys[0], shape=(K_basis[2].shape[0], )),
+     0.01*rand.normal(keys[2], shape=(K_basis[3].shape[0], )))
+
+def kernel(s,r):
+    
+    theta = (k[0], k[1],
+             jnp.array([k[2] @ vec_phi(s, K_basis[2]),
+                        k[3] @ vec_phi(s, K_basis[3])]))
+    
+    return theta[0] * jnp.exp(-(jnp.sum((r-s-theta[2])**2)) / theta[1])
+
+
+# we can visualise this kernel by plotting it on a grid
+griddelta = 0.01
+s_grid = create_grid(jnp.array([[0,1],[0,1]]),
+                     jnp.array([griddelta, griddelta]))
+
+centre = jnp.array([0.5,0.5])
+z = jax.vmap(kernel, in_axes=(None, 0))(centre, s_grid)
+
+plt.figure(figsize=(3, 2))
+plt.scatter(s_grid.T[0], s_grid.T[1], c=z, cmap='viridis', marker='s')
+
+plt.colorbar(label='kernel strength')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title('Kernel')
+plt.show()
+plt.close()
+
+# now we attempt to create the matrix M
+
+M = construct_M(kernel, process_basis, s_grid, griddelta)
+#+end_src
+
+* Testing ~simIDE~
+
+#+begin_src python :session example :results none :tangle simIDEM.py
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.random as rand
+
+import matplotlib.pyplot as plt
+
+import importlib
+import utilities
+from utilities import *
+import IDEM
+from IDEM import *
+importlib.reload(utilities)
+importlib.reload(IDEM)
+
+griddelta = 0.01
+s_grid = create_grid(jnp.array([[0,1],[0,1]]),
+                     jnp.array([griddelta, griddelta]))
+
+k = (jnp.array(200),
+     jnp.array(0.2),
+     0.01*rand.normal(keys[0], shape=(K_basis[2].shape[0], )),
+     0.01*rand.normal(keys[2], shape=(K_basis[3].shape[0], )))
+
+process_vals = simIDEM(T=9, k=k)
+
+fig, axes = plt.subplots(3, 3, figsize=(8, 5))
+
+for i in range(9):
+    ax = axes[i // 3, i % 3]
+    scatter = ax.scatter(s_grid.T[0], s_grid.T[1], c=process_vals[i], cmap='viridis', marker='s')
+    ax.set_title(f'T = {i+1}')
+    fig.colorbar(scatter, ax=ax)
+
+plt.tight_layout()
+plt.show()
+plt.close()
+
+#+end_src

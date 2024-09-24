@@ -64,26 +64,36 @@ def place_basis(data = jnp.array([[0,0],[1,1]]),
                                         ):
 
     '''
-    Distributes knots and scales for basis fucntions over a number of resolutions,
+    Distributes knots and scales for basis functions over a number of resolutions,
     similar to auto_basis from the R package FRK.
-    This function must be run outside of a jit loop, for now.
+    This function must be run outside of a jit loop, since it involves varying the
+    length of arrays.
+
+    NOTE: This function does not directly give basis functions, like in FRK for
+    example. Instead, it returns an array of parameters for a basis function,
+    in the form [x_coord, y_coord, scale].
     
     
     '''
 
-    asp_ratio = (max(data[:,1]) - min(data[:,1]))/(max(data[:,0]) - min(data[:,0]))
+    xmin = jnp.min(data[:,0])
+    xmax = jnp.max(data[:,0])
+    ymin = jnp.min(data[:,1])
+    ymax = jnp.max(data[:,1])
+    
+    asp_ratio = (ymax-ymin)/(xmax-xmin)
     
     if asp_ratio < 1:
         ny = min_knot_num
-        nx = round(asp_ratio / ny)
+        nx = jnp.round(ny/asp_ratio).astype(int)
     else:
         nx = min_knot_num
-        ny = round(asp_ratio * nx)     
+        ny = jnp.round(asp_ratio * nx).astype(int)     
         
     def basis_at_res(res):
 
-        x_range = jnp.linspace(min(data[:,0]), max(data[:,0]), nx*3**res)
-        y_range = jnp.linspace(min(data[:,1]), max(data[:,1]), ny*3**res)
+        x_range = jnp.linspace(xmin, xmax, nx*3**res)
+        y_range = jnp.linspace(ymin, ymax, ny*3**res)
 
         knots = jnp.stack(jnp.meshgrid(x_range, y_range, indexing='ij'),
                  axis=-1).reshape(-1,2)

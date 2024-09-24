@@ -1,0 +1,94 @@
+#+TITLE: Testing the R package
+
+:BOILERPLATE:
+#+BIBLIOGRAPHY: Bibliography.bib
+#+LATEX_CLASS: article
+#+LATEX_CLASS_OPTIONS: [letterpaper]
+#+OPTIONS: toc:nil
+#+LATEX_HEADER: \usepackage{amsmath,amsfonts,amsthm,amssymb,bm,bbm,tikz,tkz-graph, graphicx, subcaption, mathtools, algpseudocode}
+#+LATEX_HEADER: \usepackage[cache=false]{minted}
+#+LATEX_HEADER: \usetikzlibrary{arrows}
+#+LATEX_HEADER: \usetikzlibrary{bayesnet}
+#+LATEX_HEADER: \usetikzlibrary{matrix}
+#+LATEX_HEADER: \usepackage[margin=1in]{geometry}
+#+LATEX_HEADER: \usepackage[english]{babel}
+#+LATEX_HEADER: \newtheorem{theorem}{Theorem}[section]
+#+LATEX_HEADER: \newtheorem{corollary}[theorem]{Corollary}
+#+LATEX_HEADER: \newtheorem{lemma}[theorem]{Lemma}
+#+LATEX_HEADER: \newtheorem{definition}[theorem]{Definition}
+#+LATEX_HEADER: \newtheorem*{remark}{Remark}
+#+LATEX_HEADER: \DeclareMathOperator{\E}{\mathbb E}
+#+LATEX_HEADER: \DeclareMathOperator{\prob}{\mathbb P}
+#+LATEX_HEADER: \DeclareMathOperator{\var}{\mathbb V\mathrm{ar}}
+#+LATEX_HEADER: \DeclareMathOperator{\cov}{\mathbb C\mathrm{ov}}
+#+LATEX_HEADER: \DeclareMathOperator{\cor}{\mathbb C\mathrm{or}}
+#+LATEX_HEADER: \DeclareMathOperator{\normal}{\mathcal N}
+#+LATEX_HEADER: \DeclareMathOperator{\invgam}{\mathcal{IG}}
+#+LATEX_HEADER: \newcommand*{\mat}[1]{\bm{#1}}
+#+LATEX_HEADER: \newcommand{\norm}[1]{\left\Vert #1 \right\Vert}
+#+LATEX_HEADER: \renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
+#+EXPORT_EXCLUDE_TAGS: noexport
+:END:
+
+We follow the 'spatio-temporal statistics in R' book, Lab 5.2., covering Andrew Zammit-Mangion's R implementation of the IDE model.
+
+* Imports
+
+#+begin_src R :session example :results none
+library("plyr")
+library("dplyr")
+library("IDE")
+library("FRK")
+library("ggplot2")
+library("sp")
+library("spacetime")
+library("STRbook")
+#+end_src
+
+The IDE package comes with a pre-defined model. ~SIMIDE~ also allows for a custom model to be placed as the argument ~IDEmodel~, but without it, there is a default
+
+#+begin_src R :session example :results none
+SIM1 <- simIDE(T=10, nobs=100, k_spat_invariant=1)
+#+end_src
+
+This function then completely ignores the argument ~nobs~ and creates a uniform grid across $[0,t]\times[0,1]$.
+
+It then uses ~auto_basis~ from ~FRK~ to create a basis for Y. The documentation for this function is [[https://andrewzm.github.io/FRK/reference/auto_basis.html][here]].  The ZM code doesn't specify a basis type, although the book claims it uses bisquare. The default in FRK is, however, a vector containing all available types, so I'm not sure how that works. If I were to guess, it makes all of them? 
+
+It would be ideal to implement a similar mechanism for basis funcitons in JAX, though it may also be worthwhile to look into what already exists. 
+*************** TODO Do this thing :)
+*************** END
+
+The parameter ~regular=1~ implies that there is only one basis function at the coarsest resolution (meaning only three basis functions in total). This can't be right? Lets test it quickly
+
+#+begin_src R :session example :results graphics file :file ./show_basis_test.png :height 200 :width 300 :exports both
+zlocs <- data.frame(s1=runif(100), s2=runif(100))
+
+Y_basis <- auto_basis(manifold = plane(),
+                      data = SpatialPoints(zlocs),
+                      regular = 1,
+                      nres = 2)
+
+show_basis(Y_basis)
+#+end_src
+
+#+RESULTS:
+[[file:./show_basis_test.png]]
+
+so no, there are 90 basis functions; 30 for the first resolution, 60 for the second. The documentation says
+
+#+begin_quote
+'with the smallest number of basis functions in each row or column equal to the value of regular in the coarsest resolution (note, this is just the smallest number of basis functions). Subsequent resolutions have twice the number of basis functions in each row or column.'
+#+end_quote
+
+This seems inaccurate, with there being three per locum in the first resolution and then triple (rather than double ) in the next resolution. This would be too hard to confirm I suppose, and is somewhat irrelevant.
+
+#+begin_src R :session example :results output :exports both
+print(nbasis(Y_basis))
+#+end_src
+
+#+RESULTS:
+: [1] 90
+
+Next, ~G_const~ is set at ~constant_basis~. Why? not really sure... There is a comment calling the 'kernel decomposition'. My guess is that there were plans to allow for basis-defined kernel functions (as described in Dewar et al 2009), but since the default is using the Gaussian-like parameterised kernel function, the 'basis' becomes simply a constant multiplier of said kernel function.
+
