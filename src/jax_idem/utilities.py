@@ -7,22 +7,22 @@ import jax.numpy as jnp
 # from jax.numpy.linalg import solve
 
 
-def create_grid(bounds, deltas):
+def create_grid(bounds, ngrids):
     """
     Creates an n-dimensional grid based on the given bounds and deltas.
 
     Parameters:
     bounds: Array[[Double, Double]]; The bounds for each dimension
-    deltas: Array[Double]; The increment for each dimension.
+    ngrid: Array[Int]; The number of columns/rows/hyper-column in each dimension
 
-    Returns: Array[Array[Double]]
-    JAX array of coordinate arrays for the grid.
+    Returns: (Array[Array[Double]], Array[Double])
+    Tuple of a JAX array of coordinate arrays for the grid and the length between grid points in each dimension.
     """
 
     dimension = jnp.size(bounds, axis=0)
 
     def gen_range(i):
-        return jnp.arange(bounds[i][0], bounds[i][1], deltas[i])
+        return jnp.linspace(bounds[i][0], bounds[i][1], ngrids[i])
 
     # This is a traditional loop. I imagine there must be a better,
     # more parallelisable way to do this, but arange is being a bit
@@ -34,7 +34,11 @@ def create_grid(bounds, deltas):
         -1, dimension
     )
 
-    return grid
+    # I'm actually reasonably certain that this delta is wrong. it should be divided by ```ngrids-1```, but this is how it is in the IDE R package. With fine integration grids, this shouldn't matter much, but if it is a problem I will put up a github issue on IDE.
+    return (
+        grid.at[:, [0, 1]].set(grid[:, [1, 0]]),
+        (bounds[:, 1] - bounds[:, 0]) / ngrids,
+    )
 
 
 def outer_op(a, b, op=lambda x, y: x * y):
@@ -57,20 +61,36 @@ def outer_op(a, b, op=lambda x, y: x * y):
     return vec_op(a, b)
 
 
+def bisquare(s, params):
+    squarenorm = jnp.array([jnp.sum((s - params[0:2]) ** 2)])
+    return (
+        (1 - squarenorm / (params[2] ** 2)) ** 2
+        * jnp.where(squarenorm < params[2] ** 2, 1, 0)
+    )[0]
+
+
 def place_basis(
-    data=jnp.array([[0, 0], [1, 1]]), nres=2, aperture=1.25, min_knot_num=3
+    data=jnp.array([[0, 0], [1, 1]]),
+    nres=2,
+    aperture=1.25,
+    min_knot_num=3,
+    basis_fun=bisquare,
 ):
     """
-    Distributes knots and scales for basis functions over a number of resolutions,
-    similar to auto_basis from the R package FRK.
-    This function must be run outside of a jit loop, since it involves varying the
-    length of arrays.
+            Distributes knots (centroids) and scales for basis functions over a number of resolutions,
+            similar to auto_basis from the R package FRK.
+            This function must be run outside of a jit loop, since it involves varying the
+            length of arrays.
 
-    NOTE: This function does not directly give basis functions, like in FRK for
-    example. Instead, it returns an array of parameters for a basis function,
-    in the form [x_coord, y_coord, scale].
+    Parameters:
+      data: Arraylike[ArrayLike[Double]]; array of 2D points defining the space on which to put the basis functions
+      nres: Int; The number of resolutions at which to place basis functions
+      aperture: Double; Scaling factor for the scale parameter (scale parameter will be w=aperture * d, where d is the minimum distance between any two of the knots)
+      min_knot_num: Int; The number of basis functions to place in each dimension at the coursest resolution
+      basis_fun: (ArrayLike[Double], ArrayLike[Double]) -> Double; the basis functions being used. The basis function's second argument must be an array with three doubles; the first coordinate for the centre, the second coordinate for the centre, and the scale/aperture of the function.
 
-
+    Returns:
+      A tuple of two functions and an integer, the first evaluating the basis functions at a point, and the second evaluating the basis functions on an array of points.
     """
 
     xmin = jnp.min(data[:, 0])
@@ -88,26 +108,23 @@ def place_basis(
         ny = jnp.round(asp_ratio * nx).astype(int)
 
     def basis_at_res(res):
-        x_range = jnp.linspace(xmin, xmax, nx * 3**res)
-        y_range = jnp.linspace(ymin, ymax, ny * 3**res)
+        bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
+        ngrids = jnp.array([nx, ny]) * 3**res
 
-        knots = jnp.stack(
-            jnp.meshgrid(x_range, y_range, indexing="ij"), axis=-1
-        ).reshape(-1, 2)
+        knots, deltas = create_grid(bounds, ngrids)
+        w = jnp.min(deltas) * aperture * 1.5
 
-        def pairwise_distances(points):
-            diff = points[:, None, :] - points[None, :, :]
-            dist = jnp.sqrt(jnp.sum(diff**2, axis=-1))
-            return dist
+        return jnp.hstack([knots, jnp.full((knots.shape[0], 1), w)])
 
-        distances = pairwise_distances(knots)
+    params = jnp.vstack([basis_at_res(res) for res in range(nres)])
+    nbasis = params.shape[0]
 
-        # the diagonal here is to ensure the 0s on the diagonal are ignored
-        min_distance = jnp.min(distances + jnp.eye(knots.shape[0]) * jnp.max(distances))
+    def basis_vfun(s):
+        return jax.vmap(basis_fun, in_axes=(None, 0))(s, params)
 
-        aperture_res = min_distance * aperture
+    def eval_basis(s_array):
+        return jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)), in_axes=(0, None))(
+            s_array, params
+        )
 
-        return jnp.hstack([knots, jnp.full((knots.shape[0], 1), aperture_res)])
-
-    # You cant abstract over array lengths, this must(?) be done like this
-    return jnp.vstack([basis_at_res(res) for res in range(nres)])
+    return (basis_vfun, eval_basis, nbasis)
