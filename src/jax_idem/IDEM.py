@@ -14,30 +14,49 @@ import matplotlib.pyplot as plt
 # import pandas as pd
 # import patsy
 
+# typing imports
+from jax.typing import ArrayLike
+from typing import Callable, NamedTuple  # , Union
+
 # In-Module imports
-from utilities import create_grid, place_basis, outer_op
+from utilities import create_grid, place_basis, outer_op, Basis, Grid
+
+ngrids = jnp.array([41, 41])
+bounds = jnp.array([[0, 1], [0, 1]])
 
 
-def forward_step(beta, kernel, locations, M, key):
-    sigma_eta = 0.1 * jnp.exp(
-        -outer_op(locations, locations, lambda s, x: vector_norm(s - x)) / 0.1
-    )
-    eta = rand.multivariate_normal(key, jnp.zeros(locations.shape[0]), sigma_eta)
+def construct_M(kernel: Callable, process_basis: Basis, grid: Grid):
+    """Constructs the progression matrix, M, defining how the basis parameters evolve linearly with time. Integration is done by Rieamann sum for now, on the grid provided.
+
+    Paramters
+    ----------
+      kernel: Arraylike, ArrayLike -> ArrayLike; kernel function defining the progression of the process. The first argument is s, the variable being integrated over, and the second object should be the parameters; an array of shape (3, ) containing the x offset, y offset and scale of the kernel.
+      process_basis: Basis; the basis for the process
+      grid: ArrayLike; the grid to be integrated over
+      gridarea: float: the area of a single cell of the grid
+
+    """
+
+    PHI = process_basis.mfun(grid.coords)
+
+    GRAM = (PHI.T @ PHI) * grid.area
+
+    K = outer_op(grid.coords, grid.coords, kernel)
+
+    return solve(GRAM, PHI.T @ K @ PHI) * grid.area**2
 
 
-def construct_M(kernel, process_basis, grid, gridarea):
-    basis_vfunc, eval_basis, nbasis = process_basis
-
-    PHI = eval_basis(grid)
-
-    GRAM = (PHI.T @ PHI) * gridarea
-
-    K = outer_op(grid, grid, kernel)
-
-    return solve(GRAM, PHI.T @ K @ PHI) * gridarea**2
-
-
-def simIDEM(T, k, K_basis, ngrids=jnp.array([41, 41]), nobs=100, nres=2, nint=200):
+def simIDEM(
+    key: ArrayLike,
+    T: int,
+    k: (ArrayLike, ArrayLike, ArrayLike, ArrayLike),
+    K_basis: Basis,
+    process_basis: Basis,
+    obs_grids: ArrayLike,
+    alpha0: ArrayLike = jnp.zeros(90).at[jnp.array([64])].set(1),
+    process_grid: Grid = create_grid(bounds, ngrids),
+    int_grid: Grid = create_grid(bounds, ngrids),
+) -> ArrayLike:
     """
     Simulates from a given IDE model.
     Partially implemented, for now this will use a pre-defined model, similar to AZM's package
@@ -50,53 +69,38 @@ def simIDEM(T, k, K_basis, ngrids=jnp.array([41, 41]), nobs=100, nres=2, nint=20
     """
 
     # key setup
-    key = jax.random.PRNGKey(seed=628)
-    keys = rand.split(key, 3)
+    keys = rand.split(key, 5)
 
-    # Place 90 basis functions across two resolutions (default values are fine here)
-    # the original R code bases the grid 100 uniform points across the unit square,
-    # which can also be done here by setting data=rand.uniform(<key>, shape=(100,2))
-    process_basis = place_basis(nres=2)
-    nbasis = process_basis[2]
-
-    # now, for example, ```eval_basis(<list of points>, params)``` will work
+    nbasis = process_basis.nbasis
 
     # Other Coefficients
-    beta = jnp.array([0.2, 0.2, 0.2])
     sigma2_eta = 0.01**2
     sigma2_eps = 0.01**2
+
+    nobs = obs_grids.shape[1]
 
     Q_eta = jnp.eye(nbasis) / sigma2_eta
     Q_eps = jnp.eye(nobs * T) / sigma2_eps
 
-    ngrids = jnp.array([41, 41])
-    bounds = jnp.array([[0, 1], [0, 1]])
-
-    # Process nodes
-    s_grid, griddeltas = create_grid(bounds, ngrids)
-    gridarea = jnp.prod(griddeltas)
-
+    @jax.jit
     def kernel(s, r):
+        """Generates the kernel function from the kernel basis and basis coefficients"""
         theta = (
-            k[0] @ K_basis[0][0](s),
-            k[1] @ K_basis[1][0](s),
+            k[0] @ K_basis[0].vfun(s),
+            k[1] @ K_basis[1].vfun(s),
             jnp.array(
                 [
-                    k[2] @ K_basis[2][0](s),
-                    k[3] @ K_basis[3][0](s),
+                    k[2] @ K_basis[2].vfun(s),
+                    k[3] @ K_basis[3].vfun(s),
                 ]
             ),
         )
 
         return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
 
-    # alpha0 = jnp.zeros(nbasis).at[jnp.array([64])].set(1)
-    alpha0 = (
-        jnp.zeros(nbasis).at[jnp.array([77, 66, 19, 1, 34, 75, 31, 35, 46, 88])].set(1)
-    )
+    M = construct_M(kernel, process_basis, int_grid)
 
-    M = construct_M(kernel, process_basis, s_grid, gridarea)
-
+    @jax.jit
     def step(carry, key):
         nextstate = M @ carry + jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
         return (nextstate, nextstate)
@@ -105,14 +109,34 @@ def simIDEM(T, k, K_basis, ngrids=jnp.array([41, 41]), nobs=100, nres=2, nint=20
 
     alpha = jl.scan(step, alpha0, alpha_keys)[1]
 
+    @jax.jit
     def get_process(alpha, s_grid):
-        return process_basis[1](s_grid) @ alpha
+        return process_basis.mfun(s_grid.coords) @ alpha
 
     vget_process = jax.vmap(get_process, in_axes=(0, None))
 
-    process_vals = vget_process(alpha, s_grid)
+    process_vals = vget_process(alpha, process_grid)
 
-    return process_vals
+    # X_proc = jnp.column_stack([jnp.ones(s_grid.shape[0]), s_grid])
+    beta = jnp.array([0.2, 0.2, 0.2])
+
+    X_obs = jl.map(
+        lambda arr: jnp.column_stack([jnp.ones(arr.shape[0]), arr]), obs_grids
+    )
+
+    PHI_obs = jl.map(process_basis.mfun, obs_grids)
+
+    @jax.jit
+    def get_obs(X_obs_1, PHI_obs_1, alpha_1):
+        return (
+            X_obs_1 @ beta
+            + PHI_obs_1 @ alpha_1
+            + jnp.sqrt(sigma2_eps) * rand.normal(key, shape=(nobs,))
+        )
+
+    obs_vals = jax.vmap(get_obs)(X_obs, PHI_obs, alpha)
+
+    return (process_vals, obs_vals)
 
 
 if __name__ == "__main__":
@@ -120,13 +144,21 @@ if __name__ == "__main__":
         "IDEM loaded as main. Simulating a simple spatially-invariant kernel example."
     )
 
-    key = jax.random.PRNGKey(1)
+    key = jax.random.PRNGKey(5)
     keys = rand.split(key, 3)
 
-    ngrids = jnp.array([41, 41])
-    s_grid, griddeltas = create_grid(jnp.array([[0, 1], [0, 1]]), ngrids)
+    T = 9
 
-    k_spat_inv = 1
+    ngrids = jnp.array([41, 41])
+    nints = jnp.array([100, 100])
+    process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), ngrids)
+    obs_grids = rand.uniform(keys[3], shape=(T, 50, 2))
+    int_grid = create_grid(jnp.array([[0, 1], [0, 1]]), nints)
+
+    process_basis = place_basis()
+    nbasis = process_basis.nbasis
+
+    k_spat_inv = 0
 
     if k_spat_inv == 1:
         K_basis = (
@@ -141,6 +173,7 @@ if __name__ == "__main__":
             jnp.array([-0.1]),
             jnp.array([0.1]),
         )
+        alpha0 = jnp.zeros(nbasis).at[jnp.array([64])].set(1)
     else:
         K_basis = (
             place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
@@ -150,24 +183,70 @@ if __name__ == "__main__":
         )
         k = (
             jnp.array([200]),
-            jnp.array([0.2]),
-            0.01 * rand.normal(keys[0], shape=(K_basis[2][2],)),
-            0.01 * rand.normal(keys[2], shape=(K_basis[3][2],)),
+            jnp.array([0.002]),
+            0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
+            0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+        )
+        alpha0 = (
+            jnp.zeros(nbasis)
+            .at[jnp.array([77, 66, 19, 1, 34, 75, 31, 35, 46, 88])]
+            .set(1)
         )
 
-    process_vals = simIDEM(T=9, k=k, K_basis=K_basis, ngrids=ngrids)
+    sim_keys = rand.split(keys[2], 50)
+
+    process_vals_sample, obs_vals_sample = jl.map(
+        lambda key: simIDEM(
+            key=key,
+            T=T,
+            k=k,
+            K_basis=K_basis,
+            process_basis=process_basis,
+            alpha0=alpha0,
+            obs_grids=obs_grids,
+            process_grid=process_grid,
+            int_grid=int_grid,
+        ),
+        sim_keys,
+    )
+
+    process_vals = process_vals_sample[1]
+    obs_vals = obs_vals_sample[1]
 
     vmin = jnp.min(process_vals)
     vmax = jnp.max(process_vals)
 
     fig, axes = plt.subplots(3, 3, figsize=(8, 5))
 
+    for i in range(T):
+        ax = axes[i // 3, i % 3]
+        scatter = ax.scatter(
+            process_grid.coords.T[0],
+            process_grid.coords.T[1],
+            c=process_vals[i],
+            cmap="viridis",
+            marker="s",
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax.set_title(f"T = {i+1}")
+        ax.set_title(f"T = {i+1}", fontsize=5)  # Set title font size
+        ax.tick_params(
+            axis="both", which="major", labelsize=4
+        )  # Set tick labels font size
+        fig.colorbar(scatter, ax=ax)
+
+    plt.tight_layout()
+    plt.show()
+
+    fig, axes = plt.subplots(3, 3, figsize=(8, 5))
+
     for i in range(9):
         ax = axes[i // 3, i % 3]
         scatter = ax.scatter(
-            s_grid.T[0],
-            s_grid.T[1],
-            c=process_vals[i],
+            obs_grids[i].T[0],
+            obs_grids[i].T[1],
+            c=obs_vals[i],
             cmap="viridis",
             marker="s",
             vmin=vmin,
