@@ -1,3 +1,4 @@
+
 #+TITLE: Testing the R package
 
 :BOILERPLATE:
@@ -44,6 +45,8 @@ library("sp")
 library("spacetime")
 library("STRbook")
 #+end_src
+
+* Basic Testing
 
 The IDE package comes with a pre-defined model. ~SIMIDE~ also allows for a custom model to be placed as the argument ~IDEmodel~, but without it, there is a default
 
@@ -92,3 +95,184 @@ print(nbasis(Y_basis))
 
 Next, ~G_const~ is set at ~constant_basis~. Why? not really sure... There is a comment calling the 'kernel decomposition'. My guess is that there were plans to allow for basis-defined kernel functions (as described in Dewar et al 2009), but since the default is using the Gaussian-like parameterised kernel function, the 'basis' becomes simply a constant multiplier of said kernel function.
 
+
+
+* Matching AZM's code
+
+#+begin_src R :session example :results none
+library("plyr")
+library("dplyr")
+library("IDE")
+library("FRK")
+library("ggplot2")
+library("sp")
+library("spacetime")
+library("STRbook")
+#+end_src
+
+** ~construct_grid~ and ~construct_M~
+
+#+begin_src R :session example :results none
+construct_grid <- function(bbox, ngrid, coordnames = NULL) {
+  ndim <- nrow(bbox)
+  if(length(ngrid) == 1)
+    ngrid <- rep(ngrid, ndim)
+  if(!(length(ngrid) == ndim) | !is.numeric(ngrid))
+    stop("ngrid needs to be a numeric (which will be rounded if not an integer)
+         with length one or equal to the number of columns in bbox")
+  ngrid <- round(ngrid)
+
+  s <- lapply(1:nrow(bbox), function(i)
+    seq(bbox[i,1], bbox[i,2], length.out = ngrid[i]))
+  s_grid <- do.call("expand.grid", s)
+  if(is.null(coordnames)) {
+    names(s_grid) <- paste0("s",1:ndim)
+  } else {
+    names(s_grid) <- coordnames
+  }
+  list(s_grid_df = s_grid,
+       s_grid_mat = s_grid %>% as.matrix(),
+       ds = (bbox[,2] - bbox[,1])/(ngrid-1),
+       area = prod((bbox[,2] - bbox[,1])/(ngrid-1)))
+}
+
+construct_M <- function(Y_basis, s) {
+  PHI <- eval_basis(Y_basis, s$s_grid_mat)
+  GRAM <- crossprod(PHI)*s$area
+  GRAM_inv <- solve(GRAM)
+  ndim <- dimensions(Y_basis)
+  function(K_basis, ki) {
+    K <- construct_kernel(K_basis, ki)
+    Kmat <- K(s$s_grid_mat, s$s_grid_mat)
+    M <- GRAM_inv %*% crossprod(t(Kmat) %*% PHI, PHI)*s$area^2
+  }
+}
+#+end_src
+
+*** 
+
+#+begin_src R :session example :results none
+T = 9
+nobs = 100
+
+set.seed(1)
+zlocs <- data.frame(s1 = runif(100),
+                    s2 = runif(100))
+
+## Spatial decomposition
+Y_basis <- auto_basis(manifold = plane(),
+                      data = SpatialPoints(zlocs),
+                      regular = 1,
+                      nres = 2)
+r <- nbasis(Y_basis)
+
+## Kernel decomposition
+G_const <- constant_basis()
+
+## Regression coeffocients
+beta <- c(0.2,0.2,0.2)
+
+## Other parameters
+sigma2_eta <- 0.01^2
+sigma2_eps <- 0.01^2
+
+## Spatial domain
+bbox <- matrix(c(0,0,1,1),2,2)
+s <- construct_grid(bbox, 41)
+alpha <- matrix(0,r,T)
+
+K_basis <- list(G_const, G_const, G_const, G_const)
+k <- list(150, 0.002, -0.1, 0.1)
+alpha[65,1] <- 1
+
+library(Matrix)
+
+Sigma_eta <- sigma2_eta * Diagonal(r)
+Sigma_eps <- sigma2_eps * Diagonal(nobs * T)
+Q_eta <- Sigma_eta %>% solve()
+Q_eps <- Sigma_eps %>% solve()
+
+Mfun <- construct_M(Y_basis, s)
+M <- Mfun(K_basis, k)
+#+end_src
+
+#+begin_src R :session example :results none
+repcol <- function(x,n){
+  l <- lapply(1:n, function(i) x)
+  y <- do.call("c", l)
+  matrix(y, ncol = n, byrow = FALSE)
+}
+
+construct_kernel <- function(Basis, ki) {
+  if(!is.list(Basis)) stop("Basis needs to be of class list")
+  if(!all(sapply(Basis, function(x) is(x,"Basis"))))
+    stop("All Basis functions need to be of class Basis")
+  ndim <- dimensions(Basis[[1]])
+
+  function(s, r) {
+    if(1) { ## Actual basis
+      theta_s <- list()
+      for(i in 1:(2 + ndim)) {
+        theta_s[[i]] <- (eval_basis(Basis[[i]], s) %*% ki[[i]]) %>%
+          as.numeric() %>%
+          repcol(nrow(r))
+      }
+      theta_s_1 <- lapply(theta_s, function(x) x[,1])
+      D <- FRK::distR(s + do.call("cbind", theta_s_1[3:(2 + ndim)]), r)
+      theta_s[[1]] * exp(-D^2/theta_s[[2]])
+    } else {
+      D <- FRK::distR(t(t(s) + c(ki[[3]], ki[[4]])), r)
+      ki[[1]] * exp(-D^2/ki[[2]])
+    }
+  }
+}
+
+kernel <- construct_kernel(K_basis, k)
+
+# Matches!
+print(kernel(s$s_grid_mat, s$s_grid_mat)[1:5,1:5])
+
+PHI <- eval_basis(Y_basis, s$s_grid_mat)
+
+# quite different!
+print(PHI[1:5,1:5])
+#+end_src
+
+#+begin_src R :session example :results none
+library(FRK)
+library(sp)
+library(tidyverse)
+
+zlocs <- data.frame(s1=runif(100), s2=runif(100))
+
+m = plane()
+
+data = SpatialPoints(zlocs)
+coords <- coordinates(data)
+regular = 1
+nres = 2
+
+xrange <- range(coords[,1])
+yrange <- range(coords[,2])
+
+if(is(m,"plane") & regular) {
+  asp_ratio <- diff(yrange) / diff(xrange)
+  if(asp_ratio < 1) {
+    ny <- regular
+    nx <- ny / asp_ratio
+  } else {
+    nx <- regular
+    ny <- nx * asp_ratio
+  }
+}
+
+i=1
+
+xgrid <- seq(xrange[1], xrange[2], length = round(nx*(3^(i)))) # x coordinates of centroids
+ygrid <- seq(yrange[1], yrange[2], length = round(ny*(3^(i)))) # y coordinates of centroids
+this_res_locs <- xgrid %>%
+  expand.grid(ygrid) %>%   # form the grid in long-table format
+  as.matrix()              # convert to matrix
+
+
+#+end_src

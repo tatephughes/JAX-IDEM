@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 # typing imports
 from jax.typing import ArrayLike
 from typing import Callable, NamedTuple  # , Union
+from functools import partial
 
 # In-Module imports
 from utilities import create_grid, place_basis, outer_op, Basis, Grid
@@ -25,10 +26,109 @@ ngrids = jnp.array([41, 41])
 bounds = jnp.array([[0, 1], [0, 1]])
 
 
+class IDEM(NamedTuple):
+    process_basis: Basis
+    K_basis: tuple
+    ki: ArrayLike
+    obs_grids: ArrayLike
+    process_grid: Grid
+    sigma2_eta: float
+    sigma2_eps: float
+    Q_eta: ArrayLike
+    Q_eps: ArrayLike
+    M: ArrayLike
+    alpha0: ArrayLike
+
+
+def gen_example_idem(
+    key: ArrayLike,
+    k_spat_inv: bool = True,
+    ngrid: ArrayLike = jnp.array([41, 41]),
+    nint: ArrayLike = jnp.array([100, 100]),
+    nobs: int = 50,
+):
+    process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), ngrid)
+    process_basis = place_basis()
+
+    int_grid = create_grid(jnp.array([[0, 1], [0, 1]]), nints)
+
+    # Other Coefficients
+    sigma2_eta = 0.01**2
+    sigma2_eps = 0.01**2
+    Q_eta = jnp.eye(nbasis) / sigma2_eta
+    Q_eps = jnp.eye(nobs * T) / sigma2_eps
+
+    if k_spat_inv:
+        K_basis = (
+            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        )
+        k = (
+            jnp.array([150]),
+            jnp.array([0.002]),
+            jnp.array([-0.1]),
+            jnp.array([0.1]),
+        )
+        alpha0 = jnp.zeros(nbasis).at[jnp.array([64])].set(1)
+    else:
+        K_basis = (
+            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+            place_basis(nres=1),
+            place_basis(nres=1),
+        )
+        k = (
+            jnp.array([200]),
+            jnp.array([0.002]),
+            0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
+            0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+        )
+        alpha0 = (
+            jnp.zeros(nbasis)
+            .at[jnp.array([77, 66, 19, 1, 34, 75, 31, 35, 46, 88])]
+            .set(1)
+        )
+
+    @jax.jit
+    def kernel(s, r):
+        """Generates the kernel function from the kernel basis and basis coefficients"""
+        theta = (
+            k[0] @ K_basis[0].vfun(s),
+            k[1] @ K_basis[1].vfun(s),
+            jnp.array(
+                [
+                    k[2] @ K_basis[2].vfun(s),
+                    k[3] @ K_basis[3].vfun(s),
+                ]
+            ),
+        )
+
+        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
+
+    M = construct_M(kernel, process_basis, int_grid)
+    obs_grids = rand.uniform(keys[3], shape=(T, nobs, 2))
+
+    return IDEM(
+        process_basis,
+        K_basis,
+        k,
+        obs_grids,
+        process_grid,
+        sigma2_eta,
+        sigma2_eps,
+        Q_eta,
+        Q_eps,
+        M,
+        alpha0,
+    )
+
+
 def construct_M(kernel: Callable, process_basis: Basis, grid: Grid):
     """Constructs the progression matrix, M, defining how the basis parameters evolve linearly with time. Integration is done by Rieamann sum for now, on the grid provided.
 
-    Paramters
+    Parameters
     ----------
       kernel: Arraylike, ArrayLike -> ArrayLike; kernel function defining the progression of the process. The first argument is s, the variable being integrated over, and the second object should be the parameters; an array of shape (3, ) containing the x offset, y offset and scale of the kernel.
       process_basis: Basis; the basis for the process
@@ -46,12 +146,13 @@ def construct_M(kernel: Callable, process_basis: Basis, grid: Grid):
     return solve(GRAM, PHI.T @ K @ PHI) * grid.area**2
 
 
+@partial(jax.jit, static_argnames=["T"])
 def simIDEM(
     key: ArrayLike,
     T: int,
-    k: (ArrayLike, ArrayLike, ArrayLike, ArrayLike),
-    K_basis: Basis,
-    process_basis: Basis,
+    M: ArrayLike,
+    PHI_proc: ArrayLike,
+    PHI_obs: ArrayLike,
     obs_grids: ArrayLike,
     alpha0: ArrayLike = jnp.zeros(90).at[jnp.array([64])].set(1),
     process_grid: Grid = create_grid(bounds, ngrids),
@@ -71,34 +172,9 @@ def simIDEM(
     # key setup
     keys = rand.split(key, 5)
 
-    nbasis = process_basis.nbasis
-
-    # Other Coefficients
-    sigma2_eta = 0.01**2
-    sigma2_eps = 0.01**2
+    nbasis = PHI_proc.shape[1]
 
     nobs = obs_grids.shape[1]
-
-    Q_eta = jnp.eye(nbasis) / sigma2_eta
-    Q_eps = jnp.eye(nobs * T) / sigma2_eps
-
-    @jax.jit
-    def kernel(s, r):
-        """Generates the kernel function from the kernel basis and basis coefficients"""
-        theta = (
-            k[0] @ K_basis[0].vfun(s),
-            k[1] @ K_basis[1].vfun(s),
-            jnp.array(
-                [
-                    k[2] @ K_basis[2].vfun(s),
-                    k[3] @ K_basis[3].vfun(s),
-                ]
-            ),
-        )
-
-        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
-
-    M = construct_M(kernel, process_basis, int_grid)
 
     @jax.jit
     def step(carry, key):
@@ -110,12 +186,12 @@ def simIDEM(
     alpha = jl.scan(step, alpha0, alpha_keys)[1]
 
     @jax.jit
-    def get_process(alpha, s_grid):
-        return process_basis.mfun(s_grid.coords) @ alpha
+    def get_process(alpha):
+        return PHI_proc @ alpha
 
-    vget_process = jax.vmap(get_process, in_axes=(0, None))
+    vget_process = jax.vmap(get_process)
 
-    process_vals = vget_process(alpha, process_grid)
+    process_vals = vget_process(alpha)
 
     # X_proc = jnp.column_stack([jnp.ones(s_grid.shape[0]), s_grid])
     beta = jnp.array([0.2, 0.2, 0.2])
@@ -123,8 +199,6 @@ def simIDEM(
     X_obs = jl.map(
         lambda arr: jnp.column_stack([jnp.ones(arr.shape[0]), arr]), obs_grids
     )
-
-    PHI_obs = jl.map(process_basis.mfun, obs_grids)
 
     @jax.jit
     def get_obs(X_obs_1, PHI_obs_1, alpha_1):
@@ -149,10 +223,11 @@ if __name__ == "__main__":
 
     T = 9
 
+    nobs = 50
     ngrids = jnp.array([41, 41])
     nints = jnp.array([100, 100])
     process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), ngrids)
-    obs_grids = rand.uniform(keys[3], shape=(T, 50, 2))
+    obs_grids = rand.uniform(keys[3], shape=(T, nobs, 2))
     int_grid = create_grid(jnp.array([[0, 1], [0, 1]]), nints)
 
     process_basis = place_basis()
@@ -193,15 +268,42 @@ if __name__ == "__main__":
             .set(1)
         )
 
+    @jax.jit
+    def kernel(s, r):
+        """Generates the kernel function from the kernel basis and basis coefficients"""
+        theta = (
+            k[0] @ K_basis[0].vfun(s),
+            k[1] @ K_basis[1].vfun(s),
+            jnp.array(
+                [
+                    k[2] @ K_basis[2].vfun(s),
+                    k[3] @ K_basis[3].vfun(s),
+                ]
+            ),
+        )
+
+        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
+
+    M = construct_M(kernel, process_basis, int_grid)
+
+    PHI_proc = process_basis.mfun(process_grid.coords)
+    PHI_obs = jl.map(process_basis.mfun, obs_grids)
+
+    # Other Coefficients
+    sigma2_eta = 0.01**2
+    sigma2_eps = 0.01**2
+    Q_eta = jnp.eye(nbasis) / sigma2_eta
+    Q_eps = jnp.eye(nobs * T) / sigma2_eps
+
     sim_keys = rand.split(keys[2], 50)
 
     process_vals_sample, obs_vals_sample = jl.map(
         lambda key: simIDEM(
             key=key,
             T=T,
-            k=k,
-            K_basis=K_basis,
-            process_basis=process_basis,
+            M=M,
+            PHI_proc=PHI_proc,
+            PHI_obs=PHI_obs,
             alpha0=alpha0,
             obs_grids=obs_grids,
             process_grid=process_grid,

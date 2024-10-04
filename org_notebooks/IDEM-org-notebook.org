@@ -1,3 +1,5 @@
+
+
 #+TITLE: Org Notebook for the IDEM project
 
 :BOILERPLATE:
@@ -196,20 +198,22 @@ plt.close()
 * Testing Outer Operation
 
 #+begin_src python :session example :results output
-import utilities
 import importlib
-from utilities import outer_op
 import jax
 import jax.numpy as jnp
 
-importlib.reload(utilities)
+import sys
+sys.path.append(os.path.abspath('../src'))
+from jax_idem.utilities import *
+
+importlib.reload(jax_idem.utilities)
 
 def minus(x,y):
 
-    return (x - y)[0]
+    return (x - y)
 
-vec1 = jnp.array([[1],[2]])
-vec2 = jnp.array([[4],[5]])
+vec1 = jnp.array([1,2])
+vec2 = jnp.array([4,5,4])
 
 result = outer_op(vec1, vec2, minus)
 
@@ -218,8 +222,8 @@ print(result)
 #+end_src
 
 #+RESULTS:
-: [[-3 -4]
-:  [-2 -3]]
+: [[-3 -4 -3]
+:  [-2 -3 -2]]
 
 and the harder test
 
@@ -445,12 +449,15 @@ import jax.random as rand
 
 import matplotlib.pyplot as plt
 
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jax_idem'))
+
 import importlib
 import utilities
-from utilities import place_basis
-from utilities import create_grid
+from utilities import *
 import IDEM
-from IDEM import construct_M
+from IDEM import *
 importlib.reload(utilities)
 importlib.reload(IDEM)
 
@@ -517,6 +524,11 @@ import jax.random as rand
 
 import matplotlib.pyplot as plt
 
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jax_idem'))
+
+
 import importlib
 import utilities
 from utilities import *
@@ -525,27 +537,280 @@ from IDEM import *
 importlib.reload(utilities)
 importlib.reload(IDEM)
 
-griddelta = 0.01
-s_grid = create_grid(jnp.array([[0,1],[0,1]]),
-                     jnp.array([griddelta, griddelta]))
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 2)
 
-k = (jnp.array(200),
-     jnp.array(0.2),
-     0.01*rand.normal(keys[0], shape=(K_basis[2].shape[0], )),
-     0.01*rand.normal(keys[2], shape=(K_basis[3].shape[0], )))
+ngrids=jnp.array([41,41])
+s_grid, griddeltas = create_grid(jnp.array([[0,1],[0,1]]),
+                                 ngrids)
 
-process_vals = simIDEM(T=9, k=k)
+K_basis = (
+    place_basis(nres=1, basis_fun=lambda s, r: 1),
+    place_basis(nres=1, basis_fun=lambda s, r: 1),
+    place_basis(nres=1),
+    place_basis(nres=1),
+)
+k = (
+    jnp.array(200),
+    jnp.array(0.002),
+    0.01 * rand.normal(keys[0], shape=(K_basis[2].shape[0],)),
+    0.01 * rand.normal(keys[2], shape=(K_basis[3].shape[0],)),
+)
+
+process_vals = simIDEM(T=9, k=k, K_basis=K_basis, ngrids=ngrids)
+
+vmin = jnp.min(process_vals)
+vmax = jnp.max(process_vals)
 
 fig, axes = plt.subplots(3, 3, figsize=(8, 5))
 
 for i in range(9):
     ax = axes[i // 3, i % 3]
-    scatter = ax.scatter(s_grid.T[0], s_grid.T[1], c=process_vals[i], cmap='viridis', marker='s')
+    scatter = ax.scatter(s_grid.T[0], s_grid.T[1], c=process_vals[i], cmap='viridis', marker='s', vmin=vmin, vmax=vmax)
     ax.set_title(f'T = {i+1}')
+    ax.set_title(f'T = {i+1}', fontsize=5)  # Set title font size
+    ax.tick_params(axis='both', which='major', labelsize=4)  # Set tick labels font size
     fig.colorbar(scatter, ax=ax)
-
+    
 plt.tight_layout()
 plt.show()
 plt.close()
 
+#+end_src
+
+#+begin_src python :session example :results none
+def psi(s, params):
+    squarenorm = jnp.array([jnp.sum((s - params[0:2]) ** 2)])
+    return ((1 - squarenorm / (params[2]**2)) ** 2 * jnp.where(squarenorm < params[2], 1, 0))[0]
+
+vec_phi = jax.vmap(psi, in_axes=(None, 0))
+#+end_src
+
+** Adjusting place_basis
+
+#+begin_src python :session example :results none
+def bisquare(s, params):
+    squarenorm = jnp.array([jnp.sum((s - params[0:2]) ** 2)])
+    return (
+        (1 - squarenorm / (params[2] ** 2)) ** 2
+        ,* jnp.where(squarenorm < params[2], 1, 0)
+    )[0]
+
+def place_basis(
+    data=jnp.array([[0, 0], [1, 1]]),
+    nres=2,
+    aperture=1.25,
+    min_knot_num=3,
+    basis_fun=bisquare,
+):
+    """
+            Distributes knots and scales for basis functions over a number of resolutions,
+            similar to auto_basis from the R package FRK.
+            This function must be run outside of a jit loop, since it involves varying the
+            length of arrays.
+
+    Parameters:
+      data: Arraylike[ArrayLike[Double]]; array of 2D points defining the space on which to put the basis functions
+      nres: Int; The number of resolutions at which to place basis functions
+      aperture: Double; Scaling factor for the scale parameter (scale parameter will be w=aperture * d, where d is the minimum distance between any two of the knots)
+      min_knot_num: Int; The number of basis functions to place in each dimension at the coursest resolution
+      basis_fun: (ArrayLike[Double], ArrayLike[Double]) -> Double; the basis functions being used. The basis function's second argument must be an array with three doubles; the first coordinate for the centre, the second coordinate for the centre, and the scale/aperture of the function.
+
+    Returns:
+      A tuple of two functions and an integer, the first evaluating the basis functions at a point, and the second evaluating the basis functions on an array of points.
+    """
+
+    xmin = jnp.min(data[:, 0])
+    xmax = jnp.max(data[:, 0])
+    ymin = jnp.min(data[:, 1])
+    ymax = jnp.max(data[:, 1])
+
+    asp_ratio = (ymax - ymin) / (xmax - xmin)
+
+    if asp_ratio < 1:
+        ny = min_knot_num
+        nx = jnp.round(ny / asp_ratio).astype(int)
+    else:
+        nx = min_knot_num
+        ny = jnp.round(asp_ratio * nx).astype(int)
+
+    def basis_at_res(res):
+        bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
+        ngrids = jnp.array([nx, ny]) * 3**res
+
+        knots, deltas = create_grid(bounds, ngrids)
+        w = jnp.min(deltas) * aperture
+
+        return jnp.hstack([knots, jnp.full((knots.shape[0], 1), w)])
+
+    basis_vfun = jax.vmap(basis_fun, in_axes=(None, 0))
+    eval_basis = jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)), in_axes=(0, None))
+
+    params = jnp.vstack([basis_at_res(res) for res in range(nres)])
+    nbasis = params.shape[0]
+
+    print("params shape is", params.shape)
+
+    return (
+        lambda s: basis_vfun(s, params),
+        lambda s_array: eval_basis(s_array, params),
+        nbasis,
+    )
+
+#+end_src
+
+** testing a unit basis
+
+#+begin_src python :session example :results none
+const_basis = place_basis(nres=1, min_knot_num=1, basis_fun = lambda s, params: 1)
+#+end_src
+
+
+* Even more testing
+
+#+begin_src python :session example :results none
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.random as rand
+
+import matplotlib.pyplot as plt
+
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jax_idem'))
+
+
+import importlib
+import utilities
+from utilities import *
+import IDEM
+from IDEM import *
+importlib.reload(utilities)
+importlib.reload(IDEM)
+
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 3)
+
+ngrids = jnp.array([41, 41])
+s_grid, griddeltas = create_grid(jnp.array([[0, 1], [0, 1]]), ngrids)
+
+K_basis = (
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1),
+        place_basis(nres=1),
+)
+k = (
+        jnp.array([200]),
+        jnp.array([0.002]),
+        0.01 * rand.normal(keys[0], shape=(K_basis[2][2],)),
+        0.01 * rand.normal(keys[2], shape=(K_basis[3][2],)),
+)
+
+def kernel(s, r):
+        theta = (
+                k[0] @ K_basis[0][0](s),
+                k[1] @ K_basis[1][0](s),
+                jnp.array(
+                        [
+                                k[2] @ K_basis[2][0](s),
+                                k[3] @ K_basis[3][0](s),
+                        ]
+                ),
+        )
+
+        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
+
+'''
+process_vals = simIDEM(T=9, k=k, K_basis=K_basis, ngrids=ngrids)
+
+fig, axes = plt.subplots(3, 3, figsize=(8, 5))
+
+for i in range(9):
+    ax = axes[i // 3, i % 3]
+    scatter = ax.scatter(
+        s_grid.T[0], s_grid.T[1], c=process_vals[i], cmap="viridis", marker="s"
+        )
+    ax.set_title(f"T = {i+1}")
+    fig.colorbar(scatter, ax=ax)
+    
+plt.tight_layout()
+plt.show()'''
+#+end_src
+
+
+* Recreating AZM's code beat-for-beat
+#+begin_src python :session example :results none
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.random as rand
+
+import matplotlib.pyplot as plt
+
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jax_idem'))
+
+
+import importlib
+import utilities
+from utilities import *
+import IDEM
+from IDEM import *
+importlib.reload(utilities)
+importlib.reload(IDEM)
+
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 3)
+#+end_src
+
+#+begin_src python :session example :results none
+T = 9
+nobs = 100
+
+
+zlocs = data=rand.uniform(keys[0], shape=(100,2))
+
+Y_basis = place_basis(data=zlocs, nres=2)
+nbasis = Y_basis.nbasis
+
+G_const = place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1)
+
+beta = jnp.array([0.2,0.2,0.2])
+
+sigma2_eta = 0.01**2
+sigma2_eps = 0.01**2
+
+bbox = jnp.array([[0,1],[0,1]])
+s_grid, delta = create_grid(bbox, jnp.array([41,41]))
+
+K_basis = (G_const, G_const, G_const, G_const)
+k = (jnp.array([150]), jnp.array([0.002]), jnp.array([-0.1]), jnp.array([0.1]))
+
+alpha0 = jnp.zeros(nbasis).at[64].set(1)
+
+Sigma_eta = sigma2_eta * jnp.eye(nbasis)
+Sigma_eps = sigma2_eps * jnp.eye(nobs * T)
+Q_eta = jnp.linalg.inv(Sigma_eta)
+Q_eps = jnp.linalg.inv(Sigma_eps)
+
+def kernel(s, r):
+    theta = (
+        k[0] @ K_basis[0].vfun(s),
+        k[1] @ K_basis[1].vfun(s),
+        jnp.array(
+            [
+             k[2] @ K_basis[2].vfun(s),
+             k[3] @ K_basis[3].vfun(s),
+                  ]
+             ),
+        )
+
+    return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
+
+
+# Matches!
+print(outer_op(s_grid, s_grid, kernel)[0:4,0:4])
 #+end_src

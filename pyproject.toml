@@ -1,0 +1,18 @@
+[project]
+name = "jax-idem"
+version = "0.0.1"
+authors = [
+  { name="Evan Tate Paterson Hughes", email="etatephughes@gmail.com" },
+]
+description = "Integro-difference Equation Models for Python-JAX"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/tatephughes/JAX-IDEM"
+Issues = "https://github.com/tatephughes/JAX-IDEM/issues"
