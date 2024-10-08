@@ -149,8 +149,7 @@ def construct_M(kernel: Callable, process_basis: Basis, grid: Grid):
     ----------
       kernel: Arraylike, ArrayLike -> ArrayLike; kernel function defining the progression of the process. The first argument is s, the variable being integrated over, and the second object should be the parameters; an array of shape (3, ) containing the x offset, y offset and scale of the kernel.
       process_basis: Basis; the basis for the process
-      grid: ArrayLike; the grid to be integrated over
-      gridarea: float: the area of a single cell of the grid
+      grid: Grid; the grid object to be integrated over
 
     """
 
@@ -182,10 +181,7 @@ def simIDEM(
     Partially implemented, for now this will use a pre-defined model, similar to AZM's package
 
     Parameters:
-      T: Int; the number of time increments to simulate
-      nobs: Int; the number of observation points to simulate
-      nres: Int; the grid size of the discretised process
-      nint: Int; The resolution at which to compute the Riemann integrals
+      please write this documentation when this is more finalised
     """
 
     # key setup

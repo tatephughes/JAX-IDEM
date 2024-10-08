@@ -38,8 +38,8 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> (ArrayLike, float):
       bounds: Array[[Double, Double]]; The bounds for each dimension
       ngrid: Array[Int]; The number of columns/rows/hyper-column in each dimension
 
-    Returns: (Array[Array[Double]], Array[Double])
-    Tuple of a JAX array of coordinate arrays for the grid and the length between grid points in each dimension.
+    Returns: Grid
+    Grid Object (NamedTuple) containing the coordinates, deltas, grid numbers, areas, etc. See Grid.
     """
 
     dimension = jnp.size(bounds, axis=0)
@@ -121,7 +121,7 @@ def place_basis(
 
     Returns
     ----------
-    A tuple of two functions and an integer, the first evaluating the basis functions at a point, and the second evaluating the basis functions on an array of points.
+    A Basis object (NamedTuple) with the vector and matrix functions, and the parameters associated to the basis functions.
     """
 
     xmin = jnp.min(data[:, 0])
@@ -234,6 +234,7 @@ def plot_st_long(data: ST_Data_Long):
 
 
 def plot_st_wide(data: ST_Data_Wide):
+    print("WARNING plot_st_wide is not fully implemented")
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
 
