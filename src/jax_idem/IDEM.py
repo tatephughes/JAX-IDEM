@@ -8,6 +8,8 @@ import jax.random as rand
 from jax.numpy.linalg import vector_norm, solve
 
 # Plotting imports
+
+
 import matplotlib.pyplot as plt
 
 # Statistics and data handling imports
@@ -20,7 +22,15 @@ from typing import Callable, NamedTuple  # , Union
 from functools import partial
 
 # In-Module imports
-from utilities import create_grid, place_basis, outer_op, Basis, Grid
+from utilities import (
+    create_grid,
+    place_basis,
+    outer_op,
+    Basis,
+    Grid,
+    ST_Data_Long,
+    ST_Data_Wide,
+)
 
 ngrids = jnp.array([41, 41])
 bounds = jnp.array([[0, 1], [0, 1]])
@@ -30,7 +40,7 @@ class IDEM(NamedTuple):
     process_basis: Basis
     K_basis: tuple
     ki: ArrayLike
-    obs_grids: ArrayLike
+    obs_locs: ArrayLike
     process_grid: Grid
     sigma2_eta: float
     sigma2_eps: float
@@ -98,7 +108,14 @@ def gen_example_idem(
             k[0] @ K_basis[0].vfun(s),
             k[1] @ K_basis[1].vfun(s),
             jnp.array(
-                [
+                t_obs_locs=jnp.vstack(
+                    jax.tree.map(
+                        lambda i: jnp.column_stack(
+                            [jnp.tile(i, obs_locs[i].shape[0]), obs_locs[i]]
+                        ),
+                        list(range(T)),
+                    )
+                )[
                     k[2] @ K_basis[2].vfun(s),
                     k[3] @ K_basis[3].vfun(s),
                 ]
@@ -108,13 +125,13 @@ def gen_example_idem(
         return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
 
     M = construct_M(kernel, process_basis, int_grid)
-    obs_grids = rand.uniform(keys[3], shape=(T, nobs, 2))
+    obs_locs = rand.uniform(keys[3], shape=(T, nobs, 2))
 
     return IDEM(
         process_basis,
         K_basis,
         k,
-        obs_grids,
+        obs_locs,
         process_grid,
         sigma2_eta,
         sigma2_eps,
@@ -153,7 +170,9 @@ def simIDEM(
     M: ArrayLike,
     PHI_proc: ArrayLike,
     PHI_obs: ArrayLike,
-    obs_grids: ArrayLike,
+    obs_locs: ArrayLike,
+    sigma2_eta: float = 0.01**2,
+    sigma2_eps: float = 0.01**2,
     alpha0: ArrayLike = jnp.zeros(90).at[jnp.array([64])].set(1),
     process_grid: Grid = create_grid(bounds, ngrids),
     int_grid: Grid = create_grid(bounds, ngrids),
@@ -174,16 +193,16 @@ def simIDEM(
 
     nbasis = PHI_proc.shape[1]
 
-    nobs = obs_grids.shape[1]
+    nobs = obs_locs.shape[1]
 
     @jax.jit
     def step(carry, key):
         nextstate = M @ carry + jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
         return (nextstate, nextstate)
 
-    alpha_keys = rand.split(keys[3], T)
+    alpha_keys = rand.split(keys[3], T - 1)
 
-    alpha = jl.scan(step, alpha0, alpha_keys)[1]
+    alpha = jnp.vstack((alpha0, jl.scan(step, alpha0, alpha_keys)[1]))
 
     @jax.jit
     def get_process(alpha):
@@ -197,7 +216,7 @@ def simIDEM(
     beta = jnp.array([0.2, 0.2, 0.2])
 
     X_obs = jl.map(
-        lambda arr: jnp.column_stack([jnp.ones(arr.shape[0]), arr]), obs_grids
+        lambda arr: jnp.column_stack([jnp.ones(arr.shape[0]), arr]), obs_locs
     )
 
     @jax.jit
@@ -227,13 +246,13 @@ if __name__ == "__main__":
     ngrids = jnp.array([41, 41])
     nints = jnp.array([100, 100])
     process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), ngrids)
-    obs_grids = rand.uniform(keys[3], shape=(T, nobs, 2))
+    obs_locs = rand.uniform(keys[3], shape=(T, nobs, 2))
     int_grid = create_grid(jnp.array([[0, 1], [0, 1]]), nints)
 
     process_basis = place_basis()
     nbasis = process_basis.nbasis
 
-    k_spat_inv = 0
+    k_spat_inv = 1
 
     if k_spat_inv == 1:
         K_basis = (
@@ -286,8 +305,11 @@ if __name__ == "__main__":
 
     M = construct_M(kernel, process_basis, int_grid)
 
+    if jnp.max(jnp.abs((jnp.linalg.eig(M)[0]))) > 1:
+        print("WARNING: at least one eigenvalue of M is explosive")
+
     PHI_proc = process_basis.mfun(process_grid.coords)
-    PHI_obs = jl.map(process_basis.mfun, obs_grids)
+    PHI_obs = jl.map(process_basis.mfun, obs_locs)
 
     # Other Coefficients
     sigma2_eta = 0.01**2
@@ -305,7 +327,7 @@ if __name__ == "__main__":
             PHI_proc=PHI_proc,
             PHI_obs=PHI_obs,
             alpha0=alpha0,
-            obs_grids=obs_grids,
+            obs_locs=obs_locs,
             process_grid=process_grid,
             int_grid=int_grid,
         ),
@@ -343,11 +365,11 @@ if __name__ == "__main__":
 
     fig, axes = plt.subplots(3, 3, figsize=(8, 5))
 
-    for i in range(9):
+    for i in range(T):
         ax = axes[i // 3, i % 3]
         scatter = ax.scatter(
-            obs_grids[i].T[0],
-            obs_grids[i].T[1],
+            obs_locs[i].T[0],
+            obs_locs[i].T[1],
             c=obs_vals[i],
             cmap="viridis",
             marker="s",

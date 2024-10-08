@@ -11,6 +11,7 @@ from jax.typing import ArrayLike
 
 from typing import Callable, NamedTuple  # , Union
 from jax import Array
+import matplotlib.pyplot as plt
 
 
 class Grid(NamedTuple):
@@ -161,3 +162,103 @@ def place_basis(
 
     return Basis(basis_vfun, eval_basis, params, nbasis)
     # return {"vfun": basis_vfun, "mfun": eval_basis, "r": nbasis, "pars": params}
+
+
+class ST_Data_Wide(NamedTuple):
+    x: ArrayLike  # x coordinates
+    y: ArrayLike  # y coordinates
+    z: ArrayLike  # matrix of the process, each row corresponds to a spatial location and each column is a time
+
+
+class ST_Data_Long(NamedTuple):
+    x: ArrayLike
+    y: ArrayLike
+    t: ArrayLike
+    z: ArrayLike
+
+
+def ST_tolong(data: ST_Data_Wide):
+    return "not implemented"
+
+
+def ST_towide(data: ST_Data_Long):
+    return "not implemented"
+
+
+def plot_st_long(data: ST_Data_Long):
+    # in the future, you should be able to directly pass in figsize and nrows/cols.
+
+    # column_stack doesn't care about named tuples
+    data_array = jnp.column_stack(data)
+
+    T = int(jnp.max(data.t) - jnp.min(data.t)) + 1
+
+    vmin = jnp.min(data.z)
+    vmax = jnp.max(data.z)
+
+    nrows = int(jnp.ceil(T / 3))
+
+    # Create a figure and axes for the subplots
+    fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
+    axes = axes.flatten()
+
+    # Loop through each time point and create a scatter plot
+    for t in range(T):
+        # fairly sure this should use jnp.where or similar
+        time_data = data_array[data_array[:, 2] == t]
+        x = time_data[:, 0]
+        y = time_data[:, 1]
+        values = time_data[:, 3]
+
+        scatter = axes[t].scatter(
+            x,
+            y,
+            c=values,
+            cmap="viridis",
+            vmin=vmin,
+            vmax=vmax,
+        )
+        axes[t].set_title(f"Time = {t}", fontsize=2)
+        axes[t].set_xlabel("x", fontsize=2)
+        axes[t].set_ylabel("y", fontsize=2)
+        axes[t].tick_params(
+            axis="both", which="major", labelsize=2
+        )  # Set tick labels font size
+
+        # Add color bar
+        fig.colorbar(scatter, ax=axes[t])
+
+    plt.tight_layout()
+    plt.show()
+    plt.close()
+
+
+def plot_st_wide(data: ST_Data_Wide):
+    vmin = jnp.min(data.z)
+    vmax = jnp.max(data.z)
+
+    T = data.z.shape[0]
+
+    fig, axes = plt.subplots(3, int(jnp.ceil(T / 3)), figsize=(8, 5))
+
+    for i in range(T):
+        ax = axes[i // 3, i % (int(jnp.ceil(T / 3)))]
+        scatter = ax.scatter(
+            data.x,
+            data.y,
+            c=data.z[i],
+            cmap="viridis",
+            marker="s",
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax.set_title(f"T = {i+1}")
+        ax.set_title(f"T = {i+1}", fontsize=5)  # Set title font size
+        ax.tick_params(
+            axis="both", which="major", labelsize=4
+        )  # Set tick labels font size
+        fig.colorbar(scatter, ax=ax)
+
+    plt.tight_layout()
+    plt.show()
+    plt.close()
