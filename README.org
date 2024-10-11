@@ -39,34 +39,36 @@
 
 * Introduction
 
-As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty. Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.
+As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty.
+Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.
 
 Traditionally, a descriptive approach has been made to model such systems.
+This means we are most concerned with modelling the moments (means, covariances) of the process.
+More recently, a dynamical approach has been suggested by many authors [citation needed].
+Here, we use knowledge of underlying dynamics to drive the model.
 
-We now have the tools to deal with dynamical models like \eqref{eq:linearprocess}, and so we return to the Integro-Difference Equation model; with the data model included,
+One such model is the Integro-Difference Equation Model (IDEM), which, in essence, is a state-space model, which models diffusion and advection.
+In order to do computations, the system is discretized using basis function expansions.
+
+The following IDEM model is considered;
 \begin{align}
 \begin{split}
-Z(\vec s;t) &= Y(\vec s;t) + \epsilon_t(\vec s)\\
+Z(\vec s;t) &= Y(\vec s;t) + \vec X(\vec s)^{\intercal}\vec \beta + \epsilon_t(\vec s)\\
 Y(\vec s;t+1) &= \int_{\mathcal D_s} \kappa(s,r;t) Y(r;t) d\vec r + \eta_t(\vec s).\label{eq:IDeq2}
 \end{split}
 \end{align}
-Where $\eta_t(\vec s)$ is a small scale variation with no temporal dynamics.
-Again, to make this clear, $t$ is put as a subscript rather than as an argument, to make clear that although this value changes with time, that change has no dynamical structure and is independent in time.
-Cressie and Wikle call this a `spatially descriptive' component.
-Usually, the `weight function' $m$ is called the /kernel/.
-While I have written \eqref{eq:IDeq2} to be as general as possible, the kernel is usually simplified.
-Often it is /homogeneous/, depending only on the difference vector of the two spatial points and not on time, $\kappa(\vec s-\vec r)$; isotropic, depending only on the magnitude of the distance, $\kappa(\Vert \vec s - \vec r\Vert;t)$; not dependant only on time, $\kappa(\vec s,\vec r)$; or dependant on time only through a parameter $\vec\theta_t$, $\kappa(\vec s,\vec r;\vec\theta_t)$.
-Homogeneity (at least in space) is often beneficial as it reveals a `convolutional' form of \eqref{eq:IDeq2}, where $Y(\vec s;t)$ is the convolution of $Y(\vec s;t-1)$ against the kernel $\kappa(\vec s;t)$, plus some small scale variation $\eta$;
-\begin{align}
-Y(\vec s;t+1) = \int_{\mathcal D_s} \kappa(s-r;t) Y(r;t) d\vec r + \eta_t(\vec s). \label{eq:IDeqconv}
-\end{align}
+Where $\eta_t(\vec s)$ is a small scale variation with no temporal dynamics (Cressie and Wikle call this a `spatially descriptive' component.), $\vec X(\vec s)$ are spatially varying covariates, $Z$ is observed data, $Y$ is the unobserved dynamical process, and $\kappa$ is the driving 'kernel' function.
 
 This seems like a reasonable model for the process's diffusion and advection in a spatially continuous way.
 Each state is a continuous weighted integral (sum) of the previous state.
 The form of $\kappa$ allows us to make use of some of the dynamics of the system; in many geological settings we most likely follow Tobler's law in some sense to model diffusion, with weights depending of the direction of $\vec s-\vec r$ giving us advection, or movement, of the process.
-At first glance, this looks wholly distinct from \eqref{eq:linearprocess}, but in fact, it can be reduced to being effectively the same problem, which we shall show shortly.
 
-Further, we assume that $\epsilon_t(\vec s)$ and $\nu_t(\vec s)$ are uncorrelated with each other (and, again, uncorrelated in time).
+Further, we assume that $\epsilon_t(\vec s)$ and $\eta_t(\vec s)$ are uncorrelated with each other, and uncorrelated in time.
+
+(
+Re-do the below to not assume any particular decomposition of $\kappa$.
+There is also some older notation here, I need to change this to be more in-line with the actual code.
+)
 
 We decompose the process and the kernel as follows [cite:roughly following @dewar2008data];
 \begin{align}
@@ -151,3 +153,4 @@ Finding the covariance of $\vec\eta_t$ follows directly from Lemma \ref{lem:vari
 
 Once the stations are fixed, we can write $\vec Y(t) = (Y(\vec s_1;t), \dots, Y(\vec s_n;t))$ and $\vec Z(t) = (Z(\vec s_1;t), \dots, Z(\vec s_n;t))$, then we get a system of the form \eqref{eq:linearprocess}.
 #+end_proof
+

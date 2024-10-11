@@ -1,5 +1,4 @@
 
-
 #+TITLE: Org Notebook for the IDEM project
 
 :BOILERPLATE:
@@ -759,58 +758,480 @@ import utilities
 from utilities import *
 import IDEM
 from IDEM import *
-importlib.reload(utilities)
-importlib.reload(IDEM)
+#importlib.reload(utilities)
+#importlib.reload(IDEM)
 
 key = jax.random.PRNGKey(1)
 keys = rand.split(key, 3)
 #+end_src
 
 #+begin_src python :session example :results none
+key = jax.random.PRNGKey(5)
+keys = rand.split(key, 3)
+
 T = 9
-nobs = 100
 
+nobs = 50
+ngrids = jnp.array([41, 41])
+nints = jnp.array([100, 100])
+process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), ngrids)
+obs_locs = rand.uniform(keys[3], shape=(T, nobs, 2))
+int_grid = create_grid(jnp.array([[0, 1], [0, 1]]), nints)
 
-zlocs = data=rand.uniform(keys[0], shape=(100,2))
+process_basis = place_basis()
+nbasis = process_basis.nbasis
 
-Y_basis = place_basis(data=zlocs, nres=2)
-nbasis = Y_basis.nbasis
+k_spat_inv = 0
 
-G_const = place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1)
-
-beta = jnp.array([0.2,0.2,0.2])
-
-sigma2_eta = 0.01**2
-sigma2_eps = 0.01**2
-
-bbox = jnp.array([[0,1],[0,1]])
-s_grid, delta = create_grid(bbox, jnp.array([41,41]))
-
-K_basis = (G_const, G_const, G_const, G_const)
-k = (jnp.array([150]), jnp.array([0.002]), jnp.array([-0.1]), jnp.array([0.1]))
-
-alpha0 = jnp.zeros(nbasis).at[64].set(1)
-
-Sigma_eta = sigma2_eta * jnp.eye(nbasis)
-Sigma_eps = sigma2_eps * jnp.eye(nobs * T)
-Q_eta = jnp.linalg.inv(Sigma_eta)
-Q_eps = jnp.linalg.inv(Sigma_eps)
-
+if k_spat_inv == 1:
+    K_basis = (
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        )
+    k = (
+        jnp.array([150]),
+        jnp.array([0.002]),
+        jnp.array([-0.1]),
+        jnp.array([0.1]),
+        )
+    alpha0 = jnp.zeros(nbasis).at[jnp.array([64])].set(1)
+else:
+    K_basis = (
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1),
+        place_basis(nres=1),
+        )
+    k = (
+        jnp.array([200]),
+        jnp.array([0.002]),
+        0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
+        0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+        )
+    alpha0 = (
+        jnp.zeros(nbasis)
+        .at[jnp.array([77, 66, 19, 1, 34, 75, 31, 35, 46, 88])]
+        .set(1)
+        )
+    
+@jax.jit
 def kernel(s, r):
+    """Generates the kernel function from the kernel basis and basis coefficients"""
     theta = (
         k[0] @ K_basis[0].vfun(s),
         k[1] @ K_basis[1].vfun(s),
         jnp.array(
             [
-             k[2] @ K_basis[2].vfun(s),
-             k[3] @ K_basis[3].vfun(s),
-                  ]
+                k[2] @ K_basis[2].vfun(s),
+                k[3] @ K_basis[3].vfun(s),
+            ]
+        ),
+    )
+    
+    return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
+
+M = construct_M(kernel, process_basis, int_grid)
+
+PHI_proc = process_basis.mfun(process_grid.coords)
+PHI_obs = jl.map(process_basis.mfun, obs_locs)
+
+    # Other Coefficients
+sigma2_eta = 0.01**2
+sigma2_eps = 0.01**2
+Q_eta = jnp.eye(nbasis) / sigma2_eta
+Q_eps = jnp.eye(nobs * T) / sigma2_eps
+
+#+end_src
+
+#+begin_src python :session example :results none
+keys = rand.split(key, 5)
+
+nbasis = PHI_proc.shape[1]
+
+nobs = obs_locs.shape[1]
+
+@jax.jit
+def step(carry, key):
+    nextstate = M @ carry + jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
+    return (nextstate, nextstate)
+
+alpha_keys = rand.split(keys[3], T)
+
+alpha = jl.scan(step, alpha0, alpha_keys)[1]
+
+@jax.jit
+def get_process(alpha):
+    return PHI_proc @ alpha
+
+vget_process = jax.vmap(get_process)
+
+process_vals = vget_process(alpha)
+
+# X_proc = jnp.column_stack([jnp.ones(s_grid.shape[0]), s_grid])
+beta = jnp.array([0.2, 0.2, 0.2])
+
+X_obs = jl.map(
+    lambda arr: jnp.column_stack([jnp.ones(arr.shape[0]), arr]), obs_locs
+    )
+
+@jax.jit
+def get_obs(X_obs_1, PHI_obs_1, alpha_1):
+    return (
+        X_obs_1 @ beta
+        + PHI_obs_1 @ alpha_1
+        + jnp.sqrt(sigma2_eps) * rand.normal(key, shape=(nobs,))
+        )
+
+obs_vals = jax.vmap(get_obs)(X_obs, PHI_obs, alpha)
+
+t_obs_locs = jnp.vstack(
+    jl.map(
+        lambda i: jnp.column_stack(
+            [jnp.tile(i, obs_locs[i].shape[0]), obs_locs[i]]
+                 ),
+        jnp.arange(T)),
+                        )
+    )
+
+#+end_src
+
+
+* 6th October
+
+** imports
+
+#+begin_src python :session example :results none
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.random as rand
+
+import matplotlib.pyplot as plt
+
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jax_idem'))
+
+
+import importlib
+import utilities
+import IDEM
+
+jax.config.update('jax_enable_x64', False)
+#+end_src
+
+** reloading and keys
+
+#+begin_src python :session example :results none
+
+import utilities
+import IDEM
+
+importlib.reload(utilities)
+importlib.reload(IDEM)
+
+from utilities import *
+from IDEM import *
+
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 3)
+
+#+end_src
+
+** Repeated Simulations
+
+#+begin_src python :session example :results none
+
+import time
+
+start_time = time.time()
+
+T = 9
+
+nobs = 40
+ngrids = jnp.array([41, 41])
+nints = jnp.array([100, 100])
+process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), ngrids)
+obs_locs = rand.uniform(keys[3], shape=(T, nobs, 2))
+int_grid = create_grid(jnp.array([[0, 1], [0, 1]]), nints)
+
+process_basis = place_basis()
+nbasis = process_basis.nbasis
+
+k_spat_inv = 0
+
+if k_spat_inv == 1:
+    K_basis = (
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        )
+    k = (
+        jnp.array([150]),
+        jnp.array([0.002]),
+        jnp.array([-0.1]),
+        jnp.array([0.1]),
+        )
+    alpha0 = jnp.zeros(nbasis).at[jnp.array([64])].set(1)
+else:
+    K_basis = (
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+        place_basis(nres=1),
+        place_basis(nres=1),
+        )
+    k = (
+        jnp.array([200]),
+        jnp.array([0.002]),
+        jnp.array([0.043910943, 0.162829078, 0.081960908, 0.104412083, 0.002953001, 0.043431696, 0.046788517, 0.026617711, -0.121628583]),
+        jnp.array([0.081031263, -0.109359565,  0.139565001, -0.059344792, -0.020561265, 0.007228824, -0.123947415, -0.030153943, 0.035854375]),
+        #0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
+        #0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+        )
+    alpha0 = (
+        jnp.zeros(nbasis)
+        .at[jnp.array([76, 65, 18, 0, 33, 74, 30, 34, 45, 87])]
+        .set(1)
+        )
+    #alpha0 = (
+    #    jnp.zeros(nbasis)
+    #    .at[jnp.array([4])]
+    #    .set(1)
+    #    )
+    
+@jax.jit
+def kernel(s, r):
+    """Generates the kernel function from the kernel basis and basis coefficients"""
+    theta = (
+        k[0] @ K_basis[0].vfun(s),
+        k[1] @ K_basis[1].vfun(s),
+        jnp.array(
+        [
+    k[2] @ K_basis[2].vfun(s),
+    k[3] @ K_basis[3].vfun(s),
+    ]
              ),
         )
 
     return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
 
+M = construct_M(kernel, process_basis, int_grid)
 
-# Matches!
-print(outer_op(s_grid, s_grid, kernel)[0:4,0:4])
+PHI_proc = process_basis.mfun(process_grid.coords)
+PHI_obs = jl.map(process_basis.mfun, obs_locs)
+
+# Other Coefficients
+sigma2_eta = 0.01**2
+sigma2_eps = 0.01**2
+Q_eta = jnp.eye(nbasis) / sigma2_eta
+Q_eps = jnp.eye(nobs * T) / sigma2_eps
+
+nreps = 10000
+sim_keys = rand.split(keys[2], nreps)
+
+process_vals_sample, obs_vals_sample = jl.map(
+    lambda key: simIDEM(
+        key=key,
+        T=T,
+        M=M,
+        PHI_proc=PHI_proc,
+        PHI_obs=PHI_obs,
+        alpha0=alpha0,
+        obs_locs=obs_locs,
+        process_grid=process_grid,
+        int_grid=int_grid,
+        ),
+        sim_keys,
+    )
+
+
+
+t_obs_locs = jnp.vstack(
+    jl.map(
+        lambda i: jnp.column_stack(
+            [jnp.tile(i, obs_locs[i].shape[0]), obs_locs[i]]
+           ),
+        jnp.arange(T),
+            )
+    )
+
+duration = time.time()-start_time
+
+print(f"The time elapsed was {duration} seconds")
+#+end_src
+
+** making the process vals into long format
+
+#+begin_src python :session example :results none
+
+process_grid_t = jnp.tile(process_grid.coords, (T,1,1))
+
+t_process_locs = jnp.vstack(
+    jl.map(
+        lambda i: jnp.column_stack(
+            [jnp.tile(i, process_grid_t[i].shape[0]), process_grid_t[i]]
+           ),
+        jnp.arange(T),
+             )
+    )
+
+def vals_to_long(process_vals):
+    return jnp.column_stack([t_process_locs, jnp.concatenate(process_vals)])
+    
+
+# keep in mind, for poarallelisation, vmap is usually recommended
+process_data_sample = jl.map(vals_to_long, process_vals_sample)
+
+means = jnp.mean(process_data_sample[:, :, 3], axis=0)
+variances = jnp.var(process_data_sample[:, :, 3], axis=0)
+
+# now i just need to write a function to plot these long-format data
+
+pdata1 = process_data_sample[3]
+plong = ST_Data_Long(x = pdata1[:,1], y = pdata1[:,2], t=pdata1[:,0], z = pdata1[:,3])
+plot_st_long(plong)
+
+#+end_src
+
+great, it working.
+
+** plotting the mean and variances
+
+#+begin_src python :session example :results none
+means = jnp.mean(process_data_sample[:, :, 3], axis=0)
+variances = jnp.var(process_data_sample[:, :, 3], axis=0)
+
+pdata1 = process_data_sample[0]
+mean_data = ST_Data_Long(x = pdata1[:,1], y = pdata1[:,2], t=pdata1[:,0], z = means)
+var_data =  ST_Data_Long(x = pdata1[:,1], y = pdata1[:,2], t=pdata1[:,0], z = variances)
+
+plot_st_long(mean_data)
+plot_st_long(var_data)
+#+end_src
+
+** wait what is the to long piece of code doing?
+
+#+begin_src python :session example :results none
+
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 3)
+
+model = gen_example_idem(keys[0], k_spat_inv=False)
+
+obs_locs_wide = rand.uniform(keys[1], shape=(T, nobs, 2))
+obs_locs_t = jnp.vstack(
+    jl.map(
+        lambda i: jnp.column_stack(
+            [jnp.tile(i, obs_locs_wide[i].shape[0]), obs_locs_wide[i]]
+           ),
+        jnp.arange(T),
+            )
+    ) # add a t column
+
+times = jnp.unique(obs_locs_t[:,0])
+
+X_obs = jnp.column_stack([jnp.ones(obs_locs_t.shape[0]), obs_locs_t[:,-2:]])
+
+process_basis = place_basis()
+eval_basis = process_basis.mfun
+
+obs_locs_tree = jax.tree.map(lambda t: obs_locs_t[jnp.where(obs_locs_t[:, 0] == t)][:,1:], list(times))
+PHI_tree = jax.tree.map(eval_basis, obs_locs_tree)
+
+# really should consider exploring a sparse matrix solution!
+PHI_obs = jax.scipy.linalg.block_diag(*PHI_tree)
+
+
+int_grid = create_grid(jnp.array([[0, 1], [0, 1]]), nints)
+process_vals, obs_vals = model.simulate(keys[2],obs_locs, int_grid)
+
+# Create ST_Data_Long object
+process_grids = jnp.tile(model.process_grid.coords, (T, 1, 1)) # repeat process grid t times
+
+process_locs_t = jnp.vstack(
+    jl.map(
+        lambda i: jnp.column_stack(
+            [jnp.tile(i, process_grids[i].shape[0]), process_grids[i]]
+           ),
+        jnp.arange(T),
+            )
+    ) # add a t column
+
+pdata = jnp.column_stack([process_locs_t, jnp.concatenate(process_vals)]) # add the values
+
+process_data = ST_Data_Long(
+    x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3]
+)
+#+end_src
+
+#+begin_src python :session example :results none
+(
+    M,
+    PHI_proc,
+    beta,
+    sigma2_eta,
+    sigma2_eps,
+    alpha0,
+    process_grid,
+    int_grid,
+) = model.get_sim_params()
+
+T = 9
+
+obs_locs_wide = rand.uniform(keys[1], shape=(T, nobs, 2))
+obs_locs_t = jnp.vstack(
+    jl.map(
+        lambda i: jnp.column_stack(
+            [jnp.tile(i, obs_locs_wide[i].shape[0]), obs_locs_wide[i]]
+           ),
+        jnp.arange(T),
+            )
+    ) # add a t column
+
+times = jnp.unique(obs_locs_t[:,0])
+
+X_obs = jnp.column_stack([jnp.ones(obs_locs_t.shape[0]), obs_locs_t[:,-2:]])
+
+obs_locs_tree = jax.tree.map(lambda t: obs_locs_t[jnp.where(obs_locs_t[:, 0] == t)][:,1:], list(times))
+PHI_tree = jax.tree.map(model.process_basis.mfun, obs_locs_tree)
+
+# really should consider exploring a sparse matrix solution!
+PHI_obs = jax.scipy.linalg.block_diag(*PHI_tree)
+
+process_vals, obs_vals = simIDEM(
+    key=key,
+    T=T,
+    M=M,
+    PHI_proc=PHI_proc,
+    PHI_obs=PHI_obs,
+    alpha0=alpha0,
+    obs_locs=obs_locs_t,
+    process_grid=process_grid,
+    int_grid=int_grid,
+    )
+
+# Create ST_Data_Long object
+process_grids = jnp.tile(process_grid.coords, (T, 1, 1))
+
+t_process_locs = jnp.vstack(
+    jl.map(
+        lambda i: jnp.column_stack(
+            [jnp.tile(i, process_grids[i].shape[0]), process_grids[i]]
+           ),
+        jnp.arange(T),
+                            )
+    )
+
+pdata = jnp.column_stack([t_process_locs, jnp.concatenate(process_vals)])
+
+process_data = ST_Data_Long(
+    x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3]
+    )
+
+obs_data = ST_Data_Long(
+    x=obs_locs_t[:,1], y=obs_locs_t[:,2], t=obs_locs_t[:,0], z=obs_vals
+    )
 #+end_src

@@ -19,12 +19,12 @@ class TestConstructM:
     def kernel(self, s, r):
         return jnp.exp(-(jnp.sum((r - s) ** 2)))
 
-    bbox = jnp.array([[0, 1], [0, 1]])
-    grid, deltas = utilities.create_grid(bbox, jnp.array([41, 41]))
-    gridarea = jnp.prod(deltas)
+    bounds = jnp.array([[0, 1], [0, 1]])
+
+    grid = utilities.create_grid(bounds, jnp.array([41, 41]))  # example set of points
 
     def test_shape(self):
-        M = IDEM.construct_M(self.kernel, self.process_basis, self.grid, self.gridarea)
+        M = IDEM.construct_M(self.kernel, self.process_basis, self.grid)
         nbasis = self.process_basis.nbasis
 
         assert M.shape == (nbasis, nbasis)

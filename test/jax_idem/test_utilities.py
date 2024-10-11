@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import sys
 
 sys.path.append("../../main/jax_idem")
-# import pytest
 import utilities
 
 
@@ -12,7 +11,10 @@ class TestCreateGrid:
         bounds = jnp.stack([jnp.array([0, 1])] * ndim)
         ngrids = jnp.tile(ngrid, ndim)
 
-        grid, deltas = utilities.create_grid(bounds, ngrids)
+        # The old way of doing this, it's likely better to store the Grid object directly
+        grid, deltas, _, dim, ngrid, area = utilities.create_grid(
+            bounds, ngrids
+        )  # example set of points
 
         assert grid.shape == (
             int(jnp.prod(ngrids)),
@@ -75,7 +77,9 @@ class TestOuterOp:
         bounds = jnp.stack([jnp.array([0, 1])] * 2)
         ngrids = jnp.tile(50, 2)
 
-        grid, deltas = utilities.create_grid(bounds, ngrids)
+        grid, deltas, _, dim, ngrid, area = utilities.create_grid(
+            bounds, ngrids
+        )  # example set of points
 
         def psi(s, r):
             squarenorm = jnp.array([jnp.sum((s - r) ** 2)])
@@ -95,7 +99,9 @@ class TestPlaceBasis:
     bounds = jnp.stack([jnp.array([0, 1])] * 2)
     ngrids = jnp.tile(42, 2)
 
-    s_grid, deltas = utilities.create_grid(bounds, ngrids)  # example set of points
+    s_grid, deltas, _, dim, ngrid, area = utilities.create_grid(
+        bounds, ngrids
+    )  # example set of points
 
     vphi = basis.vfun(s)  # basis vector on s
     mPHI = basis.mfun(s_grid)  # basis matrix on s_grid
