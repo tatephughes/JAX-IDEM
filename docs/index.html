@@ -1,418 +1,332 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
 <head>
-<!-- 2024-10-11 Fri 13:36 -->
-<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Integro-Difference Equation Model</title>
-<meta name="author" content="Evan Tate Paterson Hughes" />
-<meta name="generator" content="Org Mode" />
-<style>
-  #content { max-width: 60em; margin: auto; }
-  .title  { text-align: center;
-             margin-bottom: .2em; }
-  .subtitle { text-align: center;
-              font-size: medium;
-              font-weight: bold;
-              margin-top:0; }
-  .todo   { font-family: monospace; color: red; }
-  .done   { font-family: monospace; color: green; }
-  .priority { font-family: monospace; color: orange; }
-  .tag    { background-color: #eee; font-family: monospace;
-            padding: 2px; font-size: 80%; font-weight: normal; }
-  .timestamp { color: #bebebe; }
-  .timestamp-kwd { color: #5f9ea0; }
-  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
-  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
-  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
-  .underline { text-decoration: underline; }
-  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
-  p.verse { margin-left: 3%; }
-  pre {
-    border: 1px solid #e6e6e6;
-    border-radius: 3px;
-    background-color: #f2f2f2;
-    padding: 8pt;
-    font-family: monospace;
-    overflow: auto;
-    margin: 1.2em;
-  }
-  pre.src {
-    position: relative;
-    overflow: auto;
-  }
-  pre.src:before {
-    display: none;
-    position: absolute;
-    top: -8px;
-    right: 12px;
-    padding: 3px;
-    color: #555;
-    background-color: #f2f2f299;
-  }
-  pre.src:hover:before { display: inline; margin-top: 14px;}
-  /* Languages per Org manual */
-  pre.src-asymptote:before { content: 'Asymptote'; }
-  pre.src-awk:before { content: 'Awk'; }
-  pre.src-authinfo::before { content: 'Authinfo'; }
-  pre.src-C:before { content: 'C'; }
-  pre.src-C\+\+:before { content: 'C++'; }
-  pre.src-clojure:before { content: 'Clojure'; }
-  pre.src-css:before { content: 'CSS'; }
-  pre.src-D:before { content: 'D'; }
-  pre.src-ditaa:before { content: 'ditaa'; }
-  pre.src-dot:before { content: 'Graphviz'; }
-  pre.src-calc:before { content: 'Emacs Calc'; }
-  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
-  pre.src-fortran:before { content: 'Fortran'; }
-  pre.src-gnuplot:before { content: 'gnuplot'; }
-  pre.src-haskell:before { content: 'Haskell'; }
-  pre.src-hledger:before { content: 'hledger'; }
-  pre.src-java:before { content: 'Java'; }
-  pre.src-js:before { content: 'Javascript'; }
-  pre.src-latex:before { content: 'LaTeX'; }
-  pre.src-ledger:before { content: 'Ledger'; }
-  pre.src-lisp:before { content: 'Lisp'; }
-  pre.src-lilypond:before { content: 'Lilypond'; }
-  pre.src-lua:before { content: 'Lua'; }
-  pre.src-matlab:before { content: 'MATLAB'; }
-  pre.src-mscgen:before { content: 'Mscgen'; }
-  pre.src-ocaml:before { content: 'Objective Caml'; }
-  pre.src-octave:before { content: 'Octave'; }
-  pre.src-org:before { content: 'Org mode'; }
-  pre.src-oz:before { content: 'OZ'; }
-  pre.src-plantuml:before { content: 'Plantuml'; }
-  pre.src-processing:before { content: 'Processing.js'; }
-  pre.src-python:before { content: 'Python'; }
-  pre.src-R:before { content: 'R'; }
-  pre.src-ruby:before { content: 'Ruby'; }
-  pre.src-sass:before { content: 'Sass'; }
-  pre.src-scheme:before { content: 'Scheme'; }
-  pre.src-screen:before { content: 'Gnu Screen'; }
-  pre.src-sed:before { content: 'Sed'; }
-  pre.src-sh:before { content: 'shell'; }
-  pre.src-sql:before { content: 'SQL'; }
-  pre.src-sqlite:before { content: 'SQLite'; }
-  /* additional languages in org.el's org-babel-load-languages alist */
-  pre.src-forth:before { content: 'Forth'; }
-  pre.src-io:before { content: 'IO'; }
-  pre.src-J:before { content: 'J'; }
-  pre.src-makefile:before { content: 'Makefile'; }
-  pre.src-maxima:before { content: 'Maxima'; }
-  pre.src-perl:before { content: 'Perl'; }
-  pre.src-picolisp:before { content: 'Pico Lisp'; }
-  pre.src-scala:before { content: 'Scala'; }
-  pre.src-shell:before { content: 'Shell Script'; }
-  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
-  /* additional language identifiers per "defun org-babel-execute"
-       in ob-*.el */
-  pre.src-cpp:before  { content: 'C++'; }
-  pre.src-abc:before  { content: 'ABC'; }
-  pre.src-coq:before  { content: 'Coq'; }
-  pre.src-groovy:before  { content: 'Groovy'; }
-  /* additional language identifiers from org-babel-shell-names in
-     ob-shell.el: ob-shell is the only babel language using a lambda to put
-     the execution function name together. */
-  pre.src-bash:before  { content: 'bash'; }
-  pre.src-csh:before  { content: 'csh'; }
-  pre.src-ash:before  { content: 'ash'; }
-  pre.src-dash:before  { content: 'dash'; }
-  pre.src-ksh:before  { content: 'ksh'; }
-  pre.src-mksh:before  { content: 'mksh'; }
-  pre.src-posh:before  { content: 'posh'; }
-  /* Additional Emacs modes also supported by the LaTeX listings package */
-  pre.src-ada:before { content: 'Ada'; }
-  pre.src-asm:before { content: 'Assembler'; }
-  pre.src-caml:before { content: 'Caml'; }
-  pre.src-delphi:before { content: 'Delphi'; }
-  pre.src-html:before { content: 'HTML'; }
-  pre.src-idl:before { content: 'IDL'; }
-  pre.src-mercury:before { content: 'Mercury'; }
-  pre.src-metapost:before { content: 'MetaPost'; }
-  pre.src-modula-2:before { content: 'Modula-2'; }
-  pre.src-pascal:before { content: 'Pascal'; }
-  pre.src-ps:before { content: 'PostScript'; }
-  pre.src-prolog:before { content: 'Prolog'; }
-  pre.src-simula:before { content: 'Simula'; }
-  pre.src-tcl:before { content: 'tcl'; }
-  pre.src-tex:before { content: 'TeX'; }
-  pre.src-plain-tex:before { content: 'Plain TeX'; }
-  pre.src-verilog:before { content: 'Verilog'; }
-  pre.src-vhdl:before { content: 'VHDL'; }
-  pre.src-xml:before { content: 'XML'; }
-  pre.src-nxml:before { content: 'XML'; }
-  /* add a generic configuration mode; LaTeX export needs an additional
-     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
-  pre.src-conf:before { content: 'Configuration File'; }
-
-  table { border-collapse:collapse; }
-  caption.t-above { caption-side: top; }
-  caption.t-bottom { caption-side: bottom; }
-  td, th { vertical-align:top;  }
-  th.org-right  { text-align: center;  }
-  th.org-left   { text-align: center;   }
-  th.org-center { text-align: center; }
-  td.org-right  { text-align: right;  }
-  td.org-left   { text-align: left;   }
-  td.org-center { text-align: center; }
-  dt { font-weight: bold; }
-  .footpara { display: inline; }
-  .footdef  { margin-bottom: 1em; }
-  .figure { padding: 1em; }
-  .figure p { text-align: center; }
-  .equation-container {
-    display: table;
-    text-align: center;
-    width: 100%;
-  }
-  .equation {
-    vertical-align: middle;
-  }
-  .equation-label {
-    display: table-cell;
-    text-align: right;
-    vertical-align: middle;
-  }
-  .inlinetask {
-    padding: 10px;
-    border: 2px solid gray;
-    margin: 10px;
-    background: #ffffcc;
-  }
-  #org-div-home-and-up
-   { text-align: right; font-size: 70%; white-space: nowrap; }
-  textarea { overflow-x: auto; }
-  .linenr { font-size: smaller }
-  .code-highlighted { background-color: #ffff00; }
-  .org-info-js_info-navigation { border-style: none; }
-  #org-info-js_console-label
-    { font-size: 10px; font-weight: bold; white-space: nowrap; }
-  .org-info-js_search-highlight
-    { background-color: #ffff00; color: #000000; font-weight: bold; }
-  .org-svg { }
-</style>
-<script>
-  window.MathJax = {
-    tex: {
-      ams: {
-        multlineWidth: '85%'
-      },
-      tags: 'ams',
-      tagSide: 'right',
-      tagIndent: '.8em'
-    },
-    chtml: {
-      scale: 1.0,
-      displayAlign: 'center',
-      displayIndent: '0em'
-    },
-    svg: {
-      scale: 1.0,
-      displayAlign: 'center',
-      displayIndent: '0em'
-    },
-    output: {
-      font: 'mathjax-modern',
-      displayOverflow: 'overflow'
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Evan Tate Paterson Hughes" />
+  <title>Integro-Difference Equation Model</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
     }
-  };
-</script>
-
-<script
-  id="MathJax-script"
-  async
-  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-</script>
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
 </head>
 <body>
-<div id="content" class="content">
+<header id="title-block-header">
 <h1 class="title">Integro-Difference Equation Model</h1>
+<p class="author">Evan Tate Paterson Hughes</p>
+</header>
+<div class="BOILERPLATE drawer">
 
+</div>
 <hr />
-
-<p>
-[VERY UNFINISHED. PLEASE IGNORE.]
-</p>
-
+<p>[VERY UNFINISHED. PLEASE IGNORE.]</p>
 <hr />
-<div id="outline-container-org7056569" class="outline-2">
-<h2 id="org7056569"><span class="section-number-2">1.</span> Introduction</h2>
-<div class="outline-text-2" id="text-1">
-<p>
-As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty.
-Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.
-</p>
-
-<p>
-Traditionally, a descriptive approach has been made to model such systems.
-This means we are most concerned with modelling the moments (means, covariances) of the process.
-More recently, a dynamical approach has been suggested by many authors [citation needed].
-Here, we use knowledge of underlying dynamics to drive the model.
-</p>
-
-<p>
-One such model is the Integro-Difference Equation Model (IDEM), which, in essence, is a state-space model, which models diffusion and advection.
-In order to do computations, the system is discretized using basis function expansions.
-</p>
-
-<p>
-The following IDEM model is considered;
-</p>
-\begin{align}
-\begin{split}
-Z(\vec s;t) &= Y(\vec s;t) + \vec X(\vec s)^{\intercal}\vec \beta + \epsilon_t(\vec s)\\
-Y(\vec s;t+1) &= \int_{\mathcal D_s} \kappa(s,r;t) Y(r;t) d\vec r + \eta_t(\vec s).\label{eq:IDeq2}
-\end{split}
-\end{align}
-<p>
-Where \(\eta_t(\vec s)\) is a small scale variation with no temporal dynamics (Cressie and Wikle call this a `spatially descriptive' component.), \(\vec X(\vec s)\) are spatially varying covariates, \(Z\) is observed data, \(Y\) is the unobserved dynamical process, and \(\kappa\) is the driving 'kernel' function.
-</p>
-
-<p>
-This seems like a reasonable model for the process's diffusion and advection in a spatially continuous way.
-Each state is a continuous weighted integral (sum) of the previous state.
-The form of \(\kappa\) allows us to make use of some of the dynamics of the system; in many geological settings we most likely follow Tobler's law in some sense to model diffusion, with weights depending of the direction of \(\vec s-\vec r\) giving us advection, or movement, of the process.
-</p>
-
-<p>
-Further, we assume that \(\epsilon_t(\vec s)\) and \(\eta_t(\vec s)\) are uncorrelated with each other, and uncorrelated in time.
-</p>
-
-<p>
-(
-Re-do the below to not assume any particular decomposition of \(\kappa\).
-There is also some older notation here, I need to change this to be more in-line with the actual code.
-)
-</p>
-
-<p>
-We decompose the process and the kernel as follows (roughly following ??, ????);
-</p>
-\begin{align}
-\kappa(\vec s, \vec r;t) &= \sum_i\alpha_{i,t}\psi_i(\vec s, \vec r),\label{eq:mexpan}\\
-Y(s;t) &= \sum_j \beta_{j,t}\phi_j(\vec s), \label{eq:Yexpan}
-\end{align}
-<p>
-where \(\{\psi_i\}_{i\in\mathbb N}\) and \(\{\phi_j\}_{j\in\mathbb N}\) are complete, linearly independent sets of basis functions.
-If we have a homogeneous kernel (as in ??, a), we could use the same set of basis functions for the expansion of \(m\) and \(Y\). \(\alpha_{i,t}\) and \(\beta_{i,t}\) are unknown sequences.
-</p>
-
-<p>
-We assume that \eqref{eq:mexpan} and \eqref{eq:Yexpan} can be decomposed into \(I\) and \(J\) dominant components respectively, and truncate these sums and write them in vector form;
-</p>
-\begin{align}
-m(\vec s, \vec r;t) &\approx m_I(\vec s, \vec r;t) = \sum_{i=1}^I \alpha_{i,t}\psi_i(\vec s,r) = \vec\psi_I(\vec s, \vec r)^{\intercal} \vec\alpha_{t,I},\\
-Y(\vec s;t) &\approx Y_J(\vec s) = \sum_j^J \beta_{j,t}\phi_j(\vec s) = \vec\phi_J(\vec s)^{\intercal} \vec\beta_{t, J},
-\end{align}
-<p>
-where \(\vec \psi_I(\vec s,\vec r) = (\psi_1(\vec s, \vec r),\dots, \psi_I(\vec s,\vec r))^{\intercal}\) and \(\vec \phi_J(\vec s) = (\phi_1(\vec s), \dots, \phi_J(\vec s))^{\intercal}\). For brevity, we write \(m = m_I\) and \(Y = Y_J\) in the following.
-</p>
-
-<div class="lemma" id="org73cf0dc">
-<p>
-\label{lem:variation}
-We assume that the small-scale variation \(\vec \nu_t(\vec s)\) in \eqref{eq:IDeq2} is Gaussian with zero mean and covariance defined by
-</p>
-\begin{align}
-\cov[\nu_t(\vec s), \nu_{t+\tau}(\vec r)] =- \begin{cases*}
-\sigma^2\delta(\vec s - \vec r) & if $\tau=0$\\
-0 & else.
-\end{cases*}
-\end{align}
-<p>
-Then, the integral
-</p>
-\begin{align}
-\vec \omega_t = \int_{\mathcal D_s} \vec \phi(\vec s)\nu_t(\vec s)d\vec s\label{eq:omega}
-\end{align}
-<p>
-is also Gaussian with zero mean and covariance
-</p>
-\begin{align*}
-\cov[\vec \omega_t] = \sigma^2\int_{\mathcal D_s} \vec \phi(\vec s) \vec \phi(\vec s)^{\intercal}d\vec s \quad \forall t\in\mathbb N.
-\end{align*}
-
+<h1 id="introduction">Introduction</h1>
+<p>As common and widespread as the problem is, spatio-temporal modelling
+still presents a great deal of difficulty. Inherently, Spatio-Temporal
+datasets are almost always high-dimensional, and repeated observations
+are usually not possible.</p>
+<p>Traditionally, a descriptive approach has been made to model such
+systems. This means we are most concerned with modelling the moments
+(means, covariances) of the process. More recently, a dynamical approach
+has been suggested by many authors [citation needed]. Here, we use
+knowledge of underlying dynamics to drive the model.</p>
+<p>One such model is the Integro-Difference Equation Model (IDEM),
+which, in essence, is a state-space model, which models diffusion and
+advection. In order to do computations, the system is discretized using
+basis function expansions.</p>
+<p>The following IDEM model is considered;</p>
+<p>Where <span
+class="math inline"><em>η</em><sub><em>t</em></sub>(<em>s⃗</em>)</span>
+is a small scale variation with no temporal dynamics (Cressie and Wikle
+call this a `spatially descriptive' component.), <span
+class="math inline"><em>X⃗</em>(<em>s⃗</em>)</span> are spatially varying
+covariates, <span class="math inline"><em>Z</em></span> is observed
+data, <span class="math inline"><em>Y</em></span> is the unobserved
+dynamical process, and <span class="math inline"><em>κ</em></span> is
+the driving 'kernel' function.</p>
+<p>This seems like a reasonable model for the process's diffusion and
+advection in a spatially continuous way. Each state is a continuous
+weighted integral (sum) of the previous state. The form of <span
+class="math inline"><em>κ</em></span> allows us to make use of some of
+the dynamics of the system; in many geological settings we most likely
+follow Tobler's law in some sense to model diffusion, with weights
+depending of the direction of <span
+class="math inline"><em>s⃗</em> − <em>r⃗</em></span> giving us advection,
+or movement, of the process.</p>
+<p>Further, we assume that <span
+class="math inline"><em>ϵ</em><sub><em>t</em></sub>(<em>s⃗</em>)</span>
+and <span
+class="math inline"><em>η</em><sub><em>t</em></sub>(<em>s⃗</em>)</span>
+are uncorrelated with each other, and uncorrelated in time.</p>
+<p>( Re-do the below to not assume any particular decomposition of <span
+class="math inline"><em>κ</em></span>. There is also some older notation
+here, I need to change this to be more in-line with the actual code.
+)</p>
+<p>We decompose the process and the kernel as follows <span
+class="citation" data-cites="dewar2008data">[cite:roughly following
+@dewar2008data]</span>;</p>
+<p>where <span
+class="math inline">{<em>ψ</em><sub><em>i</em></sub>}<sub><em>i</em> ∈ ℕ</sub></span>
+and <span
+class="math inline">{<em>ϕ</em><sub><em>j</em></sub>}<sub><em>j</em> ∈ ℕ</sub></span>
+are complete, linearly independent sets of basis functions. If we have a
+homogeneous kernel <span class="citation"
+data-cites="wikle1999dimension">[cite:as in @wikle1999dimension]</span>,
+we could use the same set of basis functions for the expansion of <span
+class="math inline"><em>m</em></span> and <span
+class="math inline"><em>Y</em></span>. <span
+class="math inline"><em>α</em><sub><em>i</em>, <em>t</em></sub></span>
+and <span
+class="math inline"><em>β</em><sub><em>i</em>, <em>t</em></sub></span>
+are unknown sequences.</p>
+<p>We assume that and can be decomposed into <span
+class="math inline"><em>I</em></span> and <span
+class="math inline"><em>J</em></span> dominant components respectively,
+and truncate these sums and write them in vector form;</p>
+<p>where <span
+class="math inline"><em>ψ⃗</em><sub><em>I</em></sub>(<em>s⃗</em>,<em>r⃗</em>) = (<em>ψ</em><sub>1</sub>(<em>s⃗</em>,<em>r⃗</em>),…,<em>ψ</em><sub><em>I</em></sub>(<em>s⃗</em>,<em>r⃗</em>))<sup>⊺</sup></span>
+and <span
+class="math inline"><em>ϕ⃗</em><sub><em>J</em></sub>(<em>s⃗</em>) = (<em>ϕ</em><sub>1</sub>(<em>s⃗</em>),…,<em>ϕ</em><sub><em>J</em></sub>(<em>s⃗</em>))<sup>⊺</sup></span>.
+For brevity, we write <span
+class="math inline"><em>m</em> = <em>m</em><sub><em>I</em></sub></span>
+and <span
+class="math inline"><em>Y</em> = <em>Y</em><sub><em>J</em></sub></span>
+in the following.</p>
+<div class="lemma">
+<p>We assume that the small-scale variation <span
+class="math inline"><em>ν⃗</em><sub><em>t</em></sub>(<em>s⃗</em>)</span>
+in is Gaussian with zero mean and covariance defined by</p>
+<p>Then, the integral</p>
+<p>is also Gaussian with zero mean and covariance</p>
 </div>
-<div class="proof" id="orgc82688a">
-<p>
-We have that \eqref{eq:omega} is a linear combination of Gaussian \(\nu_t(\vec s)\), therefore it is itself Gaussian.
-Showing the two moments is then easy. With expectations and covariances taken with respect to time, 
-</p>
-\begin{align*}
-\E[\vec \omega_t] &= \E \left[ \int_{\mathcal D_s} \vec \phi(\vec s) \omega_t(\vec s) d\vec s \right] = \int_{\mathcal D_s} \vec \phi(\vec s) \E[\omega_t(\vec s)] d\vec s = 0\\
-\cov[\vec \omega_t] &= \E[\omega_t\omega_t^{\intercal}] - \E[\omega_t]E[\omega_t]^{\intercal} = \E[\omega_t\omega_t^{\intercal}]\\
-&= \E \left[ \int_{\mathcal D_s} \vec \phi(\vec s) \nu_t(\vec s) d\vec s \int_{\mathcal D_s} \vec \phi(\vec r)^{\intercal} \nu_t(\vec r) d \vec r \right] = \int_{\mathcal D_s^2} \vec \phi(\vec s) \vec \phi(\vec r)^{\intercal} \E[\nu_t(\vec s)\nu_t(\vec r)]d\vec s d\vec r\\
-&= \int_{\mathcal D_s^2} \vec \phi(\vec s) \vec \phi(\vec r)^{\intercal} \sigma^2\delta(\vec s-\vec r) d\vec s d\vec r = \sigma^2 \int_{\mathcal D_s} \vec \phi(\vec s)\vec \phi(\vec s)^{\intercal} d\vec s.
-\end{align*}
-
+<div class="proof">
+<p>We have that is a linear combination of Gaussian <span
+class="math inline"><em>ν</em><sub><em>t</em></sub>(<em>s⃗</em>)</span>,
+therefore it is itself Gaussian. Showing the two moments is then easy.
+With expectations and covariances taken with respect to time,</p>
 </div>
-
-
-<p>
-Continuing to follow Dewar et al. with some generalisation, we define the following matrices;
-</p>
-\begin{align}
-\mat\Phi (\vec s) &= \int_{\mathcal D_s} \vec\psi(\vec s,\vec r) \vec\phi(r)^{\intercal}d\vec r &\in \mathcal M_{I\times J}[\mathbb R]\\
-\mat\Psi^{(Z)} &= \int_{\mathcal D_s} \vec \phi(\vec s)\vec \phi(\vec s)^{\intercal} d\vec s &\in \mathbb M_{I\times I}[\mathbb R]\\
-\mat\Psi^{(\alpha)}_t &= \int_{\mathcal D_s} \vec \phi(\vec s)\vec \alpha_t^{\intercal} \mat \Phi(\vec s) d\vec s &\in \mathbb M_{I\times I}[\mathbb R].
-\end{align}
-<p>
-Using these, we can finally return to a familiar state-space form.
-</p>
-
-<div class="theorem" id="org9702729">
-<p>
-\label{thm:idtoss}
-We have that \(\vec \beta(t)\) evolves by the state-space equation
-</p>
-\begin{align}
-\vec \beta(t+1) = \mat M_t \vec \beta(t) + \vec \eta_t,\label{eq:idstatespace}
-\end{align}
-<p>
-where \(\eta_t\) is Gaussian with covariance \(\sigma^2(\mat \Psi^{(Z)})^{-1}\), and \(\mat M_t = (\mat\Psi^{(Z)})^{-1}\mat\Psi^{(\alpha)}_t\).
-</p>
-
-<p>
-Furthermore, we then recall that we assume (ignoring approximations) that \(Y(\vec s;t) = \vec\phi(\vec s)^{\intercal}\vec\beta(t)\). So, fixing stations \(\{\vec s_1,\dots, \vec s_n\}\) and setting \(\mat X = [\vec\phi(\vec s_1), \dots, \vec \phi(\vec s_n)]^{\intercal}\), we return to a system of the form \eqref{eq:linearprocess}.
-</p>
-
+<p>Continuing to follow Dewar et al. with some generalisation, we define
+the following matrices;</p>
+<p>Using these, we can finally return to a familiar state-space
+form.</p>
+<div class="theorem">
+<p>We have that <span class="math inline"><em>β⃗</em>(<em>t</em>)</span>
+evolves by the state-space equation</p>
+<p>where <span
+class="math inline"><em>η</em><sub><em>t</em></sub></span> is Gaussian
+with covariance <span class="math inline">$\sigma^2(\mat
+\Psi^{(Z)})^{-1}$</span>, and <span class="math inline">$\mat M_t =
+(\mat\Psi^{(Z)})^{-1}\mat\Psi^{(\alpha)}_t$</span>.</p>
+<p>Furthermore, we then recall that we assume (ignoring approximations)
+that <span
+class="math inline"><em>Y</em>(<em>s⃗</em>;<em>t</em>) = <em>ϕ⃗</em>(<em>s⃗</em>)<sup>⊺</sup><em>β⃗</em>(<em>t</em>)</span>.
+So, fixing stations <span
+class="math inline">{<em>s⃗</em><sub>1</sub>, …, <em>s⃗</em><sub><em>n</em></sub>}</span>
+and setting <span class="math inline">$\mat X = [\vec\phi(\vec s_1),
+\dots, \vec \phi(\vec s_n)]^{\intercal}$</span>, we return to a system
+of the form .</p>
 </div>
-<div class="proof" id="org48749b1">
-<p>
-Expanding \eqref{eq:IDeq2} with \eqref{eq:Yexpan} and \eqref{eq:mexpan},
-</p>
-\begin{align*}
-Y(\vec s; t+1) &= \vec\phi(\vec s)^{\intercal}\vec\beta_(t+1) = \int_{\mathcal D_s} \vec\psi(\vec s,\vec r)^{\intercal}\vec \alpha_t\vec \phi(\vec s)^{\intercal}\vec\beta(t)d\vec r + \nu_t(\vec s),\\
-&= \vec\alpha_t^{\intercal} \int_{\mathcal D_s} \vec\psi(\vec s,\vec r)\vec\phi(\vec s)d\vec r \vec\beta(t) + \nu_t(\vec s),\\
-&= \vec\alpha_t^{\intercal} \mat\Phi(\vec s)\vec\beta(t) + \nu_t(\vec s).
-\end{align*}
-<p>
-Now we multiply the left hand side by \(\vec\phi(\vec s)\) and integrate over \(\vec s\),
-</p>
-\begin{align*}
-&\quad \int_{\mathcal D_s} \vec\phi(\vec s)\vec\phi(\vec s)^{\intercal}d\vec s\vec\beta(t+1) = \int_{\mathcal D_s}\vec \phi(\vec s)\vec\alpha_t^{\intercal}\mat\Phi(\vec s)d\vec s\vec\beta(t) + \int_{\mathcal D_s} \vec\phi(\vec s)\vec\nu_t(\vec s)d \vec s,\\
-&= \mat\Psi^{(Z)}\vec\beta(t+1) = \mat\Psi^{(\alpha)}_t \vec\beta(t) + \vec\omega_t,
-\end{align*}
-<p>
-where we used Lemma \ref{lem:variation}.
-We then arrive at \eqref{eq:idstatespace} by multiplying the left hand sides by \((\mat\Psi^{(Z)})^{-1}\), writing \(\vec\eta_t:= (\mat\Psi^{(Z)})^{-1}\vec\omega_t\).
-Finding the covariance of \(\vec\eta_t\) follows directly from Lemma \ref{lem:variation}.
-</p>
-
-<p>
-Once the stations are fixed, we can write \(\vec Y(t) = (Y(\vec s_1;t), \dots, Y(\vec s_n;t))\) and \(\vec Z(t) = (Z(\vec s_1;t), \dots, Z(\vec s_n;t))\), then we get a system of the form \eqref{eq:linearprocess}.
-</p>
-
-</div>
-</div>
-</div>
-</div>
-<div id="postamble" class="status">
-<p class="author">Author: Evan Tate Paterson Hughes</p>
-<p class="date">Created: 2024-10-11 Fri 13:36</p>
-<p class="validation"><a href="https://validator.w3.org/check?uri=referer">Validate</a></p>
+<div class="proof">
+<p>Expanding with and ,</p>
+<p>Now we multiply the left hand side by <span
+class="math inline"><em>ϕ⃗</em>(<em>s⃗</em>)</span> and integrate over
+<span class="math inline"><em>s⃗</em></span>,</p>
+<p>where we used Lemma . We then arrive at by multiplying the left hand
+sides by <span class="math inline">$(\mat\Psi^{(Z)})^{-1}$</span>,
+writing <span class="math inline">$\vec\eta_t:=
+(\mat\Psi^{(Z)})^{-1}\vec\omega_t$</span>. Finding the covariance of
+<span class="math inline"><em>η⃗</em><sub><em>t</em></sub></span> follows
+directly from Lemma .</p>
+<p>Once the stations are fixed, we can write <span
+class="math inline"><em>Y⃗</em>(<em>t</em>) = (<em>Y</em>(<em>s⃗</em><sub>1</sub>;<em>t</em>),…,<em>Y</em>(<em>s⃗</em><sub><em>n</em></sub>;<em>t</em>))</span>
+and <span
+class="math inline"><em>Z⃗</em>(<em>t</em>) = (<em>Z</em>(<em>s⃗</em><sub>1</sub>;<em>t</em>),…,<em>Z</em>(<em>s⃗</em><sub><em>n</em></sub>;<em>t</em>))</span>,
+then we get a system of the form .</p>
 </div>
 </body>
 </html>
