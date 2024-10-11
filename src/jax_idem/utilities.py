@@ -171,6 +171,8 @@ class ST_Data_Wide(NamedTuple):
 
 
 class ST_Data_Long(NamedTuple):
+    """This could be a full class with plotting methods!"""
+
     x: ArrayLike
     y: ArrayLike
     t: ArrayLike
