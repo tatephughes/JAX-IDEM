@@ -1,6 +1,6 @@
 # The Model
 
-The Integro-Difference Equation model, sometimes abbreviated to IDE or, to avoid confusion, IDEM, is a hierarchical dynamic spatio-temporal model, which can be written
+The Integro-Difference Equation model, sometimes abbreviated to IDE or, to avoid confusion with integrated development environments, IDEM, is a hierarchical dynamic spatio-temporal model, which can be written
 
 ```math
 \renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
