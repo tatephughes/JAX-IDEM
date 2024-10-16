@@ -45,7 +45,7 @@ Y(\boldsymbol s;t+1) &= \int_{\mathcal D_s} \kappa(s,r) Y(r;t) d\boldsymbol r + 
 \end{split}
 $$ {#eq-IDEM}
 
-Where $\omega_t(\boldsymbol s)$ is a small scale variation with no temporal dynamics (Cressie and Wikle call this a 'spatially descriptive' component.), $\boldsymbol X(\boldsymbol s)$ are spatially varying covariates, $Z$ is observed data, $Y$ is the unobserved dynamic process, and $\kappa$ is the driving 'kernel' function.
+Where $\omega_t(\boldsymbol s)$ is a small scale variation with no temporal dynamics [@cressie2015statistics call this a 'spatially descriptive' component], $\boldsymbol X(\boldsymbol s)$ are spatially varying covariates, $Z$ is observed data, $Y$ is the unobserved dynamic process, and $\kappa$ is the driving 'kernel' function.
 
 # Process Decomposition
 
@@ -122,7 +122,7 @@ Dewar [@dewar2008data] fixes the variance of $\omega_t(\vec s)$ to be uniform an
 It is then easily shown that $\vec\eta_t$ is also normal, with $\vec\eta_t \sim \mathcal N(0, \sigma^2\Psi^{-1})$.
 
 However, in practice, we simulate in the spectral domain; that is, if we want to keep things simple, it would make sense to specify (and fit) the distribution of $\vec\eta_t$, and compute the variance of $\omega_t(\vec s)$ if needed. 
-This is exactly what the IDE package [@zammit2022IDE] in R does, and, correspondingly, what this JAX package does.
+This is exactly what the IDE package [@zammit2022IDE] in R does, and, correspondingly, what this JAX project does.
 
 ### Lemma 1
 
@@ -185,7 +185,7 @@ We then establish a simple shape for the kernel (e.g. Gaussian) and rely on very
 This kind of kernel cannot handle spatial variance well; if the function depends on $\vec s$ and $\vec r$ only through their difference $\vec s-\vec r$ (like in a Gaussian kernel), then we have spatial invariance; the motion of the process is the same everywhere in the domain.
 
 We can add spatial variance back in in a nice way by adding dependance on $\vec s$ to the parameters, $\vec \theta(\vec s)$.
-Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground (cite the Cressie, Wilke and Zammit-Mangion, 2019).
+Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground [@cressie2015statistics].
 
 The example kernel used in the program is Gaussian with spatially variant offset terms;
 
