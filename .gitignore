@@ -73,8 +73,10 @@ jax.iml
 .hypothesis/
 
 # virtualenv/venv directories
+/cpujax/
 /venv/
 /bin/
 /include/
 /lib/
 /share/
+/.quarto/

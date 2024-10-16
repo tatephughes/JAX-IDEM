@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Integro-Difference Equation Models</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="mathematics_files/libs/clipboard/clipboard.min.js"></script>
+<script src="mathematics_files/libs/quarto-html/quarto.js"></script>
+<script src="mathematics_files/libs/quarto-html/popper.min.js"></script>
+<script src="mathematics_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="mathematics_files/libs/quarto-html/anchor.min.js"></script>
+<link href="mathematics_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="mathematics_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="mathematics_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="mathematics_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="mathematics_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script>
+window.MathJax = {
+  loader: {
+    load: ['[tex]/upgreek', '[tex]/boldsymbol', '[tex]/physics'
+  },
+  tex: {
+    packages: {
+      '[+]': ['upgreek', 'boldsymbol', 'physics']
+    }
+  }
+};
+</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#descriptive-and-dynamic-modelling" id="toc-descriptive-and-dynamic-modelling" class="nav-link active" data-scroll-target="#descriptive-and-dynamic-modelling">Descriptive and Dynamic Modelling</a></li>
+  <li><a href="#process-decomposition" id="toc-process-decomposition" class="nav-link" data-scroll-target="#process-decomposition">Process Decomposition</a>
+  <ul class="collapse">
+  <li><a href="#theorem-1" id="toc-theorem-1" class="nav-link" data-scroll-target="#theorem-1">Theorem 1</a></li>
+  <li><a href="#process-noise" id="toc-process-noise" class="nav-link" data-scroll-target="#process-noise">Process Noise</a>
+  <ul class="collapse">
+  <li><a href="#lemma-1" id="toc-lemma-1" class="nav-link" data-scroll-target="#lemma-1">Lemma 1</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#kernel-decomposition" id="toc-kernel-decomposition" class="nav-link" data-scroll-target="#kernel-decomposition">Kernel Decomposition</a></li>
+  <li><a href="#scrap-heap" id="toc-scrap-heap" class="nav-link" data-scroll-target="#scrap-heap">scrap heap</a></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Integro-Difference Equation Models</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><a href="./index.html">Index</a></p>
+<section id="descriptive-and-dynamic-modelling" class="level1">
+<h1>Descriptive and Dynamic Modelling</h1>
+<p>As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty. Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.</p>
+<p>Traditionally, a descriptive approach has been made to model such systems. This means we are most concerned with modelling the moments (means, covariances) of the process. More recently, a dynamical approach has been suggested by many authors [citation needed]. Here, we use knowledge of underlying dynamics to drive the model.</p>
+<p>One such model is the Integro-Difference Equation Model (IDEM), which, in essence, is a state-space model, which models diffusion and advection. In order to do computations, the system is discretized using basis function expansions.</p>
+<p>The following model is considered;</p>
+<p><span id="eq-IDEM"><span class="math display">\[
+\begin{split}
+Z(\boldsymbol s;t) &amp;= Y(\boldsymbol s;t) + \boldsymbol X(\boldsymbol s)^{\intercal}\boldsymbol \beta + \epsilon_t(\boldsymbol s)\\
+Y(\boldsymbol s;t+1) &amp;= \int_{\mathcal D_s} \kappa(s,r) Y(r;t) d\boldsymbol r + \omega_t(\boldsymbol s).
+\end{split}
+\tag{1}\]</span></span></p>
+<p>Where <span class="math inline">\(\omega_t(\boldsymbol s)\)</span> is a small scale variation with no temporal dynamics (Cressie and Wikle call this a ‘spatially descriptive’ component.), <span class="math inline">\(\boldsymbol X(\boldsymbol s)\)</span> are spatially varying covariates, <span class="math inline">\(Z\)</span> is observed data, <span class="math inline">\(Y\)</span> is the unobserved dynamic process, and <span class="math inline">\(\kappa\)</span> is the driving ‘kernel’ function.</p>
+</section>
+<section id="process-decomposition" class="level1">
+<h1>Process Decomposition</h1>
+<p>In order to work with the process, we likely want to consider the spectral decomposition of it. That is, choose a complete class of spatial spectral basis functions, <span class="math inline">\(\phi_i(\boldsymbol s)\)</span>, and decompose;</p>
+<p><span id="eq-processdecomp"><span class="math display">\[
+Y(\boldsymbol s;t) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\boldsymbol s).\label{}
+\tag{2}\]</span></span></p>
+<p>where we truncate the expansion at some <span class="math inline">\(r\in\mathbb N\)</span>. Notice that we can write this in vector/matrix form. Discretising the spatial domain into <span class="math inline">\(n\)</span> points <span class="math inline">\(\{\boldsymbol s_i\in \mathcal D_s, i=1,\dots,n\}\)</span>, and consider times <span class="math inline">\(t=1,2,\dots, T\)</span>, we set</p>
+$$
+<span class="math display">\[\begin{split}
+\boldsymbol Y(t) &amp;= (Y(s_1), Y(s_2),  \dots, Y(s_n))^{\intercal}\\
+Y &amp;= (\boldsymbol Y(t=1), \boldsymbol Y(t=2), \dots, \boldsymbol Y(t=T))\\
+\boldsymbol \phi(\boldsymbol s) &amp;= (\phi_1(\boldsymbol s), \phi_2(\boldsymbol s), \dots, \phi_r(\boldsymbol s))^{\intercal}\\
+\Phi &amp;= (\boldsymbol \phi(\boldsymbol s_1), \boldsymbol \phi(\boldsymbol s_2), \dots, \boldsymbol \phi(\boldsymbol s_n))\\
+\boldsymbol \alpha(t) &amp;= (\alpha_1(t), \alpha_2(t), \dots, \alpha_r(t))^{\intercal}\\
+A &amp;= (\boldsymbol \alpha(t=1), \boldsymbol \alpha(t=2), \dots, \boldsymbol \alpha(t=Y)).
+\end{split}\]</span>
+<p>Now, (<a href="#eq-processdecomp" class="quarto-xref">Equation&nbsp;2</a>) gives us</p>
+<p><span id="eq-pbvec"><span class="math display">\[
+\begin{split}
+Y(\boldsymbol s; t) &amp;= \boldsymbol \phi^{\intercal}(\boldsymbol s) \boldsymbol \alpha(t)\\
+\boldsymbol Y(t) &amp;=  \Phi \boldsymbol \alpha(t)\\
+Y &amp;=  \Phi  A
+\end{split}
+\tag{3}\]</span></span></p>
+<p>We now want to find the equation defining the evolution of the basis coefficients, <span class="math inline">\(\boldsymbol \alpha_t\)</span>.</p>
+<section id="theorem-1" class="level3">
+<h3 class="anchored" data-anchor-id="theorem-1">Theorem 1</h3>
+<p>Define the Gram matrix;</p>
+<p><span id="eq-gram"><span class="math display">\[
+\Psi := \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol s) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal d\boldsymbol{\mathbf{s}}
+\tag{4}\]</span></span></p>
+<p>Then, the basis coefficients evolve by the equation</p>
+<p><span class="math display">\[
+\boldsymbol{\mathbf{\alpha}}(t+1) = M \boldsymbol{\mathbf{\alpha}}(t) + \boldsymbol{\mathbf{\eta}}_t,
+\]</span></p>
+<p>where <span class="math inline">\(M = \Psi^{-1} \int\int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}})\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}} d \boldsymbol{\mathbf{s}}\)</span> and <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t =\Psi^{-1} \int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\omega_t(s)d\boldsymbol{\mathbf{s}}\)</span>.</p>
+<section id="proof" class="level4">
+<h4 class="anchored" data-anchor-id="proof">Proof:</h4>
+<p>Adapting from (Dewar, Michael and Scerri, Kenneth and Kadirkamanathan, Visakan, 2008), write out the process equation, (<a href="#eq-IDEM" class="quarto-xref">Equation&nbsp;1</a>), using the first equation of (<a href="#eq-pbvec" class="quarto-xref">Equation&nbsp;3</a>);</p>
+<p><span class="math display">\[
+Y(\boldsymbol{\mathbf{s}};t+1) = \boldsymbol{\mathbf{\phi}}(\boldsymbol s) \alpha(t+1) = \int_{\mathcal D_s} \kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^{\intercal}\boldsymbol{\mathbf{\alpha}}(t)d\boldsymbol{\mathbf{r}} + \omega_t(\boldsymbol{\mathbf{s}}),
+\]</span></p>
+<p>We then multiply both sides by <span class="math inline">\(\boldsymbol \phi(s)\)</span> and integrate over <span class="math inline">\(\boldsymbol s\)</span></p>
+<p><span class="math display">\[
+\begin{split}
+\int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) d\boldsymbol{\mathbf{s}} \boldsymbol{\mathbf{\alpha}}(t+1) &amp;= \int\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\int \kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}})\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}}  d \boldsymbol{\mathbf{s}}\ \boldsymbol{\mathbf{\alpha}}(t) + \int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\omega_t(s)d\boldsymbol{\mathbf{s}}\\
+\Psi \boldsymbol{\mathbf{\alpha}}(t+1) &amp;= \int\int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}} d \boldsymbol{\mathbf{s}}\ \boldsymbol{\mathbf{\alpha}}(t) + \int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\omega_t(s)d\boldsymbol{\mathbf{s}}.
+\end{split}
+\]</span></p>
+<p>So, finally, pre-multipling by the inverse of the gram matrix, <span class="math inline">\(\Psi^{-1}\)</span> (<a href="#eq-gram" class="quarto-xref">Equation&nbsp;4</a>), we get the result.</p>
+</section>
+</section>
+<section id="process-noise" class="level2">
+<h2 class="anchored" data-anchor-id="process-noise">Process Noise</h2>
+<p>We still have to set out what the process noise, <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span>, and it’s spectral couterpart, <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t\)</span>, are. Dewar <span class="citation" data-cites="dewar2008data">(<a href="#ref-dewar2008data" role="doc-biblioref">Dewar, Scerri, and Kadirkamanathan 2008</a>)</span> fixes the variance of <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> to be uniform and uncorrelated across space and time, with <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}}) \sim \mathcal N(0,\sigma^2)\)</span> It is then easily shown that <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t\)</span> is also normal, with <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t \sim \mathcal N(0, \sigma^2\Psi^{-1})\)</span>.</p>
+<p>However, in practice, we simulate in the spectral domain; that is, if we want to keep things simple, it would make sense to specify (and fit) the distribution of <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t\)</span>, and compute the variance of <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> if needed. This is exactly what the IDE package <span class="citation" data-cites="zammit2022IDE">(<a href="#ref-zammit2022IDE" role="doc-biblioref">Zammit-Mangion 2022</a>)</span> in R does, and, correspondingly, what this JAX package does.</p>
+<section id="lemma-1" class="level3">
+<h3 class="anchored" data-anchor-id="lemma-1">Lemma 1</h3>
+<p>Let <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t \sim \mathcal N(0, \Sigma_\eta)\)</span>, and <span class="math inline">\(\mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\boldsymbol{\mathbf{\eta}}_t, \boldsymbol{\mathbf{\eta}}_{t+\tau}] =0\)</span>, <span class="math inline">\(\forall \tau&gt;0\)</span>. Then <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> is also normally distributed, with covariance <span class="math display">\[
+\mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\omega_t(\boldsymbol{\mathbf{s}}), \omega_{t+\tau}(\boldsymbol{\mathbf{r}})] = \begin{cases}
+\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal \Sigma_\eta \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}) &amp; \text{if }\tau=0\\
+0 &amp; \text{else}\\
+\end{cases}
+\]</span></p>
+<section id="proof-1" class="level4">
+<h4 class="anchored" data-anchor-id="proof-1">Proof:</h4>
+<p>Normality is clear, since <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t\)</span> is a linear combination of <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> <span style="color: red;">[NOTE: I’m pretty sure this is true, certainly a linear combination of gaussian is gaussian, but the converse is true as well right?]</span>.</p>
+<p>Consider <span class="math inline">\(\Psi \boldsymbol{\mathbf{\eta}}_t\)</span>. It is clearly normal, with expectation zero and variance (using (<a href="#eq-gram" class="quarto-xref">Equation&nbsp;4</a>)),</p>
+<p><span id="eq-var1"><span class="math display">\[
+\begin{split}
+\mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\Psi \boldsymbol{\mathbf{\eta}}_t] &amp;= \Psi \mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{\omega}}_t] \Psi^\intercal = \Psi\Sigma_\eta\Psi^\intercal,\\
+&amp;= \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal d\boldsymbol{\mathbf{s}} \  \Sigma_\eta \ \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}}\\
+&amp;=  \int\int_{\mathcal D_s^2} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal \  \Sigma_\eta \  \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}} d\boldsymbol{\mathbf{s}}\\
+\end{split}
+\tag{5}\]</span></span></p>
+<p>Since it has zero expectation, we also have</p>
+<p><span id="eq-var2"><span class="math display">\[
+\begin{split}
+\mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\Psi\boldsymbol{\mathbf{\eta}}_t] &amp;= \mathbb E[(\Psi\boldsymbol{\mathbf{\eta}}_t) (\Psi\boldsymbol{\mathbf{\eta}}_t)^\intercal] = \mathbb E[\Psi\boldsymbol{\mathbf{\eta}}_t\boldsymbol{\mathbf{\eta}}_t^\intercal\Psi^\intercal]\\
+&amp;= \mathbb E \left[ \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\omega_t(\boldsymbol{\mathbf{s}})d\boldsymbol{\mathbf{s}} \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal \omega_t(\boldsymbol{\mathbf{r}}) d\boldsymbol{\mathbf{r}} \right]\\
+&amp;= \int\int_{\mathcal D_s^2} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\  \mathbb E[\omega_t(\boldsymbol{\mathbf{s}})\omega_t(\boldsymbol{\mathbf{r}})]\  \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{s}} d \boldsymbol{\mathbf{r}}.
+\end{split}
+\tag{6}\]</span></span></p>
+<p>We can see that, comparing (<a href="#eq-var1" class="quarto-xref">Equation&nbsp;5</a>) and (<a href="#eq-var2" class="quarto-xref">Equation&nbsp;6</a>), we have</p>
+<p><span class="math display">\[
+\mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\omega_t(\boldsymbol{\mathbf{s}}), \omega_t(\boldsymbol{\mathbf{r}})] = \mathbb E[\omega_t(\boldsymbol{\mathbf{s}})\omega_t(\boldsymbol{\mathbf{r}})]= \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal \Sigma_\eta \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}).
+\]</span></p>
+</section>
+</section>
+</section>
+</section>
+<section id="kernel-decomposition" class="level1">
+<h1>Kernel Decomposition</h1>
+<p>There are a few ways to handle the kernel. One of the most obvious is to expand it out into a spectral decomposition as well;</p>
+<p><span class="math display">\[
+\kappa \approx \sum_i \beta_i\psi(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}).
+\]</span></p>
+<p>This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on <span class="math inline">\(\mathbb R^2\times \mathbb R^2\)</span>; to get a wide enough space of possible functions, we would likely need many basis coefficients.</p>
+<p>A much simpler approach would be to simply parameterise the kernel function, to <span class="math inline">\(\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}, \boldsymbol{\mathbf{\theta}})\)</span>. We then establish a simple shape for the kernel (e.g.&nbsp;Gaussian) and rely on very few parameters (for example, scale, shape, offsets). This kind of kernel cannot handle spatial variance well; if the function depends on <span class="math inline">\(\boldsymbol{\mathbf{s}}\)</span> and <span class="math inline">\(\boldsymbol{\mathbf{r}}\)</span> only through their difference <span class="math inline">\(\boldsymbol{\mathbf{s}}-\boldsymbol{\mathbf{r}}\)</span> (like in a Gaussian kernel), then we have spatial invariance; the motion of the process is the same everywhere in the domain.</p>
+<p>We can add spatial variance back in in a nice way by adding dependance on <span class="math inline">\(\boldsymbol{\mathbf{s}}\)</span> to the parameters, <span class="math inline">\(\boldsymbol{\mathbf{\theta}}(\boldsymbol{\mathbf{s}})\)</span>. Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground (cite the Cressie, Wilke and Zammit-Mangion, 2019).</p>
+<p>The example kernel used in the program is Gaussian with spatially variant offset terms;</p>
+<p><span class="math display">\[
+\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}; \theta_1, \theta_2, \boldsymbol{\mathbf{\theta}}_3(\boldsymbol{\mathbf{s}})) = \theta_1 \exp \left( -\frac{1}{\theta_2} \Vert \boldsymbol{\mathbf{s}}- \boldsymbol{\mathbf{r}} +\boldsymbol{\mathbf{\theta}}_3(s)\Vert^2 \right)
+\]</span></p>
+<p>where the offset terms <span class="math inline">\(\boldsymbol{\mathbf{\theta}}_3(\boldsymbol{\mathbf{s}})\)</span> are coursely spectrally decomposed into 9 coefficients each.</p>
+</section>
+<section id="scrap-heap" class="level1">
+<h1>scrap heap</h1>
+<p>We also eventually define the kernel matrix (i wrote this down too early but ill need it later)</p>
+<p>In hindsight, the only reason this appears in the code is due to riemann integration. I probably don’t need it here. <span class="math display">\[
+K := \left[\begin{matrix}
+\kappa(\boldsymbol s_1, \boldsymbol s_1) &amp; \kappa(\boldsymbol s_1, \boldsymbol s_2) &amp; \dots &amp; \kappa(\boldsymbol s_1, \boldsymbol s_n)\\
+\vdots &amp;   \ddots &amp;&amp; \vdots\\
+\kappa(\boldsymbol s_n, \boldsymbol s_1) &amp; \kappa(\boldsymbol s_n, \boldsymbol s_2) &amp; \dots &amp; \kappa(\boldsymbol s_n, \boldsymbol s_n)
+\end{matrix}\right].
+\]</span></p>
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-dewar2008data" class="csl-entry" role="listitem">
+Dewar, Michael, Kenneth Scerri, and Visakan Kadirkamanathan. 2008. <span>“Data-Driven Spatio-Temporal Modeling Using the Integro-Difference Equation.”</span> <em>IEEE Transactions on Signal Processing</em> 57 (1): 83–91.
+</div>
+<div id="ref-zammit2022IDE" class="csl-entry" role="listitem">
+Zammit-Mangion, Andrew. 2022. <em>IDE: Integro-Difference Equation Spatio-Temporal Models</em>. <a href="https://CRAN.R-project.org/package=IDE">https://CRAN.R-project.org/package=IDE</a>.
+</div>
+</div></section></div></main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

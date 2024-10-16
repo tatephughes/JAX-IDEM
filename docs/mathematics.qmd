@@ -1,0 +1,210 @@
+---
+title: "Integro-Difference Equation Models"
+format:
+  html:
+    code-fold: true
+    toc: true
+jupyter: python3
+include-in-header:
+  - text: |
+      <script>
+      window.MathJax = {
+        loader: {
+          load: ['[tex]/upgreek', '[tex]/boldsymbol', '[tex]/physics'
+        },
+        tex: {
+          packages: {
+            '[+]': ['upgreek', 'boldsymbol', 'physics']
+          }
+        }
+      };
+      </script>
+bibliography: Bibliography.bib
+---
+
+[Index](./index.html)
+
+\DeclareMathOperator{\var}{\mathbb{V}\mathrm{ar}}
+\DeclareMathOperator{\cov}{\mathbb{C}\mathrm{ov}}
+\renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
+
+# Descriptive and Dynamic Modelling
+
+As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty. Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.
+
+Traditionally, a descriptive approach has been made to model such systems. This means we are most concerned with modelling the moments (means, covariances) of the process. More recently, a dynamical approach has been suggested by many authors [citation needed]. Here, we use knowledge of underlying dynamics to drive the model.
+
+One such model is the Integro-Difference Equation Model (IDEM), which, in essence, is a state-space model, which models diffusion and advection. In order to do computations, the system is discretized using basis function expansions.
+
+The following model is considered;
+
+$$
+\begin{split}
+Z(\boldsymbol s;t) &= Y(\boldsymbol s;t) + \boldsymbol X(\boldsymbol s)^{\intercal}\boldsymbol \beta + \epsilon_t(\boldsymbol s)\\
+Y(\boldsymbol s;t+1) &= \int_{\mathcal D_s} \kappa(s,r) Y(r;t) d\boldsymbol r + \omega_t(\boldsymbol s). 
+\end{split}
+$$ {#eq-IDEM}
+
+Where $\omega_t(\boldsymbol s)$ is a small scale variation with no temporal dynamics (Cressie and Wikle call this a 'spatially descriptive' component.), $\boldsymbol X(\boldsymbol s)$ are spatially varying covariates, $Z$ is observed data, $Y$ is the unobserved dynamic process, and $\kappa$ is the driving 'kernel' function.
+
+# Process Decomposition
+
+In order to work with the process, we likely want to consider the spectral decomposition of it. That is, choose a complete class of spatial spectral basis functions, $\phi_i(\boldsymbol s)$, and decompose;
+
+$$
+Y(\boldsymbol s;t) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\boldsymbol s).\label{}
+$$ {#eq-processdecomp}
+
+where we truncate the expansion at some $r\in\mathbb N$. Notice that we can write this in vector/matrix form. Discretising the spatial domain into $n$ points $\{\boldsymbol s_i\in \mathcal D_s, i=1,\dots,n\}$, and consider times $t=1,2,\dots, T$, we set
+
+$$
+\begin{split}
+\boldsymbol Y(t) &= (Y(s_1), Y(s_2),  \dots, Y(s_n))^{\intercal}\\
+Y &= (\boldsymbol Y(t=1), \boldsymbol Y(t=2), \dots, \boldsymbol Y(t=T))\\
+\boldsymbol \phi(\boldsymbol s) &= (\phi_1(\boldsymbol s), \phi_2(\boldsymbol s), \dots, \phi_r(\boldsymbol s))^{\intercal}\\
+ \Phi &= (\boldsymbol \phi(\boldsymbol s_1), \boldsymbol \phi(\boldsymbol s_2), \dots, \boldsymbol \phi(\boldsymbol s_n))\\
+\boldsymbol \alpha(t) &= (\alpha_1(t), \alpha_2(t), \dots, \alpha_r(t))^{\intercal}\\
+ A &= (\boldsymbol \alpha(t=1), \boldsymbol \alpha(t=2), \dots, \boldsymbol \alpha(t=Y)).
+\end{split}
+
+Now, (@eq-processdecomp) gives us
+
+$$
+\begin{split}
+Y(\boldsymbol s; t) &= \boldsymbol \phi^{\intercal}(\boldsymbol s) \boldsymbol \alpha(t)\\
+\boldsymbol Y(t) &=  \Phi \boldsymbol \alpha(t)\\
+ Y &=  \Phi  A
+\end{split}
+$$ {#eq-pbvec}
+
+
+ We now want to find the equation defining the evolution of the basis coefficients, $\boldsymbol \alpha_t$.
+ 
+### Theorem 1
+ 
+Define the Gram matrix;
+
+$$
+\Psi := \int_{\mathcal D_s} \vec \phi(\boldsymbol s) \vec \phi(\vec s)^\intercal d\vec s
+$$ {#eq-gram}
+
+Then, the basis coefficients evolve by the equation
+ 
+$$
+\vec \alpha(t+1) = M \vec\alpha(t) + \vec\eta_t,
+$$
+
+where $M = \Psi^{-1} \int\int \vec\phi(\vec s) \kappa(\vec s, \vec r)\vec\phi(\vec r)^\intercal d\vec r d \vec s$ and $\vec\eta_t =\Psi^{-1} \int \vec \phi(\vec s)\omega_t(s)d\vec s$.
+
+#### Proof:
+
+ Adapting from (Dewar, Michael and Scerri, Kenneth and Kadirkamanathan, Visakan, 2008), write out the process equation, (@eq-IDEM), using the first equation of (@eq-pbvec);
+
+$$
+Y(\vec s;t+1) = \vec \phi(\boldsymbol s) \alpha(t+1) = \int_{\mathcal D_s} \kappa(\vec s, \vec r) \vec\phi(\vec r)^{\intercal}\vec \alpha(t)d\vec r + \omega_t(\vec s),
+$$
+
+We then multiply both sides by $\boldsymbol \phi(s)$ and integrate over $\boldsymbol s$
+
+$$
+\begin{split}
+\int_{\mathcal D_s} \vec\phi(\vec s)\vec\phi(\vec s) d\vec s \vec\alpha(t+1) &= \int\vec\phi(\vec s)\int \kappa(\vec s, \vec r)\vec\phi(\vec r)^\intercal d\vec r  d \vec s\ \vec\alpha(t) + \int \vec \phi(\vec s)\omega_t(s)d\vec s\\
+\Psi \vec\alpha(t+1) &= \int\int \vec\phi(\vec s)\kappa(\vec s, \vec r) \vec\phi(\vec r)^\intercal d\vec r d \vec s\ \vec\alpha(t) + \int \vec \phi(\vec s)\omega_t(s)d\vec s.
+\end{split}
+$$
+
+So, finally, pre-multipling by the inverse of the gram matrix, $\Psi^{-1}$ (@eq-gram), we get the result.
+
+## Process Noise
+
+We still have to set out what the process noise, $\omega_t(\vec s)$, and it's spectral couterpart, $\vec \eta_t$, are. 
+Dewar [@dewar2008data] fixes the variance of $\omega_t(\vec s)$ to be uniform and uncorrelated across space and time, with $\omega_t(\vec s) \sim \mathcal N(0,\sigma^2)$
+It is then easily shown that $\vec\eta_t$ is also normal, with $\vec\eta_t \sim \mathcal N(0, \sigma^2\Psi^{-1})$.
+
+However, in practice, we simulate in the spectral domain; that is, if we want to keep things simple, it would make sense to specify (and fit) the distribution of $\vec\eta_t$, and compute the variance of $\omega_t(\vec s)$ if needed. 
+This is exactly what the IDE package [@zammit2022IDE] in R does, and, correspondingly, what this JAX package does.
+
+### Lemma 1
+
+Let $\vec\eta_t \sim \mathcal N(0, \Sigma_\eta)$, and $\cov[\vec\eta_t, \vec \eta_{t+\tau}] =0$, $\forall \tau>0$. 
+Then $\omega_t(\vec s)$ is also normally distributed, with covariance
+$$
+\cov [\omega_t(\vec s), \omega_{t+\tau}(\vec r)] = \begin{cases}
+\vec\phi(\vec s)^\intercal \Sigma_\eta \vec\phi(\vec r) & \text{if }\tau=0\\
+0 & \text{else}\\
+\end{cases}
+$$
+
+#### Proof:
+
+Normality is clear, since $\vec\eta_t$ is a linear combination of $\omega_t(\vec s)$  <span style="color: red;">[NOTE: I'm pretty sure this is true, certainly a linear combination of gaussian is gaussian, but the converse is true as well right?
+]</span>.
+
+Consider $\Psi \vec\eta_t$.
+It is clearly normal, with expectation zero and variance (using (@eq-gram)),
+
+$$
+\begin{split}
+\var[\Psi \vec\eta_t] &= \Psi \var[\vec\omega_t] \Psi^\intercal = \Psi\Sigma_\eta\Psi^\intercal,\\
+&= \int_{\mathcal D_s} \vec\phi(\vec s) \vec\phi(\vec s)^\intercal d\vec s \  \Sigma_\eta \ \int_{\mathcal D_s} \vec\phi(\vec r) \vec\phi(\vec r)^\intercal d\vec r\\
+&=  \int\int_{\mathcal D_s^2} \vec\phi(\vec s) \vec\phi(\vec s)^\intercal \  \Sigma_\eta \  \vec\phi(\vec r) \vec\phi(\vec r)^\intercal d\vec r d\vec s\\
+\end{split}
+$$ {#eq-var1}
+
+Since it has zero expectation, we also have
+
+$$
+\begin{split}
+\var[\Psi\vec\eta_t] &= \mathbb E[(\Psi\vec\eta_t) (\Psi\vec\eta_t)^\intercal] = \mathbb E[\Psi\vec\eta_t\vec\eta_t^\intercal\Psi^\intercal]\\
+&= \mathbb E \left[ \int_{\mathcal D_s} \vec\phi(\vec s)\omega_t(\vec s)d\vec s \int_{\mathcal D_s} \vec \phi(\vec r)^\intercal \omega_t(\vec r) d\vec r \right]\\
+&= \int\int_{\mathcal D_s^2} \vec\phi(\vec s)\  \mathbb E[\omega_t(\vec s)\omega_t(\vec r)]\  \vec \phi(\vec r)^\intercal d\vec s d \vec r.
+\end{split} 
+$$ {#eq-var2}
+
+We can see that, comparing (@eq-var1) and (@eq-var2), we have
+
+$$
+\cov [\omega_t(\vec s), \omega_t(\vec r)] = \mathbb E[\omega_t(\vec s)\omega_t(\vec r)]= \vec\phi(\vec s)^\intercal \Sigma_\eta \vec\phi(\vec r).
+$$
+
+
+
+# Kernel Decomposition
+
+There are a few ways to handle the kernel. 
+One of the most obvious is to expand it out into a spectral decomposition as well;
+
+$$
+\kappa \approx \sum_i \beta_i\psi(\vec s, \vec r).
+$$
+
+This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on $\mathbb R^2\times \mathbb R^2$; to get a wide enough space of possible functions, we would likely need many basis coefficients. 
+
+A much simpler approach would be to simply parameterise the kernel function, to $\kappa(\vec s, \vec r, \vec \theta)$. 
+We then establish a simple shape for the kernel (e.g. Gaussian) and rely on very few parameters (for example, scale, shape, offsets). 
+This kind of kernel cannot handle spatial variance well; if the function depends on $\vec s$ and $\vec r$ only through their difference $\vec s-\vec r$ (like in a Gaussian kernel), then we have spatial invariance; the motion of the process is the same everywhere in the domain.
+
+We can add spatial variance back in in a nice way by adding dependance on $\vec s$ to the parameters, $\vec \theta(\vec s)$.
+Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground (cite the Cressie, Wilke and Zammit-Mangion, 2019).
+
+The example kernel used in the program is Gaussian with spatially variant offset terms;
+
+$$
+\kappa(\vec s, \vec r; \theta_1, \theta_2, \vec\theta_3(\vec s)) = \theta_1 \exp \left( -\frac{1}{\theta_2} \Vert \vec s- \vec r +\vec \theta_3(s)\Vert^2 \right)
+$$
+
+where the offset terms $\vec\theta_3(\vec s)$ are coursely spectrally decomposed into 9 coefficients each.
+
+
+# scrap heap
+
+We also eventually define the kernel matrix (i wrote this down too early but ill need it later)
+
+In hindsight, the only reason this appears in the code is due to riemann integration. I probably don't need it here.
+$$
+K := \left[\begin{matrix}
+\kappa(\boldsymbol s_1, \boldsymbol s_1) & \kappa(\boldsymbol s_1, \boldsymbol s_2) & \dots & \kappa(\boldsymbol s_1, \boldsymbol s_n)\\
+\vdots &   \ddots && \vdots\\
+\kappa(\boldsymbol s_n, \boldsymbol s_1) & \kappa(\boldsymbol s_n, \boldsymbol s_2) & \dots & \kappa(\boldsymbol s_n, \boldsymbol s_n)
+\end{matrix}\right].
+$$

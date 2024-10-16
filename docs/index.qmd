@@ -1,0 +1,52 @@
+---
+title: "Integro-Difference Equation Models in JAX"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+```{python}
+#| label: fig-idem
+#| fig-cap: "An example IDEM thingy"
+
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.random as rand
+
+import matplotlib.pyplot as plt
+
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jax_idem'))
+
+
+import importlib
+
+import utilities
+import IDEM
+
+importlib.reload(utilities)
+importlib.reload(IDEM)
+
+from utilities import *
+from IDEM import *
+
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 3)
+
+model = gen_example_idem(keys[0], k_spat_inv=False)
+
+# Simulation
+T = 6
+
+process_data, obs_data = model.simulate(key)
+
+# plot the object
+plot_st_long(process_data)
+```
+
+## The Mathematics
+
+For a rundown of the mathematics underpinning this model and implementation, see [here](mathematics.html)

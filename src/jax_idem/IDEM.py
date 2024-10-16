@@ -127,14 +127,16 @@ class IDEM:
             ]
         )
 
+        keys = rand.split(key, 2)
+
         if obs_locs is None:
-            nobs = 50
+            nobs = 100
 
             obs_locs = jnp.column_stack(
                 [
                     jnp.repeat(jnp.arange(T), nobs),
                     rand.uniform(
-                        keys[1],
+                        keys[0],
                         shape=(T * nobs, 2),
                         minval=bounds[:, 0],
                         maxval=bounds[:, 1],
@@ -151,13 +153,13 @@ class IDEM:
         obs_locs_tree = jax.tree.map(
             lambda t: obs_locs[jnp.where(obs_locs[:, 0] == t)][:, 1:], list(times)
         )
-        PHI_tree = jax.tree.map(model.process_basis.mfun, obs_locs_tree)
+        PHI_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
 
         # really should consider exploring a sparse matrix solution!
         PHI_obs = jax.scipy.linalg.block_diag(*PHI_tree)
 
         process_vals, obs_vals = simIDEM(
-            key=key,
+            key=keys[1],
             T=T,
             M=M,
             PHI_proc=PHI_proc,
@@ -415,4 +417,6 @@ if __name__ == "__main__":
 
     # plot the object
     plot_st_long(process_data)
+    plt.show()
     plot_st_long(obs_data)
+    plt.show()

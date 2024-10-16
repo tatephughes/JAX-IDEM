@@ -220,19 +220,17 @@ def plot_st_long(data: ST_Data_Long):
             vmin=vmin,
             vmax=vmax,
         )
-        axes[t].set_title(f"Time = {t}", fontsize=2)
-        axes[t].set_xlabel("x", fontsize=2)
-        axes[t].set_ylabel("y", fontsize=2)
+        axes[t].set_title(f"Time = {t}", fontsize=11)
+        # axes[t].set_xlabel("x", fontsize=9)
+        # axes[t].set_ylabel("y", fontsize=9)
         axes[t].tick_params(
-            axis="both", which="major", labelsize=2
+            axis="both", which="major", labelsize=5
         )  # Set tick labels font size
 
         # Add color bar
         fig.colorbar(scatter, ax=axes[t])
 
     plt.tight_layout()
-    plt.show()
-    plt.close()
 
 
 def plot_st_wide(data: ST_Data_Wide):
@@ -256,12 +254,10 @@ def plot_st_wide(data: ST_Data_Wide):
             vmax=vmax,
         )
         ax.set_title(f"T = {i+1}")
-        ax.set_title(f"T = {i+1}", fontsize=5)  # Set title font size
+        ax.set_title(f"T = {i+1}", fontsize=11)  # Set title font size
         ax.tick_params(
-            axis="both", which="major", labelsize=4
+            axis="both", which="major", labelsize=9
         )  # Set tick labels font size
         fig.colorbar(scatter, ax=ax)
 
     plt.tight_layout()
-    plt.show()
-    plt.close()
