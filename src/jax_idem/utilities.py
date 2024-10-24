@@ -7,11 +7,13 @@ import jax.numpy as jnp
 # import jax.random as rand
 # from jax.numpy.linalg import solve
 
+
 from jax.typing import ArrayLike
 
 from typing import Callable, NamedTuple  # , Union
 from jax import Array
 import matplotlib.pyplot as plt
+from PIL import Image
 
 
 class Grid(NamedTuple):
@@ -231,6 +233,49 @@ def plot_st_long(data: ST_Data_Long):
         fig.colorbar(scatter, ax=axes[t])
 
     plt.tight_layout()
+
+
+def gif_st_long(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=500):
+    # in the future, you should be able to directly pass in figsize and nrows/cols.
+
+    data_array = jnp.column_stack(data)
+    vmin = jnp.min(data.z)
+    vmax = jnp.max(data.z)
+
+    frames = []
+
+    T = int(jnp.max(data.t) - jnp.min(data.t)) + 1
+
+    for t in range(T):
+        time_data = data_array[data_array[:, 2] == t]
+        x = time_data[:, 0]
+        y = time_data[:, 1]
+        values = time_data[:, 3]
+
+        fig, ax = plt.subplots()
+        ax.scatter(
+            x,
+            y,
+            c=values,
+            cmap="viridis",
+            marker="s",
+            vmin=vmin,
+            vmax=vmax,
+        )
+
+        ax.set_title(f"Time: {t}")
+        ax.set_xlabel(data.x)
+        ax.set_ylabel(data.y)
+
+        plt.close(fig)
+
+        image_path = f"{t}.png"
+        fig.savefig(image_path)
+        frames.append(Image.open(image_path))
+
+    frames[0].save(
+        output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
+    )
 
 
 def plot_st_wide(data: ST_Data_Wide):

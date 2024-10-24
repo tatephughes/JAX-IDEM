@@ -44,8 +44,13 @@ T = 9
 process_data, obs_data = model.simulate(key)
 
 # plot the object
-plot_st_long(process_data)
+gif_st_long(process_data)
 ```
+
+![An example IDEM simulation](spatio_temporal.gif)
+
+(I'll make this look better soon, it's a start)
+
 
 ## The Mathematics
 
