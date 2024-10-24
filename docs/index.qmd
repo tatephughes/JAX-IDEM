@@ -8,7 +8,7 @@ jupyter: python3
 
 ```{python}
 #| label: fig-idem
-#| fig-cap: "An example IDEM thingy"
+#| fig-cap: "An example IDEM simulation"
 
 import jax
 import jax.numpy as jnp
@@ -39,7 +39,7 @@ keys = rand.split(key, 3)
 model = gen_example_idem(keys[0], k_spat_inv=False)
 
 # Simulation
-T = 6
+T = 9
 
 process_data, obs_data = model.simulate(key)
 

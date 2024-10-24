@@ -56,11 +56,11 @@ div.csl-indent {
 <script>
 window.MathJax = {
   loader: {
-    load: ['[tex]/upgreek', '[tex]/boldsymbol', '[tex]/physics'
+    load: ['[tex]/upgreek', '[tex]/boldsymbol', '[tex]/physics', '[tex]/breqn'
   },
   tex: {
     packages: {
-      '[+]': ['upgreek', 'boldsymbol', 'physics']
+      '[+]': ['upgreek', 'boldsymbol', 'physics', 'breqn']
     }
   }
 };
@@ -116,7 +116,7 @@ window.Quarto = {
   </ul></li>
   </ul></li>
   <li><a href="#kernel-decomposition" id="toc-kernel-decomposition" class="nav-link" data-scroll-target="#kernel-decomposition">Kernel Decomposition</a></li>
-  <li><a href="#scrap-heap" id="toc-scrap-heap" class="nav-link" data-scroll-target="#scrap-heap">scrap heap</a></li>
+  <li><a href="#em-algorithm" id="toc-em-algorithm" class="nav-link" data-scroll-target="#em-algorithm">EM algorithm</a></li>
   </ul>
 </nav>
 </div>
@@ -154,7 +154,7 @@ Z(\boldsymbol s;t) &amp;= Y(\boldsymbol s;t) + \boldsymbol X(\boldsymbol s)^{\in
 Y(\boldsymbol s;t+1) &amp;= \int_{\mathcal D_s} \kappa(s,r) Y(r;t) d\boldsymbol r + \omega_t(\boldsymbol s).
 \end{split}
 \tag{1}\]</span></span></p>
-<p>Where <span class="math inline">\(\omega_t(\boldsymbol s)\)</span> is a small scale variation with no temporal dynamics <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a> call this a ‘spatially descriptive’ component)</span>, <span class="math inline">\(\boldsymbol X(\boldsymbol s)\)</span> are spatially varying covariates, <span class="math inline">\(Z\)</span> is observed data, <span class="math inline">\(Y\)</span> is the unobserved dynamic process, and <span class="math inline">\(\kappa\)</span> is the driving ‘kernel’ function.</p>
+<p>Where <span class="math inline">\(\omega_t(\boldsymbol s)\sim \mathcal N(0, \Sigma_\omega)\)</span> is a small scale variation with no temporal dynamics <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a> call this a ‘spatially descriptive’ component)</span>, <span class="math inline">\(\boldsymbol X(\boldsymbol s)\)</span> are spatially varying covariates, <span class="math inline">\(Z\)</span> is observed data, <span class="math inline">\(Y\)</span> is the unobserved dynamic process, <span class="math inline">\(\kappa\)</span> is the driving ‘kernel’ function, and <span class="math inline">\(\epsilon_t\sim \mathcal N(0, \Sigma_\epsilon)\)</span> is a white noise ‘measurement error’ term.</p>
 </section>
 <section id="process-decomposition" class="level1">
 <h1>Process Decomposition</h1>
@@ -163,15 +163,16 @@ Y(\boldsymbol s;t+1) &amp;= \int_{\mathcal D_s} \kappa(s,r) Y(r;t) d\boldsymbol 
 Y(\boldsymbol s;t) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\boldsymbol s).\label{}
 \tag{2}\]</span></span></p>
 <p>where we truncate the expansion at some <span class="math inline">\(r\in\mathbb N\)</span>. Notice that we can write this in vector/matrix form. Discretising the spatial domain into <span class="math inline">\(n\)</span> points <span class="math inline">\(\{\boldsymbol s_i\in \mathcal D_s, i=1,\dots,n\}\)</span>, and consider times <span class="math inline">\(t=1,2,\dots, T\)</span>, we set</p>
-$$
-<span class="math display">\[\begin{split}
+<p><span class="math display">\[
+\begin{split}
 \boldsymbol Y(t) &amp;= (Y(s_1), Y(s_2),  \dots, Y(s_n))^{\intercal}\\
 Y &amp;= (\boldsymbol Y(t=1), \boldsymbol Y(t=2), \dots, \boldsymbol Y(t=T))\\
 \boldsymbol \phi(\boldsymbol s) &amp;= (\phi_1(\boldsymbol s), \phi_2(\boldsymbol s), \dots, \phi_r(\boldsymbol s))^{\intercal}\\
 \Phi &amp;= (\boldsymbol \phi(\boldsymbol s_1), \boldsymbol \phi(\boldsymbol s_2), \dots, \boldsymbol \phi(\boldsymbol s_n))\\
 \boldsymbol \alpha(t) &amp;= (\alpha_1(t), \alpha_2(t), \dots, \alpha_r(t))^{\intercal}\\
 A &amp;= (\boldsymbol \alpha(t=1), \boldsymbol \alpha(t=2), \dots, \boldsymbol \alpha(t=Y)).
-\end{split}\]</span>
+\end{split}
+\]</span></p>
 <p>Now, (<a href="#eq-processdecomp" class="quarto-xref">Equation&nbsp;2</a>) gives us</p>
 <p><span id="eq-pbvec"><span class="math display">\[
 \begin{split}
@@ -214,7 +215,8 @@ Y(\boldsymbol{\mathbf{s}};t+1) = \boldsymbol{\mathbf{\phi}}(\boldsymbol s) \alph
 <p>However, in practice, we simulate in the spectral domain; that is, if we want to keep things simple, it would make sense to specify (and fit) the distribution of <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t\)</span>, and compute the variance of <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> if needed. This is exactly what the IDE package <span class="citation" data-cites="zammit2022IDE">(<a href="#ref-zammit2022IDE" role="doc-biblioref">Zammit-Mangion 2022</a>)</span> in R does, and, correspondingly, what this JAX project does.</p>
 <section id="lemma-1" class="level3">
 <h3 class="anchored" data-anchor-id="lemma-1">Lemma 1</h3>
-<p>Let <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t \sim \mathcal N(0, \Sigma_\eta)\)</span>, and <span class="math inline">\(\mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\boldsymbol{\mathbf{\eta}}_t, \boldsymbol{\mathbf{\eta}}_{t+\tau}] =0\)</span>, <span class="math inline">\(\forall \tau&gt;0\)</span>. Then <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> is also normally distributed, with covariance <span class="math display">\[
+<p>Let <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t \sim \mathcal N(0, \Sigma_\eta)\)</span>, and <span class="math inline">\(\mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\boldsymbol{\mathbf{\eta}}_t, \boldsymbol{\mathbf{\eta}}_{t+\tau}] =0\)</span>, <span class="math inline">\(\forall \tau&gt;0\)</span>. Then <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> is also normally distributed, with covariance</p>
+<p><span class="math display">\[
 \mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\omega_t(\boldsymbol{\mathbf{s}}), \omega_{t+\tau}(\boldsymbol{\mathbf{r}})] = \begin{cases}
 \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal \Sigma_\eta \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}) &amp; \text{if }\tau=0\\
 0 &amp; \text{else}\\
@@ -254,23 +256,112 @@ Y(\boldsymbol{\mathbf{s}};t+1) = \boldsymbol{\mathbf{\phi}}(\boldsymbol s) \alph
 \kappa \approx \sum_i \beta_i\psi(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}).
 \]</span></p>
 <p>This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on <span class="math inline">\(\mathbb R^2\times \mathbb R^2\)</span>; to get a wide enough space of possible functions, we would likely need many basis coefficients.</p>
-<p>A much simpler approach would be to simply parameterise the kernel function, to <span class="math inline">\(\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}, \boldsymbol{\mathbf{\theta}})\)</span>. We then establish a simple shape for the kernel (e.g.&nbsp;Gaussian) and rely on very few parameters (for example, scale, shape, offsets). This kind of kernel cannot handle spatial variance well; if the function depends on <span class="math inline">\(\boldsymbol{\mathbf{s}}\)</span> and <span class="math inline">\(\boldsymbol{\mathbf{r}}\)</span> only through their difference <span class="math inline">\(\boldsymbol{\mathbf{s}}-\boldsymbol{\mathbf{r}}\)</span> (like in a Gaussian kernel), then we have spatial invariance; the motion of the process is the same everywhere in the domain.</p>
-<p>We can add spatial variance back in in a nice way by adding dependance on <span class="math inline">\(\boldsymbol{\mathbf{s}}\)</span> to the parameters, <span class="math inline">\(\boldsymbol{\mathbf{\theta}}(\boldsymbol{\mathbf{s}})\)</span>. Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a>)</span>.</p>
-<p>The example kernel used in the program is Gaussian with spatially variant offset terms;</p>
+<p>A much simpler approach would be to simply parameterise the kernel function, to <span class="math inline">\(\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}, \boldsymbol{\mathbf{\theta}}_\kappa)\)</span>. We then establish a simple shape for the kernel (e.g.&nbsp;Gaussian) and rely on very few parameters (for example, scale, shape, offsets). The example kernel used in the program is Gaussian kernel;</p>
 <p><span class="math display">\[
-\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}; \theta_1, \theta_2, \boldsymbol{\mathbf{\theta}}_3(\boldsymbol{\mathbf{s}})) = \theta_1 \exp \left( -\frac{1}{\theta_2} \Vert \boldsymbol{\mathbf{s}}- \boldsymbol{\mathbf{r}} +\boldsymbol{\mathbf{\theta}}_3(s)\Vert^2 \right)
+\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}; \boldsymbol{\mathbf{m}}, a, b) = a \exp \left( -\frac{1}{b} \Vert \boldsymbol{\mathbf{s}}- \boldsymbol{\mathbf{r}} +\boldsymbol{\mathbf{m}}\Vert^2 \right)
 \]</span></p>
-<p>where the offset terms <span class="math inline">\(\boldsymbol{\mathbf{\theta}}_3(\boldsymbol{\mathbf{s}})\)</span> are coursely spectrally decomposed into 9 coefficients each.</p>
+<p>Of course, this kernel lacks spatial dependance. We can add spatial variance back in in a nice way by adding dependance on <span class="math inline">\(\boldsymbol{\mathbf{s}}\)</span> to the parameters, for example, variyng the offset term as <span class="math inline">\(\boldsymbol{\mathbf{m}}(\boldsymbol{\mathbf{s}})\)</span>. Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a>)</span>. The actual parameters of such a spatially-variant kernel are then the basis coefficients for the expansion of any spatially variant parameters, as well as any constant parameters.</p>
 </section>
-<section id="scrap-heap" class="level1">
-<h1>scrap heap</h1>
-<p>We also eventually define the kernel matrix (i wrote this down too early but ill need it later)</p>
-<p>In hindsight, the only reason this appears in the code is due to riemann integration. I probably don’t need it here. <span class="math display">\[
-K := \left[\begin{matrix}
-\kappa(\boldsymbol s_1, \boldsymbol s_1) &amp; \kappa(\boldsymbol s_1, \boldsymbol s_2) &amp; \dots &amp; \kappa(\boldsymbol s_1, \boldsymbol s_n)\\
-\vdots &amp;   \ddots &amp;&amp; \vdots\\
-\kappa(\boldsymbol s_n, \boldsymbol s_1) &amp; \kappa(\boldsymbol s_n, \boldsymbol s_2) &amp; \dots &amp; \kappa(\boldsymbol s_n, \boldsymbol s_n)
-\end{matrix}\right].
+<section id="em-algorithm" class="level1">
+<h1>EM algorithm</h1>
+<p>Firstly, we finish establishing our model, now with the spectral form;</p>
+<p><span class="math display">\[
+\begin{split}
+\boldsymbol{\mathbf{Z}}(t) &amp;= \boldsymbol{\mathbf{Y}}(t) + X \boldsymbol{\mathbf{\beta }}+ \boldsymbol{\mathbf{\epsilon}}_t, \quad t=0,1,\dots, T,\\
+Y(\boldsymbol{\mathbf{s}};t) &amp;= \boldsymbol{\mathbf{\alpha}}(t)^\intercal \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}), \quad t = 0,1,\dots, T,\\
+\boldsymbol{\mathbf{\alpha}}(t+1) &amp;= M\boldsymbol{\mathbf{\alpha}}(t) + \boldsymbol{\mathbf{\eta}}_t,\quad t = 1,2,\dots, T,\\
+M &amp;= \int_{\mathcal D_s}\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal d\boldsymbol{\mathbf{s}} \int_{\mathcal D_s^2}\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}; \boldsymbol{\mathbf{\theta}}_\kappa)\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}} d \boldsymbol{\mathbf{s}},
+\end{split}
+\]</span></p>
+<p>where <span class="math inline">\(\boldsymbol{\mathbf{Y}}(t) = (Y(\boldsymbol{\mathbf{s}}_{1};t), \dots, Y(\boldsymbol{\mathbf{s}}_{n};t))\)</span> for stations <span class="math inline">\(\{\boldsymbol{\mathbf{s}}_{i}\}_{i=1,\dots, n}\)</span>.</p>
+<p>We can also combine the first two lines to ‘skip’ the process and see the more traditional LDSTM form;</p>
+<p><span id="eq-ldstm"><span class="math display">\[
+\begin{split}
+\boldsymbol{\mathbf{Z}}(t) &amp;= \Phi\boldsymbol{\mathbf{\alpha}}(t) + X\boldsymbol{\mathbf{\beta }}+ \boldsymbol{\mathbf{\epsilon}}_t,\quad &amp;t = 0,1,\dots, T,\\
+\boldsymbol{\mathbf{\alpha}}(t+1) &amp;= M\boldsymbol{\mathbf{\alpha}}(t) + \boldsymbol{\mathbf{\eta}}_t,\quad &amp;t = 1,2,\dots, T,\\
+\end{split}
+\tag{7}\]</span></span></p>
+<p>where <span class="math inline">\(\Phi = (\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}_1),\dots,\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}_n))^\intercal\)</span>. We should also initialise <span class="math inline">\(\boldsymbol{\mathbf{\alpha}}(0) \sim \mathcal N^{r}(\boldsymbol{\mathbf{m}}_{0}, \Sigma_{0})\)</span>. We also fix distrubtions to the noise terms,</p>
+<p><span class="math display">\[
+\begin{split}
+\boldsymbol{\mathbf{\epsilon}}_t \sim \mathcal N(0,\Sigma_\epsilon),\\
+\boldsymbol{\mathbf{\eta}}_t \sim \mathcal N(0,\Sigma_\eta),
+\end{split}
+\]</span></p>
+<p>which are independant in time.</p>
+<p>As in, for example, <span class="citation" data-cites="wikle1999dimension">(<a href="#ref-wikle1999dimension" role="doc-biblioref">Wikle and Cressie 1999</a>)</span>, this is now in a traditional enough form that the Kalman filter can be applied to fiter and compute many necessary quantities for inference. We can use these quantities in either an EM algorithm or a Bayesian approach. Firstly, we cover the EM algorithm applied to this system.</p>
+<p>At most, the parameters to be estimated are</p>
+<p><span class="math display">\[
+\begin{split}
+\boldsymbol{\mathbf{\theta }}= \left(\boldsymbol{\mathbf{\theta}}_\kappa^\intercal, \boldsymbol{\mathbf{\beta}}^\intercal, \boldsymbol{\mathbf{m}}_0^\intercal, \mathrm{vec}[\Sigma_\epsilon]^\intercal, \mathrm{vec}[\Sigma_\eta]^\intercal, \mathrm{vec}[\Sigma_0]\right),
+\end{split}
+\]</span></p>
+<p>where the <span class="math inline">\(\mathrm{vec}[\cdot]\)</span> operator gives the elements of the matrix in a column vector. Of course, in practice, some of these may be estimated outside of the algorithm, fixed, given a much simpler form (e.g.&nbsp;<span class="math inline">\(\Sigma_\eta = \sigma_\eta^2 I_d\)</span>), etc.</p>
+<p>The E step of the EM algorithm relies on the quantity</p>
+<p><span id="eq-Qdef"><span class="math display">\[
+\begin{split}
+\mathcal Q(\boldsymbol{\mathbf{\theta}}; \boldsymbol{\mathbf{\theta}}') = \mathbb E_{\boldsymbol{\mathbf{Z}}_t\sim p(Z \mid \boldsymbol{\mathbf{\alpha}}_t,\boldsymbol{\mathbf{\theta}})}[\log p_{\boldsymbol{\mathbf{\theta}}}(\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}, \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T})\mid\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}],
+\end{split}
+\tag{8}\]</span></span></p>
+<p>which approximates <span class="math inline">\(\log p_\theta(\{\boldsymbol{\mathbf{Z}}_t\}, \{\boldsymbol{\mathbf{\alpha}}_t\})\)</span>. Using our model hierarchy, we have</p>
+<p><span class="math display">\[
+\begin{split}
+p_{\boldsymbol{\mathbf{\theta}}}(\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}, \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T})\mid\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}) &amp;= p(\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}\mid \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T}, \boldsymbol{\mathbf{\theta}})\\
+&amp;\times p(\{\boldsymbol{\mathbf{\alpha}}_t\}_{t=1,\dots,T} \mid \{\boldsymbol{\mathbf{\alpha}}_{t-1}\}_{t=1,\dots,T}, \boldsymbol{\mathbf{\theta}})\\
+&amp;\times p(\alpha_0\mid \boldsymbol{\mathbf{\theta}}).
+\end{split}
+\]</span></p>
+<p><span style="color: red;">[NOTE: Let’s improve the notation here, the subscript t’s here is bothering me]</span></p>
+<p>We will tackle each of these terms individually. Firstly, for the data generating term, we have (ignoring additive constants)</p>
+<p><span class="math display">\[
+\begin{split}
+&amp;-2\log p(\{\boldsymbol{\mathbf{Z}}(t)\}_{t=0,\dots,T}\mid \{\boldsymbol{\mathbf{\alpha}}(t)\}_{t=0,\dots,T}, \boldsymbol{\mathbf{\theta}})\\
+&amp;= \sum_{t=0}^T \left(\boldsymbol{\mathbf{Z}}(t) - \Phi\boldsymbol{\mathbf{\alpha}}(t) - X\boldsymbol{\mathbf{\beta}})^\intercal \Sigma_\epsilon^{-1}(\boldsymbol{\mathbf{Z}}(t) - \Phi\boldsymbol{\mathbf{\alpha}}(t) - X\boldsymbol{\mathbf{\beta}}\right)\\
+&amp;=\mathrm{tr}(\Sigma_\epsilon^{-1}\{\left[\sum_{t=0}^T\boldsymbol{\mathbf{Z}}(t)\boldsymbol{\mathbf{Z}}(t)^\intercal\right] - 2\Phi\left[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{Z}}(t)^\intercal\right]\\
+&amp;\quad\quad - 2X\boldsymbol{\mathbf{\beta}}\sum_{t=0}^T \boldsymbol{\mathbf{Z}}(t)^\intercal + \Phi\left[\sum_{t=0}^T \boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\right]\Phi^\intercal\\
+&amp;\quad\quad + 2X\beta\Phi\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t) + (T+1)X\boldsymbol{\mathbf{\beta}}\boldsymbol{\mathbf{\beta}}^\intercal X^\intercal\}).
+\end{split}
+\]</span></p>
+<p><span style="color: red;">[NOTE: Yes, the formatting of this bothers me greatly. I’m also pretty sure I’ve mucked up what should be <span class="math inline">\(z_t\)</span> and <span class="math inline">\(Z_t\)</span> around here. Also, <span class="math inline">\(X\)</span> is data as well; it should strictly be in some of the conditinoing above, namely is <a href="#eq-Qdef" class="quarto-xref">Equation&nbsp;8</a>. And should X be time varying?]</span></p>
+<p>For the process terms,</p>
+<p><span class="math display">\[
+\begin{split}
+&amp;-2\log p(\{\boldsymbol{\mathbf{\alpha}}(t)\}_{t=1,\dots,T}\mid \{\boldsymbol{\mathbf{\alpha}}(t-1)\}_{t=1,\dots,T}, \boldsymbol{\mathbf{\theta}})\\
+&amp;=\sum_{t=1}^T (\boldsymbol{\mathbf{\alpha}}(t) - M(\boldsymbol{\mathbf{\theta}}_\kappa)\alpha(t-1))^\intercal\Sigma_\eta^{-1}(\boldsymbol{\mathbf{\alpha}}(t) - M(\boldsymbol{\mathbf{\theta}}_\kappa)\alpha(t-1))\\
+&amp;= \mathrm{tr}(\Sigma_\eta^{-1}\{\left[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\right] - 2M(\boldsymbol{\mathbf{\theta}}_\kappa) \left[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\right] \\
+&amp;\quad\quad +M(\boldsymbol{\mathbf{\theta}}_\kappa)^\intercal M(\boldsymbol{\mathbf{\theta}}_\kappa)\left[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t-1)^\intercal\right]\}),\\
+\end{split}
+\]</span></p>
+<p>and</p>
+<p><span class="math display">\[
+\begin{split}
+&amp;-2\log p(\boldsymbol{\mathbf{\alpha}}(0)\mid\boldsymbol{\mathbf{\theta}})\\
+&amp;= (\boldsymbol{\mathbf{\alpha}}_0 - \boldsymbol{\mathbf{m}}_0)^\intercal \Sigma_0^{-1} (\boldsymbol{\mathbf{\alpha}}_0 - \boldsymbol{\mathbf{m}}_0)
+&amp;= \mathrm{tr}(\Sigma_0^{-1}\{\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{\alpha}}_0^\intercal\} - 2\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{m}}_0^\intercal + \boldsymbol{\mathbf{m}}_0\boldsymbol{\mathbf{m}}_0^\intercal)
+\end{split}
+\]</span></p>
+<p>Taking the expectation and summing, giving names to some relevant quantities,</p>
+<span class="math display">\[\begin{split}
+\mathcal Q(\boldsymbol{\mathbf{\theta}};\boldsymbol{\mathbf{\theta}}') &amp;= \mathbb E_{Z\sim p(Z \mid \alpha,\boldsymbol{\mathbf{\theta}}')}[\log p_{\boldsymbol{\mathbf{\theta}}}(Z, \alpha(t)\mid Z = z]\\
+
+&amp;= \mathrm{tr}(\Sigma_\epsilon^{-1}\{\Xi^{(z)} - 2\Phi\Xi^{(\alpha,z)}- 2X\boldsymbol{\mathbf{\beta}}\xi^{(z)\intercal} + \Phi\Xi^{(\alpha)}\Phi^\intercal\\
+&amp;\quad\quad\quad\quad\quad + 2X\beta\Phi\xi^{(\alpha)} + (T+1)X\boldsymbol{\mathbf{\beta}}\boldsymbol{\mathbf{\beta}}^\intercal X^\intercal\})\\
+
+&amp;\quad\quad+\mathrm{tr}(\Sigma_\eta^{-1}\{(\Xi^{(\alpha)} - \boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{\alpha}}_0^\intercal) - 2M(\boldsymbol{\mathbf{\theta}}_\kappa) \boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal \\
+&amp;\quad\quad\quad\quad\quad\quad +M(\boldsymbol{\mathbf{\theta}}_\kappa)^\intercal M(\boldsymbol{\mathbf{\theta}}_\kappa)\Xi^{(\alpha,-1)}\})\\
+
+&amp;\quad\quad+ \mathrm{tr}(\Sigma_0^{-1}\{\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{\alpha}}_0^\intercal\} - 2\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{m}}_0^\intercal + \boldsymbol{\mathbf{m}}_0\boldsymbol{\mathbf{m}}_0^\intercal)
+\end{split}\]</span>
+<p>where</p>
+<p><span class="math display">\[
+\begin{split}
+\xi^{(z)} &amp;:= \sum_{t=0}^T \boldsymbol{\mathbf{z}}(t)\\
+\xi^{(\alpha)} &amp;:= \mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)]\\
+\Xi^{(z)} &amp;:= \sum_{t=0}^T\boldsymbol{\mathbf{z}}(t)\boldsymbol{\mathbf{z}}(t)^\intercal\\
+\Xi^{(\alpha,z)} &amp;:= \mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{z}}(t)^\intercal]\\
+\Xi^{(\alpha)} &amp;:= \mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal]\\
+\Xi^{(\alpha,-1)} &amp;:=\mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal]
+\end{split}
 \]</span></p>
 
 </section>
@@ -281,6 +372,9 @@ Cressie, Noel, and Christopher K Wikle. 2015. <em>Statistics for Spatio-Temporal
 </div>
 <div id="ref-dewar2008data" class="csl-entry" role="listitem">
 Dewar, Michael, Kenneth Scerri, and Visakan Kadirkamanathan. 2008. <span>“Data-Driven Spatio-Temporal Modeling Using the Integro-Difference Equation.”</span> <em>IEEE Transactions on Signal Processing</em> 57 (1): 83–91.
+</div>
+<div id="ref-wikle1999dimension" class="csl-entry" role="listitem">
+Wikle, Christopher K, and Noel Cressie. 1999. <span>“A Dimension-Reduced Approach to Space-Time Kalman Filtering.”</span> <em>Biometrika</em> 86 (4): 815–29.
 </div>
 <div id="ref-zammit2022IDE" class="csl-entry" role="listitem">
 Zammit-Mangion, Andrew. 2022. <em>IDE: Integro-Difference Equation Spatio-Temporal Models</em>. <a href="https://CRAN.R-project.org/package=IDE">https://CRAN.R-project.org/package=IDE</a>.

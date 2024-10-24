@@ -4,17 +4,19 @@ format:
   html:
     code-fold: true
     toc: true
+    mathjax: 
+      extensions: ["breqn", "bm"]
 jupyter: python3
 include-in-header:
   - text: |
       <script>
       window.MathJax = {
         loader: {
-          load: ['[tex]/upgreek', '[tex]/boldsymbol', '[tex]/physics'
+          load: ['[tex]/upgreek', '[tex]/boldsymbol', '[tex]/physics', '[tex]/breqn'
         },
         tex: {
           packages: {
-            '[+]': ['upgreek', 'boldsymbol', 'physics']
+            '[+]': ['upgreek', 'boldsymbol', 'physics', 'breqn']
           }
         }
       };
@@ -45,7 +47,7 @@ Y(\boldsymbol s;t+1) &= \int_{\mathcal D_s} \kappa(s,r) Y(r;t) d\boldsymbol r + 
 \end{split}
 $$ {#eq-IDEM}
 
-Where $\omega_t(\boldsymbol s)$ is a small scale variation with no temporal dynamics [@cressie2015statistics call this a 'spatially descriptive' component], $\boldsymbol X(\boldsymbol s)$ are spatially varying covariates, $Z$ is observed data, $Y$ is the unobserved dynamic process, and $\kappa$ is the driving 'kernel' function.
+Where $\omega_t(\boldsymbol s)\sim \mathcal N(0, \Sigma_\omega)$ is a small scale variation with no temporal dynamics [@cressie2015statistics call this a 'spatially descriptive' component], $\boldsymbol X(\boldsymbol s)$ are spatially varying covariates, $Z$ is observed data, $Y$ is the unobserved dynamic process, $\kappa$ is the driving 'kernel' function, and $\epsilon_t\sim \mathcal N(0, \Sigma_\epsilon)$ is a white noise 'measurement error' term.
 
 # Process Decomposition
 
@@ -66,6 +68,7 @@ Y &= (\boldsymbol Y(t=1), \boldsymbol Y(t=2), \dots, \boldsymbol Y(t=T))\\
 \boldsymbol \alpha(t) &= (\alpha_1(t), \alpha_2(t), \dots, \alpha_r(t))^{\intercal}\\
  A &= (\boldsymbol \alpha(t=1), \boldsymbol \alpha(t=2), \dots, \boldsymbol \alpha(t=Y)).
 \end{split}
+$$
 
 Now, (@eq-processdecomp) gives us
 
@@ -98,7 +101,7 @@ where $M = \Psi^{-1} \int\int \vec\phi(\vec s) \kappa(\vec s, \vec r)\vec\phi(\v
 
 #### Proof:
 
- Adapting from (Dewar, Michael and Scerri, Kenneth and Kadirkamanathan, Visakan, 2008), write out the process equation, (@eq-IDEM), using the first equation of (@eq-pbvec);
+Adapting from (Dewar, Michael and Scerri, Kenneth and Kadirkamanathan, Visakan, 2008), write out the process equation, (@eq-IDEM), using the first equation of (@eq-pbvec);
 
 $$
 Y(\vec s;t+1) = \vec \phi(\boldsymbol s) \alpha(t+1) = \int_{\mathcal D_s} \kappa(\vec s, \vec r) \vec\phi(\vec r)^{\intercal}\vec \alpha(t)d\vec r + \omega_t(\vec s),
@@ -128,6 +131,7 @@ This is exactly what the IDE package [@zammit2022IDE] in R does, and, correspond
 
 Let $\vec\eta_t \sim \mathcal N(0, \Sigma_\eta)$, and $\cov[\vec\eta_t, \vec \eta_{t+\tau}] =0$, $\forall \tau>0$. 
 Then $\omega_t(\vec s)$ is also normally distributed, with covariance
+
 $$
 \cov [\omega_t(\vec s), \omega_{t+\tau}(\vec r)] = \begin{cases}
 \vec\phi(\vec s)^\intercal \Sigma_\eta \vec\phi(\vec r) & \text{if }\tau=0\\
@@ -169,6 +173,9 @@ $$
 
 
 
+
+
+
 # Kernel Decomposition
 
 There are a few ways to handle the kernel. 
@@ -180,31 +187,153 @@ $$
 
 This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on $\mathbb R^2\times \mathbb R^2$; to get a wide enough space of possible functions, we would likely need many basis coefficients. 
 
-A much simpler approach would be to simply parameterise the kernel function, to $\kappa(\vec s, \vec r, \vec \theta)$. 
+A much simpler approach would be to simply parameterise the kernel function, to $\kappa(\vec s, \vec r, \vec \theta_\kappa)$. 
 We then establish a simple shape for the kernel (e.g. Gaussian) and rely on very few parameters (for example, scale, shape, offsets). 
-This kind of kernel cannot handle spatial variance well; if the function depends on $\vec s$ and $\vec r$ only through their difference $\vec s-\vec r$ (like in a Gaussian kernel), then we have spatial invariance; the motion of the process is the same everywhere in the domain.
+The example kernel used in the program is Gaussian kernel;
 
-We can add spatial variance back in in a nice way by adding dependance on $\vec s$ to the parameters, $\vec \theta(\vec s)$.
+$$
+\kappa(\vec s, \vec r; \vec m, a, b) = a \exp \left( -\frac{1}{b} \Vert \vec s- \vec r +\vec m\Vert^2 \right)
+$$
+
+Of course, this kernel lacks spatial dependance.
+We can add spatial variance back in in a nice way by adding dependance on $\vec s$ to the parameters, for example, variyng the offset term as $\vec m(\vec s)$.
 Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground [@cressie2015statistics].
+The actual parameters of such a spatially-variant kernel are then the basis coefficients for the expansion of any spatially variant parameters, as well as any constant parameters.
 
-The example kernel used in the program is Gaussian with spatially variant offset terms;
+
+# EM algorithm
+
+Firstly, we finish establishing our model, now with the spectral form;
 
 $$
-\kappa(\vec s, \vec r; \theta_1, \theta_2, \vec\theta_3(\vec s)) = \theta_1 \exp \left( -\frac{1}{\theta_2} \Vert \vec s- \vec r +\vec \theta_3(s)\Vert^2 \right)
+\begin{split}
+\vec Z(t) &= \vec Y(t) + X \vec \beta + \vec \epsilon_t, \quad t=0,1,\dots, T,\\
+Y(\vec s;t) &= \vec \alpha(t)^\intercal \vec \phi(\vec s), \quad t = 0,1,\dots, T,\\
+\vec \alpha(t+1) &= M\vec \alpha(t) + \vec\eta_t,\quad t = 1,2,\dots, T,\\
+M &= \int_{\mathcal D_s}\vec\phi(\vec s) \vec\phi(\vec s)^\intercal d\vec s \int_{\mathcal D_s^2}\vec\phi(\vec s) \kappa(\vec s, \vec r; \vec\theta_\kappa)\vec\phi(\vec r)^\intercal d\vec r d \vec s,
+\end{split}
 $$
 
-where the offset terms $\vec\theta_3(\vec s)$ are coursely spectrally decomposed into 9 coefficients each.
+where $\vec Y(t) = (Y(\vec s_{1};t), \dots, Y(\vec s_{n};t))$ for stations $\{\vec s_{i}\}_{i=1,\dots, n}$.
 
+We can also combine the first two lines to 'skip' the process and see the more traditional LDSTM form;
 
-# scrap heap
-
-We also eventually define the kernel matrix (i wrote this down too early but ill need it later)
-
-In hindsight, the only reason this appears in the code is due to riemann integration. I probably don't need it here.
 $$
-K := \left[\begin{matrix}
-\kappa(\boldsymbol s_1, \boldsymbol s_1) & \kappa(\boldsymbol s_1, \boldsymbol s_2) & \dots & \kappa(\boldsymbol s_1, \boldsymbol s_n)\\
-\vdots &   \ddots && \vdots\\
-\kappa(\boldsymbol s_n, \boldsymbol s_1) & \kappa(\boldsymbol s_n, \boldsymbol s_2) & \dots & \kappa(\boldsymbol s_n, \boldsymbol s_n)
-\end{matrix}\right].
+\begin{split}
+\vec Z(t) &= \Phi\vec\alpha(t) + X\vec\beta + \vec \epsilon_t,\quad &t = 0,1,\dots, T,\\
+\vec\alpha(t+1) &= M\vec \alpha(t) + \vec\eta_t,\quad &t = 1,2,\dots, T,\\
+\end{split}
+$${#eq-ldstm}
+
+where $\Phi = (\vec \phi(\vec s_1),\dots,\vec \phi(\vec s_n))^\intercal$.
+We should also initialise $\vec \alpha(0) \sim \mathcal N^{r}(\vec m_{0}, \Sigma_{0})$.
+We also fix distrubtions to the noise terms,
+
+$$
+\begin{split}
+\vec\epsilon_t \sim \mathcal N(0,\Sigma_\epsilon),\\
+\vec\eta_t \sim \mathcal N(0,\Sigma_\eta),
+\end{split}
+$$
+
+which are independant in time.
+
+As in, for example, [@wikle1999dimension], this is now in a traditional enough form that the Kalman filter can be applied to fiter and compute many necessary quantities for inference.
+We can use these quantities in either an EM algorithm or a Bayesian approach. Firstly, we cover the EM algorithm applied to this system.
+
+At most, the parameters to be estimated are
+
+$$
+\begin{split}
+\vec\theta = \left(\vec\theta_\kappa^\intercal, \vec\beta^\intercal, \vec m_0^\intercal, \mathrm{vec}[\Sigma_\epsilon]^\intercal, \mathrm{vec}[\Sigma_\eta]^\intercal, \mathrm{vec}[\Sigma_0]\right),
+\end{split}
+$$
+
+where the $\mathrm{vec}[\cdot]$ operator gives the elements of the matrix in a column vector.
+Of course, in practice, some of these may be estimated outside of the algorithm, fixed, given a much simpler form (e.g. $\Sigma_\eta = \sigma_\eta^2 I_d$), etc.
+
+The E step of the EM algorithm relies on the quantity 
+
+$$
+\begin{split}
+\mathcal Q(\vec \theta; \vec \theta') = \mathbb E_{\vec Z_t\sim p(Z \mid \vec\alpha_t,\vec\theta)}[\log p_{\vec\theta}(\{\vec Z_t\}_{t=0,\dots,T}, \{\vec\alpha_t\}_{t=0,\dots,T})\mid\{\vec Z_t\}_{t=0,\dots,T}],
+\end{split}
+$$ {#eq-Qdef}
+
+which approximates $\log p_\theta(\{\vec Z_t\}, \{\vec\alpha_t\})$.
+Using our model hierarchy, we have
+
+$$
+\begin{split}
+p_{\vec\theta}(\{\vec Z_t\}_{t=0,\dots,T}, \{\vec\alpha_t\}_{t=0,\dots,T})\mid\{\vec Z_t\}_{t=0,\dots,T}) &= p(\{\vec Z_t\}_{t=0,\dots,T}\mid \{\vec\alpha_t\}_{t=0,\dots,T}, \vec\theta)\\
+&\times p(\{\vec\alpha_t\}_{t=1,\dots,T} \mid \{\vec\alpha_{t-1}\}_{t=1,\dots,T}, \vec\theta)\\
+&\times p(\alpha_0\mid \vec\theta).
+\end{split}
+$$
+
+<span style="color: red;">[NOTE: Let's improve the notation here, the subscript t's here is bothering me
+]</span>
+
+We will tackle each of these terms individually. Firstly, for the data generating term, we have (ignoring additive constants)
+
+$$
+\begin{split}
+&-2\log p(\{\vec Z(t)\}_{t=0,\dots,T}\mid \{\vec\alpha(t)\}_{t=0,\dots,T}, \vec\theta)\\ 
+&= \sum_{t=0}^T \left(\vec Z(t) - \Phi\vec\alpha(t) - X\vec\beta)^\intercal \Sigma_\epsilon^{-1}(\vec Z(t) - \Phi\vec\alpha(t) - X\vec\beta\right)\\
+&=\mathrm{tr}(\Sigma_\epsilon^{-1}\{\left[\sum_{t=0}^T\vec Z(t)\vec Z(t)^\intercal\right] - 2\Phi\left[\sum_{t=0}^T\vec\alpha(t)\vec Z(t)^\intercal\right]\\
+&\quad\quad - 2X\vec\beta\sum_{t=0}^T \vec Z(t)^\intercal + \Phi\left[\sum_{t=0}^T \vec\alpha(t)\vec\alpha(t)^\intercal\right]\Phi^\intercal\\
+&\quad\quad + 2X\beta\Phi\sum_{t=0}^T\vec \alpha(t) + (T+1)X\vec\beta\vec\beta^\intercal X^\intercal\}).
+\end{split}
+$$
+
+<span style="color: red;">[NOTE: Yes, the formatting of this bothers me greatly. I'm also pretty sure I've mucked up what should be $z_t$ and $Z_t$ around here.
+Also, $X$ is data as well; it should strictly be in some of the conditinoing above, namely is [@eq-Qdef]. And should X be time varying?
+]</span>
+
+For the process terms,
+
+$$
+\begin{split}
+&-2\log p(\{\vec \alpha(t)\}_{t=1,\dots,T}\mid \{\vec\alpha(t-1)\}_{t=1,\dots,T}, \vec\theta)\\ 
+&=\sum_{t=1}^T (\vec \alpha(t) - M(\vec\theta_\kappa)\alpha(t-1))^\intercal\Sigma_\eta^{-1}(\vec \alpha(t) - M(\vec\theta_\kappa)\alpha(t-1))\\
+&= \mathrm{tr}(\Sigma_\eta^{-1}\{\left[\sum_{t=1}^T\vec\alpha(t)\vec\alpha(t)^\intercal\right] - 2M(\vec\theta_\kappa) \left[\sum_{t=1}^T\vec\alpha(t-1)\vec\alpha(t)^\intercal\right] \\
+&\quad\quad +M(\vec\theta_\kappa)^\intercal M(\vec{\theta}_\kappa)\left[\sum_{t=1}^T\vec\alpha(t-1)\vec{\alpha}(t-1)^\intercal\right]\}),\\
+\end{split}
+$$
+
+and
+
+$$
+\begin{split}
+&-2\log p(\vec\alpha(0)\mid\vec\theta)\\
+&= (\vec\alpha_0 - \vec m_0)^\intercal \Sigma_0^{-1} (\vec\alpha_0 - \vec m_0)
+&= \mathrm{tr}(\Sigma_0^{-1}\{\vec\alpha_0\vec\alpha_0^\intercal\} - 2\vec\alpha_0\vec m_0^\intercal + \vec m_0\vec m_0^\intercal)
+\end{split}
+$$
+
+Taking the expectation and summing, giving names to some relevant quantities,
+
+\begin{split}
+\mathcal Q(\vec\theta;\vec\theta') &= \mathbb E_{Z\sim p(Z \mid \alpha,\vec\theta')}[\log p_{\vec\theta}(Z, \alpha(t)\mid Z = z]\\
+
+&= \mathrm{tr}(\Sigma_\epsilon^{-1}\{\Xi^{(z)} - 2\Phi\Xi^{(\alpha,z)}- 2X\vec\beta\xi^{(z)\intercal} + \Phi\Xi^{(\alpha)}\Phi^\intercal\\
+&\quad\quad\quad\quad\quad + 2X\beta\Phi\xi^{(\alpha)} + (T+1)X\vec\beta\vec\beta^\intercal X^\intercal\})\\
+
+&\quad\quad+\mathrm{tr}(\Sigma_\eta^{-1}\{(\Xi^{(\alpha)} - \vec\alpha_0\vec\alpha_0^\intercal) - 2M(\vec\theta_\kappa) \vec\alpha(t-1)\vec\alpha(t)^\intercal \\
+&\quad\quad\quad\quad\quad\quad +M(\vec\theta_\kappa)^\intercal M(\vec{\theta}_\kappa)\Xi^{(\alpha,-1)}\})\\
+
+&\quad\quad+ \mathrm{tr}(\Sigma_0^{-1}\{\vec\alpha_0\vec\alpha_0^\intercal\} - 2\vec\alpha_0\vec m_0^\intercal + \vec m_0\vec m_0^\intercal)
+\end{split}
+
+where
+
+$$
+\begin{split}
+\xi^{(z)} &:= \sum_{t=0}^T \vec z(t)\\
+\xi^{(\alpha)} &:= \mathbb{E}_{\vec\theta'}[\sum_{t=0}^T\vec \alpha(t)]\\
+\Xi^{(z)} &:= \sum_{t=0}^T\vec z(t)\vec z(t)^\intercal\\
+\Xi^{(\alpha,z)} &:= \mathbb{E}_{\vec\theta'}[\sum_{t=0}^T\vec\alpha(t)\vec z(t)^\intercal]\\
+\Xi^{(\alpha)} &:= \mathbb{E}_{\vec\theta'}[\sum_{t=0}^T\vec\alpha(t)\vec\alpha(t)^\intercal]\\
+\Xi^{(\alpha,-1)} &:=\mathbb{E}_{\vec\theta'}[\sum_{t=1}^T\vec\alpha(t-1)\vec\alpha(t)^\intercal]
+\end{split}
 $$

@@ -43,3 +43,18 @@ def PHI2(s):
 #+end_src
 
 
+
+#begin_src markdown
+# scrap heap
+
+We also eventually define the kernel matrix (i wrote this down too early but ill need it later)
+
+In hindsight, the only reason this appears in the code is due to riemann integration. I probably don't need it here.
+$$
+K := \left[\begin{matrix}
+\kappa(\boldsymbol s_1, \boldsymbol s_1) & \kappa(\boldsymbol s_1, \boldsymbol s_2) & \dots & \kappa(\boldsymbol s_1, \boldsymbol s_n)\\
+\vdots &   \ddots && \vdots\\
+\kappa(\boldsymbol s_n, \boldsymbol s_1) & \kappa(\boldsymbol s_n, \boldsymbol s_2) & \dots & \kappa(\boldsymbol s_n, \boldsymbol s_n)
+\end{matrix}\right].
+$$
+#+end_src
