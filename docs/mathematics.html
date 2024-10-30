@@ -116,7 +116,11 @@ window.Quarto = {
   </ul></li>
   </ul></li>
   <li><a href="#kernel-decomposition" id="toc-kernel-decomposition" class="nav-link" data-scroll-target="#kernel-decomposition">Kernel Decomposition</a></li>
-  <li><a href="#em-algorithm" id="toc-em-algorithm" class="nav-link" data-scroll-target="#em-algorithm">EM algorithm</a></li>
+  <li><a href="#filtering-forecasting-and-maximum-likelihood-estimation" id="toc-filtering-forecasting-and-maximum-likelihood-estimation" class="nav-link" data-scroll-target="#filtering-forecasting-and-maximum-likelihood-estimation">Filtering, Forecasting and Maximum Likelihood Estimation</a>
+  <ul class="collapse">
+  <li><a href="#em-algorithm" id="toc-em-algorithm" class="nav-link" data-scroll-target="#em-algorithm">EM Algorithm</a></li>
+  <li><a href="#kalman-filter-and-smoother" id="toc-kalman-filter-and-smoother" class="nav-link" data-scroll-target="#kalman-filter-and-smoother">Kalman Filter and Smoother</a></li>
+  </ul></li>
   </ul>
 </nav>
 </div>
@@ -262,8 +266,8 @@ Y(\boldsymbol{\mathbf{s}};t+1) = \boldsymbol{\mathbf{\phi}}(\boldsymbol s) \alph
 \]</span></p>
 <p>Of course, this kernel lacks spatial dependance. We can add spatial variance back in in a nice way by adding dependance on <span class="math inline">\(\boldsymbol{\mathbf{s}}\)</span> to the parameters, for example, variyng the offset term as <span class="math inline">\(\boldsymbol{\mathbf{m}}(\boldsymbol{\mathbf{s}})\)</span>. Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a>)</span>. The actual parameters of such a spatially-variant kernel are then the basis coefficients for the expansion of any spatially variant parameters, as well as any constant parameters.</p>
 </section>
-<section id="em-algorithm" class="level1">
-<h1>EM algorithm</h1>
+<section id="filtering-forecasting-and-maximum-likelihood-estimation" class="level1">
+<h1>Filtering, Forecasting and Maximum Likelihood Estimation</h1>
 <p>Firstly, we finish establishing our model, now with the spectral form;</p>
 <p><span class="math display">\[
 \begin{split}
@@ -297,27 +301,28 @@ M &amp;= \int_{\mathcal D_s}\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) 
 \end{split}
 \]</span></p>
 <p>where the <span class="math inline">\(\mathrm{vec}[\cdot]\)</span> operator gives the elements of the matrix in a column vector. Of course, in practice, some of these may be estimated outside of the algorithm, fixed, given a much simpler form (e.g.&nbsp;<span class="math inline">\(\Sigma_\eta = \sigma_\eta^2 I_d\)</span>), etc.</p>
+<section id="em-algorithm" class="level2">
+<h2 class="anchored" data-anchor-id="em-algorithm">EM Algorithm</h2>
 <p>The E step of the EM algorithm relies on the quantity</p>
 <p><span id="eq-Qdef"><span class="math display">\[
 \begin{split}
-\mathcal Q(\boldsymbol{\mathbf{\theta}}; \boldsymbol{\mathbf{\theta}}') = \mathbb E_{\boldsymbol{\mathbf{Z}}_t\sim p(Z \mid \boldsymbol{\mathbf{\alpha}}_t,\boldsymbol{\mathbf{\theta}})}[\log p_{\boldsymbol{\mathbf{\theta}}}(\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}, \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T})\mid\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}],
+\mathcal Q(\boldsymbol{\mathbf{\theta}}; \boldsymbol{\mathbf{\theta}}') = \mathbb E_{\boldsymbol{\mathbf{Z}}_t\sim p(Z \mid \boldsymbol{\mathbf{\alpha}}_t,\boldsymbol{\mathbf{\theta}})}[\log p_{\boldsymbol{\mathbf{\theta}}}(Z^{(T)}, A^{(T)})\mid Z^{(T)}],
 \end{split}
 \tag{8}\]</span></span></p>
-<p>which approximates <span class="math inline">\(\log p_\theta(\{\boldsymbol{\mathbf{Z}}_t\}, \{\boldsymbol{\mathbf{\alpha}}_t\})\)</span>. Using our model hierarchy, we have</p>
+<p>where <span class="math inline">\(Z^{(T)} = \{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}\)</span>, <span class="math inline">\(A^{(T)} = \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T}\)</span> and <span class="math inline">\(A^{(T-1)} = \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T-1}\)</span>. This approximates <span class="math inline">\(\log p_\theta(\{\boldsymbol{\mathbf{Z}}_t\}, \{\boldsymbol{\mathbf{\alpha}}_t\})\)</span>. Using our model hierarchy, we have,</p>
 <p><span class="math display">\[
 \begin{split}
-p_{\boldsymbol{\mathbf{\theta}}}(\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}, \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T})\mid\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}) &amp;= p(\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}\mid \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T}, \boldsymbol{\mathbf{\theta}})\\
-&amp;\times p(\{\boldsymbol{\mathbf{\alpha}}_t\}_{t=1,\dots,T} \mid \{\boldsymbol{\mathbf{\alpha}}_{t-1}\}_{t=1,\dots,T}, \boldsymbol{\mathbf{\theta}})\\
+p_{\boldsymbol{\mathbf{\theta}}}(Z^{(T)}, A^{(T)}\mid \boldsymbol{\mathbf{\theta}}) &amp;= p(Z^{(T)}\mid A^{(T-1)}, \boldsymbol{\mathbf{\theta}})\\
+&amp;\times p(A^{(T)} \mid A^{(T-1)}, \boldsymbol{\mathbf{\theta}})\\
 &amp;\times p(\alpha_0\mid \boldsymbol{\mathbf{\theta}}).
 \end{split}
 \]</span></p>
-<p><span style="color: red;">[NOTE: Let’s improve the notation here, the subscript t’s here is bothering me]</span></p>
-<p>We will tackle each of these terms individually. Firstly, for the data generating term, we have (ignoring additive constants)</p>
+<p>We will tackle each of these terms individually. Firstly, for the data generating term, we have (using <span class="math inline">\(\stackrel{\mathclap{c}}{=}\)</span> to denote ‘equal up to an additive constant’)</p>
 <p><span class="math display">\[
 \begin{split}
-&amp;-2\log p(\{\boldsymbol{\mathbf{Z}}(t)\}_{t=0,\dots,T}\mid \{\boldsymbol{\mathbf{\alpha}}(t)\}_{t=0,\dots,T}, \boldsymbol{\mathbf{\theta}})\\
-&amp;= \sum_{t=0}^T \left(\boldsymbol{\mathbf{Z}}(t) - \Phi\boldsymbol{\mathbf{\alpha}}(t) - X\boldsymbol{\mathbf{\beta}})^\intercal \Sigma_\epsilon^{-1}(\boldsymbol{\mathbf{Z}}(t) - \Phi\boldsymbol{\mathbf{\alpha}}(t) - X\boldsymbol{\mathbf{\beta}}\right)\\
-&amp;=\mathrm{tr}(\Sigma_\epsilon^{-1}\{\left[\sum_{t=0}^T\boldsymbol{\mathbf{Z}}(t)\boldsymbol{\mathbf{Z}}(t)^\intercal\right] - 2\Phi\left[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{Z}}(t)^\intercal\right]\\
+&amp;-2\log p(Z^{(T)}\mid A^{(T)}, \boldsymbol{\mathbf{\theta}})\\
+&amp;\stackrel{\mathclap{c}}{=}\sum_{t=0}^T \left(\log(\det(\Sigma_\epsilon)) + (\boldsymbol{\mathbf{Z}}(t) - \Phi\boldsymbol{\mathbf{\alpha}}(t) - X\boldsymbol{\mathbf{\beta}})^\intercal \Sigma_\epsilon^{-1}(\boldsymbol{\mathbf{Z}}(t) - \Phi\boldsymbol{\mathbf{\alpha}}(t) - X\boldsymbol{\mathbf{\beta}})\right)\\
+&amp;=T\log\det(\Sigma_\epsilon) + \mathrm{tr}(\Sigma_\epsilon^{-1}\{\left[\sum_{t=0}^T\boldsymbol{\mathbf{Z}}(t)\boldsymbol{\mathbf{Z}}(t)^\intercal\right] - 2\Phi\left[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{Z}}(t)^\intercal\right]\\
 &amp;\quad\quad - 2X\boldsymbol{\mathbf{\beta}}\sum_{t=0}^T \boldsymbol{\mathbf{Z}}(t)^\intercal + \Phi\left[\sum_{t=0}^T \boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\right]\Phi^\intercal\\
 &amp;\quad\quad + 2X\beta\Phi\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t) + (T+1)X\boldsymbol{\mathbf{\beta}}\boldsymbol{\mathbf{\beta}}^\intercal X^\intercal\}).
 \end{split}
@@ -326,44 +331,56 @@ p_{\boldsymbol{\mathbf{\theta}}}(\{\boldsymbol{\mathbf{Z}}_t\}_{t=0,\dots,T}, \{
 <p>For the process terms,</p>
 <p><span class="math display">\[
 \begin{split}
-&amp;-2\log p(\{\boldsymbol{\mathbf{\alpha}}(t)\}_{t=1,\dots,T}\mid \{\boldsymbol{\mathbf{\alpha}}(t-1)\}_{t=1,\dots,T}, \boldsymbol{\mathbf{\theta}})\\
-&amp;=\sum_{t=1}^T (\boldsymbol{\mathbf{\alpha}}(t) - M(\boldsymbol{\mathbf{\theta}}_\kappa)\alpha(t-1))^\intercal\Sigma_\eta^{-1}(\boldsymbol{\mathbf{\alpha}}(t) - M(\boldsymbol{\mathbf{\theta}}_\kappa)\alpha(t-1))\\
-&amp;= \mathrm{tr}(\Sigma_\eta^{-1}\{\left[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\right] - 2M(\boldsymbol{\mathbf{\theta}}_\kappa) \left[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\right] \\
+&amp;-2\log p(A^{(T)}mid A^{(T-1)}, \boldsymbol{\mathbf{\theta}})\\
+&amp;\stackrel{\mathclap{c}}{=}\sum_{t=1}^T \left(\log(\det(\Sigma_\eta))+(\boldsymbol{\mathbf{\alpha}}(t) - M(\boldsymbol{\mathbf{\theta}}_\kappa)\alpha(t-1))^\intercal\Sigma_\eta^{-1}(\boldsymbol{\mathbf{\alpha}}(t) - M(\boldsymbol{\mathbf{\theta}}_\kappa)\alpha(t-1))\right)\\
+&amp;= T\log(\det(\Sigma_\eta)) + \mathrm{tr}(\Sigma_\eta^{-1}\{\left[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\right] - 2M(\boldsymbol{\mathbf{\theta}}_\kappa) \left[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\right] \\
 &amp;\quad\quad +M(\boldsymbol{\mathbf{\theta}}_\kappa)^\intercal M(\boldsymbol{\mathbf{\theta}}_\kappa)\left[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t-1)^\intercal\right]\}),\\
 \end{split}
 \]</span></p>
-<p>and</p>
+<p>and finally</p>
 <p><span class="math display">\[
 \begin{split}
 &amp;-2\log p(\boldsymbol{\mathbf{\alpha}}(0)\mid\boldsymbol{\mathbf{\theta}})\\
-&amp;= (\boldsymbol{\mathbf{\alpha}}_0 - \boldsymbol{\mathbf{m}}_0)^\intercal \Sigma_0^{-1} (\boldsymbol{\mathbf{\alpha}}_0 - \boldsymbol{\mathbf{m}}_0)
-&amp;= \mathrm{tr}(\Sigma_0^{-1}\{\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{\alpha}}_0^\intercal\} - 2\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{m}}_0^\intercal + \boldsymbol{\mathbf{m}}_0\boldsymbol{\mathbf{m}}_0^\intercal)
+&amp;\stackrel{\mathclap{c}}{=}\log(\det(\Sigma_0)) + (\boldsymbol{\mathbf{\alpha}}_0 - \boldsymbol{\mathbf{m}}_0)^\intercal \Sigma_0^{-1} (\boldsymbol{\mathbf{\alpha}}_0 - \boldsymbol{\mathbf{m}}_0)\\
+&amp;= \log(\det(\Sigma_0)) + \mathrm{tr}(\Sigma_0^{-1}\{\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{\alpha}}_0^\intercal\} - 2\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{m}}_0^\intercal + \boldsymbol{\mathbf{m}}_0\boldsymbol{\mathbf{m}}_0^\intercal).
 \end{split}
 \]</span></p>
-<p>Taking the expectation and summing, giving names to some relevant quantities,</p>
-<span class="math display">\[\begin{split}
-\mathcal Q(\boldsymbol{\mathbf{\theta}};\boldsymbol{\mathbf{\theta}}') &amp;= \mathbb E_{Z\sim p(Z \mid \alpha,\boldsymbol{\mathbf{\theta}}')}[\log p_{\boldsymbol{\mathbf{\theta}}}(Z, \alpha(t)\mid Z = z]\\
-
-&amp;= \mathrm{tr}(\Sigma_\epsilon^{-1}\{\Xi^{(z)} - 2\Phi\Xi^{(\alpha,z)}- 2X\boldsymbol{\mathbf{\beta}}\xi^{(z)\intercal} + \Phi\Xi^{(\alpha)}\Phi^\intercal\\
+<p>Taking the expectation, summing, and giving names to some relevant quantities,</p>
+<p><span id="eq-Q"><span class="math display">\[
+\begin{split}
+\mathcal Q(\boldsymbol{\mathbf{\theta}};\boldsymbol{\mathbf{\theta}}') &amp;= \mathbb E_{Z^{(T)}\sim p(Z \mid A^{(T)},\boldsymbol{\mathbf{\theta}}')}[\log p_{\boldsymbol{\mathbf{\theta}}}(Z^{(T)}, A^{(T)}\mid Z^{(T)} = z^{(T)}]\\
+&amp;\stackrel{\mathclap{c}}{=}-\frac12(\mathrm{tr}(\Sigma_\epsilon^{-1}\{\Xi^{(z)} - 2\Phi\Xi^{(\alpha,z)}- 2X\boldsymbol{\mathbf{\beta}}\xi^{(z)\intercal} + \Phi\Xi^{(\alpha)}\Phi^\intercal\\
 &amp;\quad\quad\quad\quad\quad + 2X\beta\Phi\xi^{(\alpha)} + (T+1)X\boldsymbol{\mathbf{\beta}}\boldsymbol{\mathbf{\beta}}^\intercal X^\intercal\})\\
-
 &amp;\quad\quad+\mathrm{tr}(\Sigma_\eta^{-1}\{(\Xi^{(\alpha)} - \boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{\alpha}}_0^\intercal) - 2M(\boldsymbol{\mathbf{\theta}}_\kappa) \boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal \\
 &amp;\quad\quad\quad\quad\quad\quad +M(\boldsymbol{\mathbf{\theta}}_\kappa)^\intercal M(\boldsymbol{\mathbf{\theta}}_\kappa)\Xi^{(\alpha,-1)}\})\\
-
-&amp;\quad\quad+ \mathrm{tr}(\Sigma_0^{-1}\{\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{\alpha}}_0^\intercal\} - 2\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{m}}_0^\intercal + \boldsymbol{\mathbf{m}}_0\boldsymbol{\mathbf{m}}_0^\intercal)
-\end{split}\]</span>
+&amp;\quad\quad+ \mathrm{tr}(\Sigma_0^{-1}\{\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{\alpha}}_0^\intercal\} - 2\boldsymbol{\mathbf{\alpha}}_0\boldsymbol{\mathbf{m}}_0^\intercal + \boldsymbol{\mathbf{m}}_0\boldsymbol{\mathbf{m}}_0^\intercal)\\
+&amp;\quad\quad + \log(\det(\Sigma_\epsilon^T\Sigma_\eta^T\Sigma_0)))
+\end{split}
+\tag{9}\]</span></span></p>
 <p>where</p>
-<p><span class="math display">\[
+<p><span id="eq-kalmanterms"><span class="math display">\[
 \begin{split}
 \xi^{(z)} &amp;:= \sum_{t=0}^T \boldsymbol{\mathbf{z}}(t)\\
-\xi^{(\alpha)} &amp;:= \mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)]\\
+\xi^{(\alpha)} &amp;:= \sum_{t=0}^T\mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\boldsymbol{\mathbf{\alpha}}(t)\mid Z^{(T)} = z^{(T)}]\\
 \Xi^{(z)} &amp;:= \sum_{t=0}^T\boldsymbol{\mathbf{z}}(t)\boldsymbol{\mathbf{z}}(t)^\intercal\\
-\Xi^{(\alpha,z)} &amp;:= \mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{z}}(t)^\intercal]\\
-\Xi^{(\alpha)} &amp;:= \mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\sum_{t=0}^T\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal]\\
-\Xi^{(\alpha,-1)} &amp;:=\mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\sum_{t=1}^T\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal]
+\Xi^{(\alpha,z)} &amp;:= \sum_{t=0}^T\mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\boldsymbol{\mathbf{\alpha}}(t)\mid Z^{(T)} = z^{(T)}]\boldsymbol{\mathbf{z}}(t)^\intercal\\
+\Xi^{(\alpha)} &amp;:= \sum_{t=0}^T\mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\mid Z^{(T)} = z^{(T)}]\\
+\Xi^{(\alpha,-1)} &amp;:= \sum_{t=1}^T\mathbb{E}_{\boldsymbol{\mathbf{\theta}}'}[\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\mid Z^{(T)} = z^{(T)}]
+\end{split}
+\tag{10}\]</span></span></p>
+<p>In the EM algorithm, an estimate for the Maximum Likelihood estimate involves changing <span class="math inline">\(\theta\)</span> in order to increase (<a href="#eq-Q" class="quarto-xref">Equation&nbsp;9</a>), which can be shown to guarantee that the Likelihood <span class="math inline">\(L(\boldsymbol{\mathbf{\theta}})\)</span> also increases. The idea is then that repeatedly alternating between adjusting <span class="math inline">\(\boldsymbol{\mathbf{\theta}}\)</span> to increase <a href="#eq-Q" class="quarto-xref">Equation&nbsp;9</a>, and then recomputing the terms in <a href="#eq-kalmanterms" class="quarto-xref">Equation&nbsp;10</a>. These terms are computed using standard Kalman techniques. These give optimal linear estimates of these quantities (and the optimal overall estimates for the Gaussian case). A description of this method is presented in the next section.</p>
+</section>
+<section id="kalman-filter-and-smoother" class="level2">
+<h2 class="anchored" data-anchor-id="kalman-filter-and-smoother">Kalman Filter and Smoother</h2>
+<p>Firstly, we should establish some notation. Write <span class="math display">\[
+\begin{split}
+m_{r \mid s} &amp;= \mathbb E[\boldsymbol{\mathbf{\alpha}}_r \mid \{Z_t\}_{t=0,\dots,s}]\\
+P_{r \mid s} &amp;= \mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{\alpha}}_r \mid \{Z_t\}_{t=0,\dots,s}].
 \end{split}
 \]</span></p>
+<p>These are computed in two phases; filtering to find <span class="math inline">\(\{m_{t\mid t}\}_{t=0,\dots,T}\)</span> and <span class="math inline">\(\{P_{t\mid t}\}_{t=0,\dots,T}\)</span>, then a smoothing phase to find <span class="math inline">\(\{m_{t\mid T}\}_{t=0,\dots,T}\)</span> and <span class="math inline">\(\{P_{t\mid T}\}_{t=0,\dots,T}\)</span>, which are exactly the values needed for <a href="#eq-kalmanterms" class="quarto-xref">Equation&nbsp;10</a>.</p>
 
+</section>
 </section>
 
 <div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">

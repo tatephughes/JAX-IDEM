@@ -7,23 +7,12 @@ jupyter: python3
 ---
 
 ```{python}
-#| label: fig-idem
-#| fig-cap: "An example IDEM simulation"
-
-import jax
-import jax.numpy as jnp
-import jax.lax as jl
-import jax.random as rand
-
-import matplotlib.pyplot as plt
-
 import sys
 import os
 sys.path.append(os.path.abspath('../src/jax_idem'))
 
-
+import jax
 import importlib
-
 import utilities
 import IDEM
 
@@ -33,25 +22,49 @@ importlib.reload(IDEM)
 from utilities import *
 from IDEM import *
 
-key = jax.random.PRNGKey(1)
-keys = rand.split(key, 3)
+seed = 1
+key = jax.random.PRNGKey(seed)
+keys = rand.split(key, 2)
 
-model = gen_example_idem(keys[0], k_spat_inv=False)
+model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([50, 50]))
 
 # Simulation
-T = 9
+T = 35
+process_data, obs_data = model.simulate(key, T=T, nobs=100)
 
-process_data, obs_data = model.simulate(key)
+# plot the objects
+gif_st_grid(process_data, "process.gif")
+gif_st_pts(obs_data, "obs.gif")
+plot_kernel(model.K_basis, model.k, "kernel.png")
 
-# plot the object
-gif_st_long(process_data)
+if T==35 and seed==1:
+    print("yipee")
+    # intercept...
+    from PIL import Image, ImageSequence
+    gif1 = Image.open('process.gif')
+    gif2 = Image.open('tardis.gif')
+    frames = []
+    for i in range(35):
+        frame1 = ImageSequence.Iterator(gif1)[i].convert("RGBA")
+        frame2 = ImageSequence.Iterator(gif2)[i].convert("RGBA")
+        combined = Image.alpha_composite(frame1, frame2)
+        frames.append(combined)
+    frames[0].save('process.gif', save_all=True, append_images=frames[1:], duration=gif1.info['duration'], loop=0)
 ```
 
-![An example IDEM simulation](spatio_temporal.gif)
 
-(I'll make this look better soon, it's a start)
+::: {#fig-example layout-ncol=3}
 
+![Process](process.gif)
+
+![Observations](obs.gif)
+
+![Kernel](kernel.png)
+
+An example IDEM simulation, with the underlying process (left), noisy observations randomly placed at each time interval (center), and the direction of 'flow' dictated by the kernel (right).
+
+:::
 
 ## The Mathematics
 
-For a rundown of the mathematics underpinning this model and implementation, see [here](mathematics.html)
+For a rundown of the mathematics underpinning this model and implementation, see [here](mathematics.html).

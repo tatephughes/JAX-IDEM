@@ -29,6 +29,7 @@ bibliography: Bibliography.bib
 \DeclareMathOperator{\var}{\mathbb{V}\mathrm{ar}}
 \DeclareMathOperator{\cov}{\mathbb{C}\mathrm{ov}}
 \renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
+\newcommand\eqc{\stackrel{\mathclap{c}}{=}}
 
 # Descriptive and Dynamic Modelling
 
@@ -201,7 +202,7 @@ Of course, now we are back to having entire functions as parameters, but taking 
 The actual parameters of such a spatially-variant kernel are then the basis coefficients for the expansion of any spatially variant parameters, as well as any constant parameters.
 
 
-# EM algorithm
+# Filtering, Forecasting and Maximum Likelihood Estimation
 
 Firstly, we finish establishing our model, now with the spectral form;
 
@@ -252,35 +253,34 @@ $$
 where the $\mathrm{vec}[\cdot]$ operator gives the elements of the matrix in a column vector.
 Of course, in practice, some of these may be estimated outside of the algorithm, fixed, given a much simpler form (e.g. $\Sigma_\eta = \sigma_\eta^2 I_d$), etc.
 
+## EM Algorithm
+
 The E step of the EM algorithm relies on the quantity 
 
 $$
 \begin{split}
-\mathcal Q(\vec \theta; \vec \theta') = \mathbb E_{\vec Z_t\sim p(Z \mid \vec\alpha_t,\vec\theta)}[\log p_{\vec\theta}(\{\vec Z_t\}_{t=0,\dots,T}, \{\vec\alpha_t\}_{t=0,\dots,T})\mid\{\vec Z_t\}_{t=0,\dots,T}],
+\mathcal Q(\vec \theta; \vec \theta') = \mathbb E_{\vec Z_t\sim p(Z \mid \vec\alpha_t,\vec\theta)}[\log p_{\vec\theta}(Z^{(T)}, A^{(T)})\mid Z^{(T)}],
 \end{split}
 $$ {#eq-Qdef}
 
-which approximates $\log p_\theta(\{\vec Z_t\}, \{\vec\alpha_t\})$.
-Using our model hierarchy, we have
+where $Z^{(T)} = \{\vec Z_t\}_{t=0,\dots,T}$, $A^{(T)} = \{\vec \alpha_t\}_{t=0,\dots,T}$ and $A^{(T-1)} = \{\vec \alpha_t\}_{t=0,\dots,T-1}$. This approximates $\log p_\theta(\{\vec Z_t\}, \{\vec\alpha_t\})$.
+Using our model hierarchy, we have, 
 
 $$
 \begin{split}
-p_{\vec\theta}(\{\vec Z_t\}_{t=0,\dots,T}, \{\vec\alpha_t\}_{t=0,\dots,T})\mid\{\vec Z_t\}_{t=0,\dots,T}) &= p(\{\vec Z_t\}_{t=0,\dots,T}\mid \{\vec\alpha_t\}_{t=0,\dots,T}, \vec\theta)\\
-&\times p(\{\vec\alpha_t\}_{t=1,\dots,T} \mid \{\vec\alpha_{t-1}\}_{t=1,\dots,T}, \vec\theta)\\
+p_{\vec\theta}(Z^{(T)}, A^{(T)}\mid \vec\theta) &= p(Z^{(T)}\mid A^{(T-1)}, \vec\theta)\\
+&\times p(A^{(T)} \mid A^{(T-1)}, \vec\theta)\\
 &\times p(\alpha_0\mid \vec\theta).
 \end{split}
 $$
 
-<span style="color: red;">[NOTE: Let's improve the notation here, the subscript t's here is bothering me
-]</span>
-
-We will tackle each of these terms individually. Firstly, for the data generating term, we have (ignoring additive constants)
+We will tackle each of these terms individually. Firstly, for the data generating term, we have (using $\eqc$ to denote 'equal up to an additive constant')
 
 $$
 \begin{split}
-&-2\log p(\{\vec Z(t)\}_{t=0,\dots,T}\mid \{\vec\alpha(t)\}_{t=0,\dots,T}, \vec\theta)\\ 
-&= \sum_{t=0}^T \left(\vec Z(t) - \Phi\vec\alpha(t) - X\vec\beta)^\intercal \Sigma_\epsilon^{-1}(\vec Z(t) - \Phi\vec\alpha(t) - X\vec\beta\right)\\
-&=\mathrm{tr}(\Sigma_\epsilon^{-1}\{\left[\sum_{t=0}^T\vec Z(t)\vec Z(t)^\intercal\right] - 2\Phi\left[\sum_{t=0}^T\vec\alpha(t)\vec Z(t)^\intercal\right]\\
+&-2\log p(Z^{(T)}\mid A^{(T)}, \vec\theta)\\ 
+&\eqc \sum_{t=0}^T \left(\log(\det(\Sigma_\epsilon)) + (\vec Z(t) - \Phi\vec\alpha(t) - X\vec\beta)^\intercal \Sigma_\epsilon^{-1}(\vec Z(t) - \Phi\vec\alpha(t) - X\vec\beta)\right)\\
+&=T\log\det(\Sigma_\epsilon) + \mathrm{tr}(\Sigma_\epsilon^{-1}\{\left[\sum_{t=0}^T\vec Z(t)\vec Z(t)^\intercal\right] - 2\Phi\left[\sum_{t=0}^T\vec\alpha(t)\vec Z(t)^\intercal\right]\\
 &\quad\quad - 2X\vec\beta\sum_{t=0}^T \vec Z(t)^\intercal + \Phi\left[\sum_{t=0}^T \vec\alpha(t)\vec\alpha(t)^\intercal\right]\Phi^\intercal\\
 &\quad\quad + 2X\beta\Phi\sum_{t=0}^T\vec \alpha(t) + (T+1)X\vec\beta\vec\beta^\intercal X^\intercal\}).
 \end{split}
@@ -294,46 +294,67 @@ For the process terms,
 
 $$
 \begin{split}
-&-2\log p(\{\vec \alpha(t)\}_{t=1,\dots,T}\mid \{\vec\alpha(t-1)\}_{t=1,\dots,T}, \vec\theta)\\ 
-&=\sum_{t=1}^T (\vec \alpha(t) - M(\vec\theta_\kappa)\alpha(t-1))^\intercal\Sigma_\eta^{-1}(\vec \alpha(t) - M(\vec\theta_\kappa)\alpha(t-1))\\
-&= \mathrm{tr}(\Sigma_\eta^{-1}\{\left[\sum_{t=1}^T\vec\alpha(t)\vec\alpha(t)^\intercal\right] - 2M(\vec\theta_\kappa) \left[\sum_{t=1}^T\vec\alpha(t-1)\vec\alpha(t)^\intercal\right] \\
+&-2\log p(A^{(T)}mid A^{(T-1)}, \vec\theta)\\ 
+&\eqc\sum_{t=1}^T \left(\log(\det(\Sigma_\eta))+(\vec \alpha(t) - M(\vec\theta_\kappa)\alpha(t-1))^\intercal\Sigma_\eta^{-1}(\vec \alpha(t) - M(\vec\theta_\kappa)\alpha(t-1))\right)\\
+&= T\log(\det(\Sigma_\eta)) + \mathrm{tr}(\Sigma_\eta^{-1}\{\left[\sum_{t=1}^T\vec\alpha(t)\vec\alpha(t)^\intercal\right] - 2M(\vec\theta_\kappa) \left[\sum_{t=1}^T\vec\alpha(t-1)\vec\alpha(t)^\intercal\right] \\
 &\quad\quad +M(\vec\theta_\kappa)^\intercal M(\vec{\theta}_\kappa)\left[\sum_{t=1}^T\vec\alpha(t-1)\vec{\alpha}(t-1)^\intercal\right]\}),\\
 \end{split}
 $$
 
-and
+and finally
 
 $$
 \begin{split}
 &-2\log p(\vec\alpha(0)\mid\vec\theta)\\
-&= (\vec\alpha_0 - \vec m_0)^\intercal \Sigma_0^{-1} (\vec\alpha_0 - \vec m_0)
-&= \mathrm{tr}(\Sigma_0^{-1}\{\vec\alpha_0\vec\alpha_0^\intercal\} - 2\vec\alpha_0\vec m_0^\intercal + \vec m_0\vec m_0^\intercal)
+&\eqc \log(\det(\Sigma_0)) + (\vec\alpha_0 - \vec m_0)^\intercal \Sigma_0^{-1} (\vec\alpha_0 - \vec m_0)\\
+&= \log(\det(\Sigma_0)) + \mathrm{tr}(\Sigma_0^{-1}\{\vec\alpha_0\vec\alpha_0^\intercal\} - 2\vec\alpha_0\vec m_0^\intercal + \vec m_0\vec m_0^\intercal).
 \end{split}
 $$
 
-Taking the expectation and summing, giving names to some relevant quantities,
+Taking the expectation, summing, and giving names to some relevant quantities,
 
+$$
 \begin{split}
-\mathcal Q(\vec\theta;\vec\theta') &= \mathbb E_{Z\sim p(Z \mid \alpha,\vec\theta')}[\log p_{\vec\theta}(Z, \alpha(t)\mid Z = z]\\
-
-&= \mathrm{tr}(\Sigma_\epsilon^{-1}\{\Xi^{(z)} - 2\Phi\Xi^{(\alpha,z)}- 2X\vec\beta\xi^{(z)\intercal} + \Phi\Xi^{(\alpha)}\Phi^\intercal\\
+\mathcal Q(\vec\theta;\vec\theta') &= \mathbb E_{Z^{(T)}\sim p(Z \mid A^{(T)},\vec\theta')}[\log p_{\vec\theta}(Z^{(T)}, A^{(T)}\mid Z^{(T)} = z^{(T)}]\\
+&\eqc -\frac12(\mathrm{tr}(\Sigma_\epsilon^{-1}\{\Xi^{(z)} - 2\Phi\Xi^{(\alpha,z)}- 2X\vec\beta\xi^{(z)\intercal} + \Phi\Xi^{(\alpha)}\Phi^\intercal\\
 &\quad\quad\quad\quad\quad + 2X\beta\Phi\xi^{(\alpha)} + (T+1)X\vec\beta\vec\beta^\intercal X^\intercal\})\\
-
 &\quad\quad+\mathrm{tr}(\Sigma_\eta^{-1}\{(\Xi^{(\alpha)} - \vec\alpha_0\vec\alpha_0^\intercal) - 2M(\vec\theta_\kappa) \vec\alpha(t-1)\vec\alpha(t)^\intercal \\
 &\quad\quad\quad\quad\quad\quad +M(\vec\theta_\kappa)^\intercal M(\vec{\theta}_\kappa)\Xi^{(\alpha,-1)}\})\\
-
-&\quad\quad+ \mathrm{tr}(\Sigma_0^{-1}\{\vec\alpha_0\vec\alpha_0^\intercal\} - 2\vec\alpha_0\vec m_0^\intercal + \vec m_0\vec m_0^\intercal)
-\end{split}
+&\quad\quad+ \mathrm{tr}(\Sigma_0^{-1}\{\vec\alpha_0\vec\alpha_0^\intercal\} - 2\vec\alpha_0\vec m_0^\intercal + \vec m_0\vec m_0^\intercal)\\
+&\quad\quad + \log(\det(\Sigma_\epsilon^T\Sigma_\eta^T\Sigma_0)))
+\end{split} 
+$${#eq-Q}
 
 where
 
 $$
 \begin{split}
 \xi^{(z)} &:= \sum_{t=0}^T \vec z(t)\\
-\xi^{(\alpha)} &:= \mathbb{E}_{\vec\theta'}[\sum_{t=0}^T\vec \alpha(t)]\\
+\xi^{(\alpha)} &:= \sum_{t=0}^T\mathbb{E}_{\vec\theta'}[\vec \alpha(t)\mid Z^{(T)} = z^{(T)}]\\
 \Xi^{(z)} &:= \sum_{t=0}^T\vec z(t)\vec z(t)^\intercal\\
-\Xi^{(\alpha,z)} &:= \mathbb{E}_{\vec\theta'}[\sum_{t=0}^T\vec\alpha(t)\vec z(t)^\intercal]\\
-\Xi^{(\alpha)} &:= \mathbb{E}_{\vec\theta'}[\sum_{t=0}^T\vec\alpha(t)\vec\alpha(t)^\intercal]\\
-\Xi^{(\alpha,-1)} &:=\mathbb{E}_{\vec\theta'}[\sum_{t=1}^T\vec\alpha(t-1)\vec\alpha(t)^\intercal]
+\Xi^{(\alpha,z)} &:= \sum_{t=0}^T\mathbb{E}_{\vec\theta'}[\vec\alpha(t)\mid Z^{(T)} = z^{(T)}]\vec z(t)^\intercal\\
+\Xi^{(\alpha)} &:= \sum_{t=0}^T\mathbb{E}_{\vec\theta'}[\vec\alpha(t)\vec\alpha(t)^\intercal\mid Z^{(T)} = z^{(T)}]\\
+\Xi^{(\alpha,-1)} &:= \sum_{t=1}^T\mathbb{E}_{\vec\theta'}[\vec\alpha(t-1)\vec\alpha(t)^\intercal\mid Z^{(T)} = z^{(T)}]
+\end{split}
+$$ {#eq-kalmanterms}
+
+In the EM algorithm, an estimate for the Maximum Likelihood estimate involves changing $\theta$ in order to increase (@eq-Q), which can be shown to guarantee that the Likelihood $L(\vec\theta)$ also increases.
+The idea is then that repeatedly alternating between adjusting $\vec\theta$ to increase @eq-Q, and then recomputing the terms in @eq-kalmanterms.
+These terms are computed using standard Kalman techniques.
+These give optimal linear estimates of these quantities (and the optimal overall estimates for the Gaussian case). 
+A description of this method is presented in the next section.
+
+## Kalman Filter and Smoother
+
+Firstly, we should establish some notation.
+Write
+$$
+\begin{split}
+m_{r \mid s} &= \mathbb E[\vec\alpha_r \mid \{Z_t\}_{t=0,\dots,s}]\\
+P_{r \mid s} &= \var[\vec\alpha_r \mid \{Z_t\}_{t=0,\dots,s}].
 \end{split}
 $$
+
+
+These are computed in two phases; filtering to find $\{m_{t\mid t}\}_{t=0,\dots,T}$ and $\{P_{t\mid t}\}_{t=0,\dots,T}$, then a smoothing phase to find $\{m_{t\mid T}\}_{t=0,\dots,T}$ and $\{P_{t\mid T}\}_{t=0,\dots,T}$, which are exactly the values needed for @eq-kalmanterms.
+
