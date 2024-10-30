@@ -2,10 +2,12 @@
 
 import jax
 import jax.numpy as jnp
+
 # from typing import Callable
 # import jax.lax as jl
 # import jax.random as rand
 # from jax.numpy.linalg import solve
+from jax.scipy.optimize import minimize
 
 
 from jax.typing import ArrayLike
@@ -13,7 +15,10 @@ from jax.typing import ArrayLike
 from typing import Callable, NamedTuple  # , Union
 from jax import Array
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+import seaborn as sns
 from PIL import Image
+import io
 
 
 class Grid(NamedTuple):
@@ -166,6 +171,34 @@ def place_basis(
     # return {"vfun": basis_vfun, "mfun": eval_basis, "r": nbasis, "pars": params}
 
 
+def plot_kernel(K_basis, k, output_file="kernel.png"):
+    grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([10, 10])).coords
+
+    def offset(s):
+        return -jnp.array(
+            [
+                k[2] @ K_basis[2].vfun(s),
+                k[3] @ K_basis[3].vfun(s),
+            ]
+        )
+
+    vecoffset = jax.vmap(offset)
+
+    offsets = vecoffset(grid)
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.quiver(grid[:, 0], grid[:, 1], offsets[:, 0], offsets[:, 1])
+    # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    plt.title("Kernel Direction")
+
+    plt.savefig(output_file)
+    plt.close()
+
+
 class ST_Data_Wide(NamedTuple):
     x: ArrayLike  # x coordinates
     y: ArrayLike  # y coordinates
@@ -235,7 +268,52 @@ def plot_st_long(data: ST_Data_Long):
     plt.tight_layout()
 
 
-def gif_st_long(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=500):
+def gif_st_grid(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=100):
+    # in the future, you should be able to directly pass in figsize and nrows/cols.
+
+    data_array = jnp.column_stack(data)
+    vmin = jnp.min(data.z)
+    vmax = jnp.max(data.z)
+
+    frames = []
+
+    grid = int(jnp.sqrt(data_array[data_array[:, 2] == 0].shape[0]))
+
+    T = int(jnp.max(data.t) - jnp.min(data.t)) + 1
+
+    for t in range(T):
+        time_data = data_array[data_array[:, 2] == t]
+        values = time_data[:, 3]
+        valmat = jnp.flipud(values.reshape(grid, grid))
+
+        plt.figure(figsize=(6, 5))
+
+        sns.heatmap(
+            valmat,
+            vmin=vmin,
+            vmax=vmax,
+            cmap="viridis",
+            xticklabels=False,
+            yticklabels=False,
+        )
+
+        buf = io.BytesIO()
+
+        plt.title(f"Time: {t}")
+        # plt.set_xlabel(data.x)
+        # plt.set_ylabel(data.y)
+
+        plt.savefig(buf, format="png")
+        plt.close()
+
+        frames.append(Image.open(buf))
+
+    frames[0].save(
+        output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
+    )
+
+
+def gif_st_pts(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=100):
     # in the future, you should be able to directly pass in figsize and nrows/cols.
 
     data_array = jnp.column_stack(data)
@@ -252,26 +330,43 @@ def gif_st_long(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=
         y = time_data[:, 1]
         values = time_data[:, 3]
 
-        fig, ax = plt.subplots()
-        ax.scatter(
-            x,
-            y,
+        fig, ax = plt.subplots(figsize=(6, 5))
+
+        # plt.scatter(x, y, c=values, vmin=vmin, vmax=vmax, cmap="viridis")
+
+        sns.scatterplot(
+            x=x,
+            y=y,
+            hue=values,
             c=values,
-            cmap="viridis",
-            marker="s",
-            vmin=vmin,
-            vmax=vmax,
+            size=values,
+            sizes=(20, 200),
+            palette="viridis",
+            norm=Normalize(vmin=vmin, vmax=vmax),
+            legend=False,
+            ax=ax,
         )
 
-        ax.set_title(f"Time: {t}")
-        ax.set_xlabel(data.x)
-        ax.set_ylabel(data.y)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
 
-        plt.close(fig)
+        buf = io.BytesIO()
 
-        image_path = f"{t}.png"
-        fig.savefig(image_path)
-        frames.append(Image.open(image_path))
+        plt.title(f"Time: {t}")
+        # plt.set_xlabel(data.x)
+        # plt.set_ylabel(data.y)
+
+        norm = plt.Normalize(vmin, vmax)
+        sm = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
+        sm.set_array([])
+        fig.colorbar(sm, ax=ax)
+
+        plt.savefig(buf, format="png")
+        plt.close()
+
+        frames.append(Image.open(buf))
 
     frames[0].save(
         output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0

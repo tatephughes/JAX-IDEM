@@ -9,7 +9,6 @@ from jax.numpy.linalg import vector_norm, solve
 
 # Plotting imports
 
-
 import matplotlib.pyplot as plt
 
 # Statistics and data handling imports
@@ -20,6 +19,8 @@ import matplotlib.pyplot as plt
 from jax.typing import ArrayLike
 from typing import Callable, NamedTuple  # , Union
 from functools import partial
+
+import warnings
 
 # In-Module imports
 from utilities import (
@@ -50,6 +51,8 @@ class IDEM:
         alpha0,
         beta,
         int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
+        K_basis=None,
+        k=None,
     ):
         self.process_basis = process_basis
         self.kernel = kernel
@@ -62,6 +65,8 @@ class IDEM:
         self.PHI_proc = process_basis.mfun(process_grid.coords)
         # self.PHI_obs = jl.map(process_basis.mfun, obs_locs)
         self.beta = beta
+        self.K_basis = K_basis
+        self.k = k
 
     def get_sim_params(self, int_grid: Grid = create_grid(bounds, ngrids)):
         """Helper function to grab the relevant parameters for simulation"""
@@ -86,7 +91,12 @@ class IDEM:
         )
 
     def simulate(
-        self, key, obs_locs=None, T=9, int_grid: Grid = create_grid(bounds, ngrids)
+        self,
+        key,
+        obs_locs=None,
+        nobs=100,
+        T=9,
+        int_grid: Grid = create_grid(bounds, ngrids),
     ):
         """Simulates from the model, using the jit-able function simIDEM.
 
@@ -114,6 +124,12 @@ class IDEM:
             int_grid,
         ) = self.get_sim_params()
 
+        # Check that M is not explosive
+        if jnp.max(jnp.absolute(jnp.linalg.eig(M)[0])) > 1.0:
+            warnings.warn(
+                "Eigenvalue above the absolute value of 1. Result will be explosive."
+            )
+
         bounds = jnp.array(
             [
                 [
@@ -130,8 +146,6 @@ class IDEM:
         keys = rand.split(key, 2)
 
         if obs_locs is None:
-            nobs = 100
-
             obs_locs = jnp.column_stack(
                 [
                     jnp.repeat(jnp.arange(T), nobs),
@@ -164,6 +178,7 @@ class IDEM:
             M=M,
             PHI_proc=PHI_proc,
             PHI_obs=PHI_obs,
+            beta=beta,
             alpha0=alpha0,
             obs_locs=obs_locs,
             process_grid=process_grid,
@@ -203,6 +218,7 @@ def simIDEM(
     PHI_proc: ArrayLike,
     PHI_obs: ArrayLike,
     obs_locs: ArrayLike,
+    beta: ArrayLike,
     sigma2_eta: float = 0.01**2,
     sigma2_eps: float = 0.01**2,
     alpha0: ArrayLike = jnp.zeros(90).at[jnp.array([64])].set(1),
@@ -250,7 +266,7 @@ def simIDEM(
     process_vals = vget_process(alpha)
 
     # X_proc = jnp.column_stack([jnp.ones(s_grid.shape[0]), s_grid])
-    beta = jnp.array([0.2, 0.2, 0.2])
+    # beta = jnp.array([0.2, 0.2, 0.2])
 
     # X_obs = jl.map(
     #    lambda arr: jnp.column_stack([jnp.ones(arr.shape[0]), arr]), obs_locs
@@ -312,7 +328,7 @@ def gen_example_idem(
     # int_grid = create_grid(jnp.array([[0, 1], [0, 1]]), nints)
 
     # Other Coefficients
-    sigma2_eta = 0.01**2
+    sigma2_eta = 0.05**2
     sigma2_eps = 0.01**2
     # Q_eta = jnp.eye(nbasis) / sigma2_eta
     # Q_eps = jnp.eye(nobs * T) / sigma2_eps
@@ -347,7 +363,7 @@ def gen_example_idem(
         alpha0 = (
             jnp.zeros(nbasis)
             .at[jnp.array([77, 66, 19, 1, 34, 75, 31, 35, 46, 88])]
-            .set(1)
+            .set(0.01)
         )
 
     @jax.jit
@@ -368,11 +384,14 @@ def gen_example_idem(
 
     # M = construct_M(kernel, process_basis, int_grid)
 
-    beta = jnp.array([0.2, 0.2, 0.2])
+    # beta = jnp.array([0.2, 0.2, 0.2])
+    beta = jnp.array([0, 0, 0])
 
     return IDEM(
         process_basis=process_basis,
         kernel=kernel,
+        k=k,
+        K_basis=K_basis,
         process_grid=process_grid,
         sigma2_eta=sigma2_eta,
         sigma2_eps=sigma2_eps,
@@ -413,7 +432,7 @@ if __name__ == "__main__":
     T = 9
     nobs = 50
 
-    process_data, obs_data = model.simulate(key)
+    process_data, obs_data = model.simulate(key, nobs=nobs)
 
     # plot the object
     plot_st_long(process_data)
