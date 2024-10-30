@@ -121,6 +121,7 @@ window.Quarto = {
   <li><a href="#em-algorithm" id="toc-em-algorithm" class="nav-link" data-scroll-target="#em-algorithm">EM Algorithm</a></li>
   <li><a href="#kalman-filter-and-smoother" id="toc-kalman-filter-and-smoother" class="nav-link" data-scroll-target="#kalman-filter-and-smoother">Kalman Filter and Smoother</a></li>
   </ul></li>
+  <li><a href="#algorithm-for-maximum-likelihood-estimation" id="toc-algorithm-for-maximum-likelihood-estimation" class="nav-link" data-scroll-target="#algorithm-for-maximum-likelihood-estimation">Algorithm for Maximum Likelihood estimation</a></li>
   </ul>
 </nav>
 </div>
@@ -375,12 +376,71 @@ p_{\boldsymbol{\mathbf{\theta}}}(Z^{(T)}, A^{(T)}\mid \boldsymbol{\mathbf{\theta
 <p>Firstly, we should establish some notation. Write <span class="math display">\[
 \begin{split}
 m_{r \mid s} &amp;= \mathbb E[\boldsymbol{\mathbf{\alpha}}_r \mid \{Z_t\}_{t=0,\dots,s}]\\
-P_{r \mid s} &amp;= \mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{\alpha}}_r \mid \{Z_t\}_{t=0,\dots,s}].
+P_{r \mid s} &amp;= \mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{\alpha}}_r \mid \{Z_t\}_{t=0,\dots,s}]\\.
+P_{r,q \mid s} &amp;= \mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\boldsymbol{\mathbf{\alpha}}_r, \boldsymbol{\mathbf{\alpha}}_q \mid \{Z_t\}_{t=0,\dots,s}]
 \end{split}
 \]</span></p>
 <p>These are computed in two phases; filtering to find <span class="math inline">\(\{m_{t\mid t}\}_{t=0,\dots,T}\)</span> and <span class="math inline">\(\{P_{t\mid t}\}_{t=0,\dots,T}\)</span>, then a smoothing phase to find <span class="math inline">\(\{m_{t\mid T}\}_{t=0,\dots,T}\)</span> and <span class="math inline">\(\{P_{t\mid T}\}_{t=0,\dots,T}\)</span>, which are exactly the values needed for <a href="#eq-kalmanterms" class="quarto-xref">Equation&nbsp;10</a>.</p>
-
+<p>To move the filter forward, that is, given <span class="math inline">\(m_{r\mid s}\)</span> and <span class="math inline">\(P_{r\mid s}\)</span>, to get <span class="math inline">\(m_{t+1\mid t+1}\)</span> and <span class="math inline">\(P_{t+1\mid t+1}\)</span>, we first do <span id="eq-kalman-midterms"><span class="math display">\[
+\begin{split}
+\boldsymbol{\mathbf{m}}_{t+1\mid t} &amp;= M \boldsymbol{\mathbf{x}}_{t\mid t}\\
+P_{t+1\mid t} &amp;= M P_{t\mid t} M^\intercal + \Sigma_\eta,
+\end{split}
+\tag{11}\]</span></span></p>
+<p>then we add our new information, <span class="math inline">\(z_{t-1}\)</span>, adjusted for the <em>Kalman gain</em>; <span id="eq-kalmanfilt"><span class="math display">\[
+\begin{split}
+m_{t+1\mid t+1} &amp;= \boldsymbol{\mathbf{m}}_{t+1\mid t} + K_t(z_t-\Phi \boldsymbol{\mathbf{m}}_{t+1\mid t}-X\boldsymbol{\mathbf{\beta}})\\
+P_{t+1\mid t+1} &amp;= [I- K_t\Phi]P_{t+1\mid t}
+\end{split}
+\tag{12}\]</span></span> where <span class="math inline">\(K_t\)</span> is the Kalman gain; <span class="math display">\[
+\begin{split}
+K_t = P_{t+1\mid t}\Phi^\intercal [\Phi P_{t+1\mid t} \Phi^\intercal + \Sigma_\epsilon]^{-1}.
+\end{split}
+\]</span></p>
+<p>Starting with <span class="math inline">\(m_{0\mid0} = m_0\)</span> and <span class="math inline">\(P_{0\mid0} =\Sigma_0\)</span>, we can then iteratively move across the data to eventually compute <span class="math inline">\(m_{T\mid T}\)</span> and <span class="math inline">\(P_{T\mid T}\)</span>. We can then work backwards from these values using what is known as the <em>Kalman Smoother</em>; <span id="eq-kalmansmooth"><span class="math display">\[
+\begin{split}
+\boldsymbol{\mathbf{m}}_{t-1\mid T} &amp;= \boldsymbol{\mathbf{m}}_{t-1\mid t-1} + J_{t+1}(\boldsymbol{\mathbf{m}}_{t\mid T} - \boldsymbol{\mathbf{m}}_{t\mid t-1}),\\
+P_{t-1\mid T} &amp;= P_{t-1\mid t-1} + J_{t-1}(P_{t\mid T} - P_{t\mid t-1})J_{t-1}^\intercal,
+\end{split}
+\tag{13}\]</span></span> where, <span class="math display">\[
+\begin{split}
+J_t = P_{t-1\mid t-1}M^\intercal[P_{t\mid t-1}]^{-1}.
+\end{split}
+\]</span></p>
+<p>We can clearly see, then, that it is crucial to keep the values in <a href="#eq-kalman-midterms" class="quarto-xref">Equation&nbsp;11</a>.</p>
+<p>We can then also use the <em>Lag-One Covariance Smoother</em>. From <span class="math display">\[
+\begin{split}
+P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1},
+\end{split}
+\]</span> we can compute the lag-one covariances <span id="eq-lag1smooth"><span class="math display">\[
+\begin{split}
+P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal
+\end{split}
+\tag{14}\]</span></span> Then, to find the expectations we need in <a href="#eq-kalmanterms" class="quarto-xref">Equation&nbsp;10</a>, we have;</p>
+<p><span class="math display">\[
+\begin{split}
+\mathbb E_{\theta'}[\boldsymbol{\mathbf{\alpha}}(t)\mid Z^{(T)}=z^{(T)}] &amp;= \boldsymbol{\mathbf{m}}_{t \mid T}\\
+\mathbb E_{\theta'}[\boldsymbol{\mathbf{\alpha}}(t)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\mid Z^{(T)}=z^{(T)}] &amp;= P_{t\mid T} - \boldsymbol{\mathbf{m}}_{t\mid T}\boldsymbol{\mathbf{m}}_{t\mid T}^\intercal\\
+\mathbb E_{\theta'}[\boldsymbol{\mathbf{\alpha}}(t-1)\boldsymbol{\mathbf{\alpha}}(t)^\intercal\mid Z^{(T)}=z^{(T)}] &amp;= P_{t,t-1\mid T}^\intercal - \boldsymbol{\mathbf{m}}_{t\mid T} \boldsymbol{\mathbf{m}}_{t-1\mid T}^\intercal.
+\end{split}
+\]</span></p>
 </section>
+</section>
+<section id="algorithm-for-maximum-likelihood-estimation" class="level1">
+<h1>Algorithm for Maximum Likelihood estimation</h1>
+<p>Overall, our algorithm for Maximum Likelihood estimation is:</p>
+<ol type="1">
+<li>Set <span class="math inline">\(i=0\)</span> and take an initial guess for the parameters we are considering, <span class="math inline">\(\boldsymbol{\mathbf{\theta}}_0=\boldsymbol{\mathbf{\theta}}_i\)</span></li>
+<li>Starting from <span class="math inline">\(\boldsymbol{\mathbf{m}}_{0\mid 0}=\boldsymbol{\mathbf{m}}_0, P_{0\mid0}=\Sigma_0\)</span>, run the <strong>Kalman Filter</strong> to get <span class="math inline">\(\boldsymbol{\mathbf{m}}_{t\mid t}\)</span>, <span class="math inline">\(P_{t\mid t}\)</span>, and <span class="math inline">\(K_t\)</span> for all <span class="math inline">\(t\)</span> (<a href="#eq-kalmanfilt" class="quarto-xref">Equation&nbsp;12</a>),</li>
+<li>Starting from <span class="math inline">\(\boldsymbol{\mathbf{m}}_{T\mid T}, P_{T\mid T}\)</span>, run the <strong>Kalman Smoother</strong> to get <span class="math inline">\(\boldsymbol{\mathbf{m}}_{t\mid T}\)</span>, <span class="math inline">\(P_{t\mid T}\)</span>, and <span class="math inline">\(J_t\)</span> for all <span class="math inline">\(t\)</span> (<a href="#eq-kalmansmooth" class="quarto-xref">Equation&nbsp;13</a>),</li>
+<li>Starting from <span class="math inline">\(P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1}\)</span>, run the <strong>Lag-One Smoother</strong> to get <span class="math inline">\(\boldsymbol{\mathbf{m}}_{t,t-1\mid T}\)</span> and <span class="math inline">\(P_{t,t-1\mid T}\)</span> for all <span class="math inline">\(t\)</span> (<a href="#eq-lag1smooth" class="quarto-xref">Equation&nbsp;14</a>),</li>
+<li>Use the above values to construct <span class="math inline">\(\mathcal Q(\boldsymbol{\mathbf{\theta}};\boldsymbol{\mathbf{\theta}}')\)</span> in <a href="#eq-Q" class="quarto-xref">Equation&nbsp;9</a>,</li>
+<li>Maximise the function <span class="math inline">\(\mathcal Q(\boldsymbol{\mathbf{\theta}};\boldsymbol{\mathbf{\theta}}')\)</span> to get a new guess <span class="math inline">\(\boldsymbol{\mathbf{\theta}}_{i+1}\)</span>, then return to step 2,</li>
+<li>Stop once a certain criteria is met.</li>
+</ol>
+<p><span style="color: red;">[NOTE: You need to add the reference for ‘Time-Series Analysis and its Applications’!]</span></p>
+<p><span style="color: red;">[NOTE: Of course, we could also just maximise the data likelihood computed the the Kalman filter (see p 304 in the above book). In this book, it is claimed that this performs comparitively better, but in this case we are dealing with much higher dimensions. The next step is to implement both of these and compare the two.]</span></p>
+
 </section>
 
 <div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
