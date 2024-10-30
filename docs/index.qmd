@@ -38,7 +38,6 @@ gif_st_pts(obs_data, "obs.gif")
 plot_kernel(model.K_basis, model.k, "kernel.png")
 
 if T==35 and seed==1:
-    print("yipee")
     # intercept...
     from PIL import Image, ImageSequence
     gif1 = Image.open('process.gif')

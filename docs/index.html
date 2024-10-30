@@ -96,7 +96,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<div id="aee79246" class="cell" data-execution_count="1">
+<div id="9109834c" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
@@ -130,22 +130,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>plot_kernel(model.K_basis, model.k, <span class="st">"kernel.png"</span>)</span>
 <span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> T<span class="op">==</span><span class="dv">35</span> <span class="kw">and</span> seed<span class="op">==</span><span class="dv">1</span>:</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"yipee"</span>)</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="co"># intercept...</span></span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="im">from</span> PIL <span class="im">import</span> Image, ImageSequence</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    gif1 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'process.gif'</span>)</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    gif2 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'tardis.gif'</span>)</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    frames <span class="op">=</span> []</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">35</span>):</span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>        frame1 <span class="op">=</span> ImageSequence.Iterator(gif1)[i].convert(<span class="st">"RGBA"</span>)</span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>        frame2 <span class="op">=</span> ImageSequence.Iterator(gif2)[i].convert(<span class="st">"RGBA"</span>)</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>        combined <span class="op">=</span> Image.alpha_composite(frame1, frame2)</span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>        frames.append(combined)</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>    frames[<span class="dv">0</span>].save(<span class="st">'process.gif'</span>, save_all<span class="op">=</span><span class="va">True</span>, append_images<span class="op">=</span>frames[<span class="dv">1</span>:], duration<span class="op">=</span>gif1.info[<span class="st">'duration'</span>], loop<span class="op">=</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="co"># intercept...</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="im">from</span> PIL <span class="im">import</span> Image, ImageSequence</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    gif1 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'process.gif'</span>)</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    gif2 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'tardis.gif'</span>)</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    frames <span class="op">=</span> []</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">35</span>):</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>        frame1 <span class="op">=</span> ImageSequence.Iterator(gif1)[i].convert(<span class="st">"RGBA"</span>)</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>        frame2 <span class="op">=</span> ImageSequence.Iterator(gif2)[i].convert(<span class="st">"RGBA"</span>)</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>        combined <span class="op">=</span> Image.alpha_composite(frame1, frame2)</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>        frames.append(combined)</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    frames[<span class="dv">0</span>].save(<span class="st">'process.gif'</span>, save_all<span class="op">=</span><span class="va">True</span>, append_images<span class="op">=</span>frames[<span class="dv">1</span>:], duration<span class="op">=</span>gif1.info[<span class="st">'duration'</span>], loop<span class="op">=</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-stdout">
-<pre><code>yipee</code></pre>
-</div>
 </div>
 <div id="fig-example" class="quarto-layout-panel">
 <figure class="quarto-float quarto-float-fig figure">
