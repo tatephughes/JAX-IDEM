@@ -399,12 +399,12 @@ K_t = P_{t+1\mid t}\Phi^\intercal [\Phi P_{t+1\mid t} \Phi^\intercal + \Sigma_\e
 \]</span></p>
 <p>Starting with <span class="math inline">\(m_{0\mid0} = m_0\)</span> and <span class="math inline">\(P_{0\mid0} =\Sigma_0\)</span>, we can then iteratively move across the data to eventually compute <span class="math inline">\(m_{T\mid T}\)</span> and <span class="math inline">\(P_{T\mid T}\)</span>. We can then work backwards from these values using what is known as the <em>Kalman Smoother</em>; <span id="eq-kalmansmooth"><span class="math display">\[
 \begin{split}
-\boldsymbol{\mathbf{m}}_{t-1\mid T} &amp;= \boldsymbol{\mathbf{m}}_{t-1\mid t-1} + J_{t+1}(\boldsymbol{\mathbf{m}}_{t\mid T} - \boldsymbol{\mathbf{m}}_{t\mid t-1}),\\
+\boldsymbol{\mathbf{m}}_{t-1\mid T} &amp;= \boldsymbol{\mathbf{m}}_{t-1\mid t-1} + J_{t11}(\boldsymbol{\mathbf{m}}_{t\mid T} - \boldsymbol{\mathbf{m}}_{t\mid t-1}),\\
 P_{t-1\mid T} &amp;= P_{t-1\mid t-1} + J_{t-1}(P_{t\mid T} - P_{t\mid t-1})J_{t-1}^\intercal,
 \end{split}
 \tag{13}\]</span></span> where, <span class="math display">\[
 \begin{split}
-J_t = P_{t-1\mid t-1}M^\intercal[P_{t\mid t-1}]^{-1}.
+J_{t-1} = P_{t-1\mid t-1}M^\intercal[P_{t\mid t-1}]^{-1}.
 \end{split}
 \]</span></p>
 <p>We can clearly see, then, that it is crucial to keep the values in <a href="#eq-kalman-midterms" class="quarto-xref">Equation&nbsp;11</a>.</p>

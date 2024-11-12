@@ -385,14 +385,14 @@ Starting with $m_{0\mid0} = m_0$ and $P_{0\mid0} =\Sigma_0$, we can then iterati
 We can then work backwards from these values using what is known as the _Kalman Smoother_;
 $$
 \begin{split}
-\vec m_{t-1\mid T} &= \vec m_{t-1\mid t-1} + J_{t+1}(\vec m_{t\mid T} - \vec m_{t\mid t-1}),\\
+\vec m_{t-1\mid T} &= \vec m_{t-1\mid t-1} + J_{t11}(\vec m_{t\mid T} - \vec m_{t\mid t-1}),\\
 P_{t-1\mid T} &= P_{t-1\mid t-1} + J_{t-1}(P_{t\mid T} - P_{t\mid t-1})J_{t-1}^\intercal,
 \end{split}
 $$ {#eq-kalmansmooth}
 where,
 $$
 \begin{split}
-J_t = P_{t-1\mid t-1}M^\intercal[P_{t\mid t-1}]^{-1}.
+J_{t-1} = P_{t-1\mid t-1}M^\intercal[P_{t\mid t-1}]^{-1}.
 \end{split}
 $$
 

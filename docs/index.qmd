@@ -38,11 +38,8 @@ process_data, obs_data = model.simulate(key, T=T, nobs=100)
 gif_st_grid(process_data, "process.gif")
 gif_st_pts(obs_data, "obs.gif")
 plot_kernel(model.K_basis, model.k, "kernel.png")
-
+ 
 if seed==1:
-    warnings.warn(
-                "AN INTERLOPER IS DETECTED"
-            )
 
     from PIL import Image, ImageSequence
     
