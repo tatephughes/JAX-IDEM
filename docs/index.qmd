@@ -77,3 +77,7 @@ An example IDEM simulation, with the underlying process (left), noisy observatio
 ## The Mathematics
 
 For a rundown of the mathematics underpinning this model and implementation, see [here](mathematics.html).
+
+## Prototype fitting example
+
+While fitting is not fully implemented, a prototype notebook on it can be found [here](fitting.html). 

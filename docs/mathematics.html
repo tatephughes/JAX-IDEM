@@ -410,11 +410,11 @@ J_{t-1} = P_{t-1\mid t-1}M^\intercal[P_{t\mid t-1}]^{-1}.
 <p>We can clearly see, then, that it is crucial to keep the values in <a href="#eq-kalman-midterms" class="quarto-xref">Equation&nbsp;11</a>.</p>
 <p>We can then also use the <em>Lag-One Covariance Smoother</em>. From <span class="math display">\[
 \begin{split}
-P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1},
+P_{T,T-1\mid T} = (I - K_T\Phi) MP_{T-1\mid T-1},
 \end{split}
 \]</span> we can compute the lag-one covariances <span id="eq-lag1smooth"><span class="math display">\[
 \begin{split}
-P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal
+P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal
 \end{split}
 \tag{14}\]</span></span> Then, to find the expectations we need in <a href="#eq-kalmanterms" class="quarto-xref">Equation&nbsp;10</a>, we have;</p>
 <p><span class="math display">\[

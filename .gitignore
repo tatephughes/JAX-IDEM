@@ -80,3 +80,7 @@ jax.iml
 /lib/
 /share/
 /.quarto/
+
+# test files
+/org_notebooks/
+/test_scripts/

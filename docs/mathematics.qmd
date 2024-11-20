@@ -402,13 +402,13 @@ We can then also use the _Lag-One Covariance Smoother_.
 From 
 $$
 \begin{split}
-P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1},
+P_{T,T-1\mid T} = (I - K_T\Phi) MP_{T-1\mid T-1},
 \end{split}
 $$
 we can compute the lag-one covariances
 $$
 \begin{split}
-P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal
+P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal
 \end{split}
 $$ {#eq-lag1smooth}
 Then, to find the expectations we need in @eq-kalmanterms, we have;

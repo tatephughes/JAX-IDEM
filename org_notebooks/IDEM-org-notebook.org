@@ -1419,40 +1419,225 @@ from IDEM import *
 #+end_src
 #+begin_src python :session example :results none
 
-key = jax.random.PRNGKey(1)
+key = jax.random.PRNGKey(12)
 keys = rand.split(key, 3)
 
-model = gen_example_idem(keys[0], k_spat_inv=False)
+process_basis = place_basis(nres=2, min_knot_num=5)
+nbasis = process_basis.nbasis
+
+m_0 = jnp.zeros(nbasis).at[16].set(1)
+P_0 = 0.001 * jnp.eye(nbasis)
+
+truemodel = gen_example_idem(keys[0], k_spat_inv=True, process_basis=process_basis, m_0=m_0, P_0=P_0)
 
 # Simulation
-T = 3
+T = 10
 
-obs_locs = jnp.column_stack(
-    [
-        jnp.repeat(jnp.arange(T), 5),
-        jnp.tile(rand.uniform(
-            keys[0],
-            shape=(5, 2),
-            minval=bounds[:, 0],
-            maxval=bounds[:, 1],
-        ),(T,1))
-    ])
+process_data, obs_data = truemodel.simulate(nobs=50, T=T+1, key=key)
 
-#obs_locs = jnp.column_stack(
-    #            [
-    #                jnp.repeat(jnp.arange(T), 5),
-    #                rand.uniform(
-    #                    keys[0],
-    #                    shape=(T * 5, 2),
-    #                    minval=bounds[:, 0],
-    #                    maxval=bounds[:, 1],
-    #                ),
-    #            ])
+#data_array = jnp.column_stack((data.x, data.y, data.t, data.z))
 
-process_data, data = model.simulate(obs_locs=obs_locs, nobs=5, T=T, key=key)
+obs_data_wide = ST_towide(obs_data)
+obs_locs = jnp.column_stack((obs_data_wide.x, obs_data_wide.y))
+nobs = obs_locs.shape[0]
+X_obs = jnp.column_stack([jnp.ones(nobs), obs_locs])
 
-data_array = jnp.column_stack((data.x, data.y, data.t, data.z))
+#ll, ms, Ps, mpreds, Ppreds, Ks = model.filter(obs_data_wide, X_obs)
 
-obs_data_wide = ST_towide(data)
+K_basis = truemodel.K_basis
+k = (jnp.array([150]),jnp.array([0.002]),jnp.array([0]),jnp.array([0]),)
+
+newmodel = gen_example_idem(keys[0],
+                            k_spat_inv=True, process_basis=place_basis(nres=1, min_knot_num=5),
+                            K_basis = K_basis,
+                            k=truemodel.k,
+                            m_0=jnp.zeros(25).at[16].set(1),
+                            P_0 = 0.001*jnp.eye(25),)
+
+unfit_process_data, unif_obs_data = newmodel.simulate(nobs=50, T=T+1, key=key)
+
+gif_st_grid(unfit_process_data, output_file="unfit_process.gif")
+
+ll, ms, Ps, mpreds, Ppreds, Ks = newmodel.filter(obs_data_wide, X_obs)
+
+PHI_proc = newmodel.PHI_proc
+
+@jax.jit
+def get_process(alpha):
+    return PHI_proc @ alpha
+
+vget_process = jax.vmap(get_process)
+
+filt_vals = vget_process(ms)
+
+filt_grid = newmodel.process_grid
+
+filt_grids = jnp.tile(filt_grid.coords, (T+1, 1, 1))
+
+t_filt_locs = jnp.vstack(
+    jl.map(
+        lambda i: jnp.column_stack(
+            [jnp.tile(i, filt_grids[i].shape[0]), filt_grids[i]]
+           ),
+        jnp.arange(T+1),
+                )
+    )
+
+pdata = jnp.column_stack([t_filt_locs, jnp.concatenate(filt_vals)])
+
+filt_data = ST_Data_Long(
+    x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3]
+)
+
+gif_st_grid(filt_data, output_file="new_filt.gif")
+
+obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
+m_0 = newmodel.m_0
+P_0 = newmodel.P_0
+M = newmodel.M
+PHI_obs = newmodel.process_basis.mfun(obs_locs)
+nbasis = newmodel.process_basis.nbasis
+nobs = obs_locs.shape[0]
+grid = newmodel.process_grid
+PHI = newmodel.process_basis.mfun(grid.coords)
+GRAM = (PHI.T @ PHI) * grid.area
+
+
+#+end_src
+
+* Kalman Smoothers
+
+#+begin_src python :session example :results none
+m_tTs, P_tTs, Js= model.smooth(ms, Ps, mpreds, Ppreds)
+
+PHI_obs = model.process_basis.mfun(obs_locs)
+
+P_ttmTs = model.lag1smooth(Ps, Js, Ks[-1], PHI_obs)
+
+#+end_src
+
+* Maximum Likelihood
+
+#+begin_src python :session example :results none
+
+newmodel = gen_example_idem(keys[0], k_spat_inv=True, process_basis=place_basis(nres=1, min_knot_num=5))
+
+obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
+m_0 = newmodel.m_0
+P_0 = newmodel.P_0
+M = newmodel.M
+PHI_obs = newmodel.process_basis.mfun(obs_locs)
+nbasis = newmodel.process_basis.nbasis
+nobs = obs_locs.shape[0]
+grid = newmodel.process_grid
+PHI = newmodel.process_basis.mfun(grid.coords)
+GRAM = (PHI.T @ PHI) * grid.area
+
+if truemodel.K_basis == None:
+    raise "Please equip the model with a kernel basis"
+
+K_basis = truemodel.K_basis
+
+@jax.jit
+def con_M(k):
+    @jax.jit
+    def kernel(s, r):
+        theta = (
+            k[0] @ K_basis[0].vfun(s),
+            k[1] @ K_basis[1].vfun(s),
+            jnp.array(
+                [
+                 k[2] @ K_basis[2].vfun(s),
+                 k[3] @ K_basis[3].vfun(s),
+                      ]
+            ),
+            )
+        return theta[0] * jnp.exp(
+            -(jnp.sum((r - s - theta[2]) ** 2)) / theta[1]
+            )
+
+    K = outer_op(grid.coords, grid.coords, kernel)
+    return solve(GRAM, PHI.T @ K @ PHI) * grid.area**2
+
+@jax.jit
+def objective(x_0):
+    
+    m_0 = x_0[0:nbasis]
+    sigma2_0 = x_0[nbasis]
+    sigma2_eps = x_0[nbasis+1]
+    sigma2_eta = x_0[nbasis+2]
+
+    ks = (jnp.array([x_0[nbasis+3]]),
+        jnp.array([x_0[nbasis+4]]),
+        jnp.array([x_0[nbasis+5]]),
+        jnp.array([x_0[nbasis+6]]))
+    
+    M = con_M(ks)
+    Sigma_eta = sigma2_eta * jnp.eye(nbasis)
+    Sigma_eps = sigma2_eps * jnp.eye(nobs)
+    P_0 = sigma2_0 * jnp.eye(nbasis)
+    carry, seq = kalman_filter(
+                m_0,
+                P_0,
+                M,
+                PHI_obs,
+                Sigma_eta,
+                Sigma_eps,
+                beta,
+                obs_data_wide,
+                X_obs,
+            )
+    return -carry[4]
+
+ks = (
+            jnp.array([150]),
+            jnp.array([0.002]),
+            jnp.array([-0.1]),
+            jnp.array([0.1]),
+        )
+
+sigma2_0 = 0.1
+sigma2_eta = 0.05**2
+sigma2_eps = 0.01**2
+beta = jnp.array([0,0,0])
+
+x_0 = jnp.append(jnp.append(m_0, jnp.array([sigma2_0, sigma2_eps, sigma2_eta, ks[0][0], ks[1][0], ks[2][0], ks[3][0]])), beta)
+
+#result = jax.scipy.optimize.minimize(objective, x_0, method="BFGS")
+
+#+end_src
+
+* Testing Wrap & unwrap
+
+#+begin_src python :session example :results none
+
+key = jax.random.PRNGKey(12)
+keys = rand.split(key, 3)
+
+K_basis = (
+                place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+                place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+                place_basis(nres=1),
+                place_basis(nres=1),
+            )
+
+
+k = (
+                jnp.array([200]),
+                jnp.array([0.002]),
+                0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
+                0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+            )
+
+m_0 = jnp.ones(25)
+sigma2_0 = 0.01
+sigma2_eps = 0.025
+sigma2_eta = 0.005
+
+params = (m_0, sigma2_0, sigma2_eps, sigma2_eta, k)
+
+wrapped, dims = param_wrap(params)
+
+unwrapped = param_unwrap(wrapped, dims)
 
 #+end_src

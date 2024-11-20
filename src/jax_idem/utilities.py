@@ -4,7 +4,8 @@ import jax
 import jax.numpy as jnp
 
 # from typing import Callable
-# import jax.lax as jl
+import jax.lax as jl
+
 # import jax.random as rand
 # from jax.numpy.linalg import solve
 from jax.scipy.optimize import minimize
@@ -84,7 +85,7 @@ def outer_op(a: ArrayLike, b: ArrayLike, op: Callable = lambda x, y: x * y) -> A
     ----------
     a: ArrayLike[A]; array of the first vector
     b: ArrayLike[B]; array of the second vector
-    op: A, B -> C; A function acting on an element of vec1 and an element of vec2.
+    op: A, B -> C; A jit-function acting on an element of vec1 and an element of vec2.
                By default, this is the outer product.
 
     Returns: Array[Array[C]]
@@ -171,14 +172,14 @@ def place_basis(
     # return {"vfun": basis_vfun, "mfun": eval_basis, "r": nbasis, "pars": params}
 
 
-def plot_kernel(K_basis, k, output_file="kernel.png"):
+def plot_kernel(kernel, output_file="kernel.png"):
     grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([10, 10])).coords
 
     def offset(s):
         return -jnp.array(
             [
-                k[2] @ K_basis[2].vfun(s),
-                k[3] @ K_basis[3].vfun(s),
+                kernel.params[2] @ kernel.basis[2].vfun(s),
+                kernel.params[3] @ kernel.basis[3].vfun(s),
             ]
         )
 
@@ -219,7 +220,30 @@ def ST_tolong(data: ST_Data_Wide):
 
 
 def ST_towide(data: ST_Data_Long):
-    return "not implemented"
+    data_array = jnp.column_stack((data.x, data.y, data.t, data.z))
+
+    times = jnp.unique(data_array[:, 2])
+    xycoords = jnp.unique(data_array[:, 0:2], axis=0)
+    nlocs = data_array.shape[0]
+
+    @jax.jit
+    def extract(array):  # (from a generative model, dont trust!)
+        array_no_nan = jax.numpy.nan_to_num(array, nan=0.0)
+        float_value = jnp.sum(array_no_nan)
+        return float_value
+
+    @jax.jit
+    def getval(xy, t):
+        xyt = jnp.hstack((xy, t))
+        mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
+        masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
+        return jl.cond(
+            jnp.all(jnp.isnan(masked)), lambda x: jnp.nan, lambda x: extract(masked), 0
+        )
+
+    return ST_Data_Wide(
+        x=xycoords[:, 0], y=xycoords[:, 1], z=outer_op(xycoords, times, getval)
+    )
 
 
 def plot_st_long(data: ST_Data_Long):
