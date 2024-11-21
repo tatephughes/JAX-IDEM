@@ -58,8 +58,6 @@ nbasis = process_basis.nbasis
 m_0 = jnp.zeros(nbasis).at[16].set(1)
 sigma2_0 = 0.001
 
-
-
 truemodel = gen_example_idem(
     keys[0], k_spat_inv=True,
     process_basis=process_basis,
@@ -163,7 +161,6 @@ m_tTs, P_tTs, Js = model0.smooth(ms, Ps, mpreds, Ppreds)
 smooth_data = basis_params_to_st_data(
     m_tTs, model0.process_basis, model0.process_grid
 )
-
 # plot the filtered and smoothed data
 gif_st_grid(filt_data, output_file="filtered.gif")
 gif_st_grid(smooth_data, output_file="smoothed.gif")
