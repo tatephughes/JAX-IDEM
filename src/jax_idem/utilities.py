@@ -172,6 +172,32 @@ def place_basis(
     # return {"vfun": basis_vfun, "mfun": eval_basis, "r": nbasis, "pars": params}
 
 
+def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N:int=20):
+
+    N = float(N)
+
+    @jax.jit
+    def phi(k, s):
+        return jnp.sqrt(1/(2*N)) * jnp.exp(2*jnp.pi*1.j*(jnp.dot(k,s)))
+
+    
+    x, y = jnp.meshgrid(jnp.arange(N), jnp.arange(N))
+    pairs = jnp.stack([x.flatten(), y.flatten()], axis=-1)
+
+    @jax.jit
+    def basis_vfun(s):
+        return jax.vmap(phi, in_axes=(0, None))(pairs, s)
+
+    @jax.jit
+    def eval_basis(s_array):
+        return jax.vmap(jax.vmap(phi, in_axes=(0, None)), in_axes=(None, 0))(
+            pairs, s_array, 
+        )
+
+    return Basis(basis_vfun, eval_basis, pairs, int(N**2))
+  
+      
+
 def plot_kernel(kernel, output_file="kernel.png"):
     grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([10, 10])).coords
 
