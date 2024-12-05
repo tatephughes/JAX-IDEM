@@ -215,12 +215,12 @@ def con_M(k):
 
 @jax.jit
 def objective(params):
-    m_0 = params[:nbasis0]
+    m_0 = params["m_0"]
 
     # and the first two kernel params struggle very much to fit
-    ks = (jnp.array([150]), jnp.array([0.002]), jnp.array([params[nbasis0]]), jnp.array([params[nbasis0+1]]))
+    ks = (jnp.array([150]), jnp.array([0.002]), jnp.array([params["k1"]]), jnp.array([params["k2"]]))
      
-    M = con_M(ks)
+    M = model0.con_M(ks)
      
     Sigma_eta = model0.sigma2_eta * jnp.eye(nbasis0)
     Sigma_eps = model0.sigma2_eps * jnp.eye(nobs)
@@ -239,9 +239,13 @@ def objective(params):
     )
     return -carry[4]
 
-param0 = jnp.concatenate(
-    [model0.m_0, jnp.array([model0.kernel.params[2][0], model0.kernel.params[3][0]])]
-)
+#param0 = jnp.concatenate(
+#    [model0.m_0, jnp.array([model0.kernel.params[2][0], model0.kernel.params[3][0]])]
+#)
+
+param0 = {"m_0": model0.m_0,
+          "k1": jnp.array(0.0),
+          "k2": jnp.array(0.0)}
 
 obj_grad = jax.grad(objective)
      
@@ -274,8 +278,8 @@ print(param_ad)
 Putting these parameters into a new model;
 
 ```{python}
-fitted_m_0 = param_ad[:nbasis0]
-fitted_ks = (jnp.array([150]), jnp.array([0.002]), jnp.array([param_ad[nbasis0]]), jnp.array([param_ad[nbasis0+1]]))
+fitted_m_0 = param_ad["m_0"]
+fitted_ks = (jnp.array([150]), jnp.array([0.002]), jnp.array([param_ad["k1"]]), jnp.array([param_ad["k2"]]))
 fitted_kernel = param_exp_kernel(K_basis, fitted_ks)
 
 fitted_model = IDEM(
@@ -302,3 +306,146 @@ plot_kernel(fitted_model.kernel, output_file="fitted_kernel.png")
 (write description)
 
 :::
+
+# Optimising over all parameters, with constraints
+
+Above, we only fitted the data to the initial process coefficients and the two offset terms in the kernel. 
+We actually fixed all the variances, and the scale and shape of the kernel. 
+Ideally, we want to be able to fit for those too.
+Of course, these parameters are constrained; each one is non negative, and it may be worth bounding them above too to avoid anything going up indefinitely.
+
+To ensure all optimsers work in a similar way, OPTAX uses projections to handle this kind of constraints. Firstly, lets re-write some of the above code to also include the other parameters.
+
+```{python}
+k = (
+    jnp.array([100.0]),
+    jnp.array([0.001]),
+    jnp.array([0.0]),
+    jnp.array([0.0]),
+)
+# This is the kind of kernel used by ```gen_example_idem```
+kernel = param_exp_kernel(K_basis, k)
+
+model1 = IDEM(
+        process_basis = process_basis2,
+        kernel=kernel,
+        process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
+        sigma2_eta = 0.01,
+        sigma2_eps = 0.01,
+        beta = jnp.array([0.0, 0.0, 0.0]),
+        m_0 = jnp.zeros(nbasis0),
+        sigma2_0=0.01)
+# a model with inaccurate 'guesses'
+v_unfit_process_data, v_unfit_obs_data = model1.simulate(nobs=1, T=T + 1, key=key)
+# Plotting
+gif_st_grid(v_unfit_process_data, output_file="very_unfit_process.gif")
+
+ll, _, _, _, _, _ = model1.filter(obs_data_wide, X_obs)
+print(ll)
+```
+
+::: {#fig-example-4 layout-ncol=1}
+
+![Very unfit process](very_unfit_process.gif)
+
+(write description)
+
+:::
+
+Presumably due to the higher variances, the log likelihood here is higher that that of ```model0```, but still much short of the true model.
+Making the optimisation function,
+
+```{python}
+@jax.jit
+def objective(params):
+    m_0, sigma2_0, sigma2_eta, sigma2_eps, ks = params
+
+    #sigma2_0, sigma2_eta, sigma2_eps = truemodel.sigma2_0, truemodel.sigma2_eta, truemodel.sigma2_eps
+    #ks = (ks[0], ks[1], ks[2], ks[3])
+    M = con_M(ks)
+     
+    Sigma_eta = sigma2_eta * jnp.eye(nbasis0)
+    Sigma_eps = sigma2_eps * jnp.eye(nobs)
+    P_0 = sigma2_0 * jnp.eye(nbasis0)
+    
+    carry, seq = kalman_filter(
+        m_0,
+        P_0,
+        M,
+        PHI_obs,
+        Sigma_eta,
+        Sigma_eps,
+        model0.beta,
+        obs_data_wide,
+        X_obs,
+    )
+    return -carry[4]
+
+obj_grad = jax.grad(objective)
+
+params0 = (model1.m_0,
+           model1.sigma2_0,
+           model1.sigma2_eta,
+           model1.sigma2_eps,
+           model1.kernel.params)
+```
+
+If we naively apply what we did before, we will get nans as some variances become negative, causing some cholesky decomposition to fail. 
+We can remedy this by defining a bounding box for the data;
+
+```{python}
+
+lower = (jnp.full(nbasis0, -jnp.inf),
+         jnp.array(0.0),
+         jnp.array(0.0),
+         jnp.array(0.0),
+         (jnp.array(0.0), jnp.array(0.0), jnp.array(-jnp.inf), jnp.array(-jnp.inf)))
+
+upper = (jnp.full(nbasis0, jnp.inf),
+         jnp.array(0.1),
+         jnp.array(0.1), 
+         jnp.array(0.1),
+         (jnp.array(500.0), jnp.array(0.01), jnp.array(jnp.inf), jnp.array(jnp.inf)))
+
+# with this many parameters, must use a lower starting learning rate
+start_learning_rate = 1e-3
+optimizer = optax.adam(start_learning_rate)
+
+params_ad = params0
+opt_state = optimizer.init(params_ad)
+
+# A simple update loop.
+for i in range(10):
+    grad = obj_grad(params_ad)
+    updates, opt_state = optimizer.update(grad, opt_state)
+    params_ad = optax.apply_updates(params_ad, updates)
+    params_ad = optax.projections.projection_box(params_ad, lower, upper)
+    nll = objective(params_ad)
+
+print(params_ad)
+```
+
+Due to the low learning rate, this doesn't do a great job with only 10 iterations. Running any more makes compiling this notebook take a while, so to run 2000 (with a loading bar), use fitscript.py. The results are saved in "new_fitted_process.gif" and "new_fitted_kernel.gif".
+
+::: {#fig-example-5 layout-ncol=2}
+
+![Fitted process simulation](new_fitted_process.gif)
+
+![Fitted kernel](new_fitted_kernel.png)
+
+(write description)
+:::
+
+# Built-in methods
+
+There is now a built in method for fitting this kind of model, ```IDEM.fit```. Reading some data (generated from the R-IDE package) and formatting it with ```panda```,
+
+```{python}
+import pandas as pd
+
+df = pd.read_csv("z_obs.csv")
+
+date_mapping = {date: i-1 for i, date in enumerate(df['time'].unique(), 1)}
+df['time'] = df['time'].map(date_mapping)
+```
+

@@ -37,7 +37,7 @@ process_data, obs_data = model.simulate(key, T=T, nobs=100)
 # plot the objects
 gif_st_grid(process_data, "process.gif")
 gif_st_pts(obs_data, "obs.gif")
-plot_kernel(model.K_basis, model.k, "kernel.png")
+plot_kernel(model.kernel, "kernel.png")
  
 if seed==1:
 

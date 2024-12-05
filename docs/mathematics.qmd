@@ -5,18 +5,18 @@ format:
     code-fold: true
     toc: true
     mathjax: 
-      extensions: ["breqn", "bm"]
+      extensions: ["breqn", "bm", "ams"]
 jupyter: python3
 include-in-header:
   - text: |
       <script>
       window.MathJax = {
         loader: {
-          load: ['[tex]/upgreek', '[tex]/boldsymbol', '[tex]/physics', '[tex]/breqn'
+          load: ['[tex]/upgreek', '[tex]/boldsymbol', '[tex]/physics', '[tex]/breqn', '[tex]/ams'
         },
         tex: {
           packages: {
-            '[+]': ['upgreek', 'boldsymbol', 'physics', 'breqn']
+            '[+]': ['upgreek', 'boldsymbol', 'physics', 'breqn', 'ams']
           }
         }
       };
@@ -30,6 +30,7 @@ bibliography: Bibliography.bib
 \DeclareMathOperator{\cov}{\mathbb{C}\mathrm{ov}}
 \renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
 \newcommand\eqc{\stackrel{\mathclap{c}}{=}}
+\usepackage{amsmath}
 
 # Descriptive and Dynamic Modelling
 
@@ -41,77 +42,67 @@ One such model is the Integro-Difference Equation Model (IDEM), which, in essenc
 
 The following model is considered;
 
-$$
-\begin{split}
+$$\begin{split}
 Z(\boldsymbol s;t) &= Y(\boldsymbol s;t) + \boldsymbol X(\boldsymbol s)^{\intercal}\boldsymbol \beta + \epsilon_t(\boldsymbol s)\\
 Y(\boldsymbol s;t+1) &= \int_{\mathcal D_s} \kappa(s,r) Y(r;t) d\boldsymbol r + \omega_t(\boldsymbol s). 
 \end{split}
-$$ {#eq-IDEM}
+$${#eq-IDEM}
 
-Where $\omega_t(\boldsymbol s)\sim \mathcal N(0, \Sigma_\omega)$ is a small scale variation with no temporal dynamics [@cressie2015statistics call this a 'spatially descriptive' component], $\boldsymbol X(\boldsymbol s)$ are spatially varying covariates, $Z$ is observed data, $Y$ is the unobserved dynamic process, $\kappa$ is the driving 'kernel' function, and $\epsilon_t\sim \mathcal N(0, \Sigma_\epsilon)$ is a white noise 'measurement error' term.
+Where $\omega_t(\boldsymbol s)$ is a small scale gaussian variation with no temporal dynamics [@cressie2015statistics call this a 'spatially descriptive' component], $\boldsymbol X(\boldsymbol s)$ are spatially varying covariates, $Z$ is observed data, $Y$ is an unobserved dynamic process, $\kappa$ is the driving 'kernel' function, and $\epsilon_t$ is a gaussian white noise 'measurement error' term.
+
+Note that, when writing about variables which are dependant in time, we write time as an argument to the variable, despite time still being discrete, and when a variable is independant across time, time will be in the subscript.
+This is to create a clearer distinction between 'dynamic' variables and 'non-dynamic' variables.
 
 # Process Decomposition
 
 In order to work with the process, we likely want to consider the spectral decomposition of it. That is, choose a complete class of spatial spectral basis functions, $\phi_i(\boldsymbol s)$, and decompose;
 
-$$
-Y(\boldsymbol s;t) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\boldsymbol s).\label{}
-$$ {#eq-processdecomp}
-
-where we truncate the expansion at some $r\in\mathbb N$. Notice that we can write this in vector/matrix form. Discretising the spatial domain into $n$ points $\{\boldsymbol s_i\in \mathcal D_s, i=1,\dots,n\}$, and consider times $t=1,2,\dots, T$, we set
-
-$$
-\begin{split}
-\boldsymbol Y(t) &= (Y(s_1), Y(s_2),  \dots, Y(s_n))^{\intercal}\\
-Y &= (\boldsymbol Y(t=1), \boldsymbol Y(t=2), \dots, \boldsymbol Y(t=T))\\
-\boldsymbol \phi(\boldsymbol s) &= (\phi_1(\boldsymbol s), \phi_2(\boldsymbol s), \dots, \phi_r(\boldsymbol s))^{\intercal}\\
- \Phi &= (\boldsymbol \phi(\boldsymbol s_1), \boldsymbol \phi(\boldsymbol s_2), \dots, \boldsymbol \phi(\boldsymbol s_n))\\
-\boldsymbol \alpha(t) &= (\alpha_1(t), \alpha_2(t), \dots, \alpha_r(t))^{\intercal}\\
- A &= (\boldsymbol \alpha(t=1), \boldsymbol \alpha(t=2), \dots, \boldsymbol \alpha(t=Y)).
+$$\begin{split}Y(\boldsymbol s;t) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\boldsymbol s).
 \end{split}
 $$
+
+where we truncate the expansion at some $r\in\mathbb N$. Notice that we can write this in vector/matrix form. Considering times $t=1,2,\dots, T$, we set
+
+$$\begin{split}
+\boldsymbol \phi(\boldsymbol s) &= (\phi_1(\boldsymbol s), \phi_2(\boldsymbol s), \dots, \phi_r(\boldsymbol s))^{\intercal}\\
+\boldsymbol \alpha(t) &= (\alpha_1(t), \alpha_2(t), \dots, \alpha_r(t))^{\intercal}\\
+\end{split}
+$${#eq-vecmats}
 
 Now, (@eq-processdecomp) gives us
 
-$$
-\begin{split}
+$$\begin{split}
 Y(\boldsymbol s; t) &= \boldsymbol \phi^{\intercal}(\boldsymbol s) \boldsymbol \alpha(t)\\
-\boldsymbol Y(t) &=  \Phi \boldsymbol \alpha(t)\\
- Y &=  \Phi  A
 \end{split}
-$$ {#eq-pbvec}
+$${#eq-pbvec}
 
 
- We now want to find the equation defining the evolution of the basis coefficients, $\boldsymbol \alpha_t$.
+We now want to find the equation defining the evolution of the basis coefficients, $\boldsymbol \alpha_t$.
  
 ### Theorem 1
  
 Define the Gram matrix;
 
-$$
-\Psi := \int_{\mathcal D_s} \vec \phi(\boldsymbol s) \vec \phi(\vec s)^\intercal d\vec s
-$$ {#eq-gram}
+$$\Psi := \int_{\mathcal D_s} \vec \phi(\boldsymbol s) \vec \phi(\vec s)^\intercal d\vec s
+$${#eq-gram}
 
 Then, the basis coefficients evolve by the equation
  
-$$
-\vec \alpha(t+1) = M \vec\alpha(t) + \vec\eta_t,
+$$\vec \alpha(t+1) = M \vec\alpha(t) + \vec\eta_t,
 $$
 
 where $M = \Psi^{-1} \int\int \vec\phi(\vec s) \kappa(\vec s, \vec r)\vec\phi(\vec r)^\intercal d\vec r d \vec s$ and $\vec\eta_t =\Psi^{-1} \int \vec \phi(\vec s)\omega_t(s)d\vec s$.
 
 #### Proof:
 
-Adapting from (Dewar, Michael and Scerri, Kenneth and Kadirkamanathan, Visakan, 2008), write out the process equation, (@eq-IDEM), using the first equation of (@eq-pbvec);
+[Adapting from @dewar2008data], write out the process equation, (@eq-IDEM), using the first equation of (@eq-pbvec);
 
-$$
-Y(\vec s;t+1) = \vec \phi(\boldsymbol s) \alpha(t+1) = \int_{\mathcal D_s} \kappa(\vec s, \vec r) \vec\phi(\vec r)^{\intercal}\vec \alpha(t)d\vec r + \omega_t(\vec s),
+$$Y(\vec s;t+1) = \vec \phi(\boldsymbol s) \alpha(t+1) = \int_{\mathcal D_s} \kappa(\vec s, \vec r) \vec\phi(\vec r)^{\intercal}\vec \alpha(t)d\vec r + \omega_t(\vec s),
 $$
 
 We then multiply both sides by $\boldsymbol \phi(s)$ and integrate over $\boldsymbol s$
 
-$$
-\begin{split}
+$$\begin{split}
 \int_{\mathcal D_s} \vec\phi(\vec s)\vec\phi(\vec s) d\vec s \vec\alpha(t+1) &= \int\vec\phi(\vec s)\int \kappa(\vec s, \vec r)\vec\phi(\vec r)^\intercal d\vec r  d \vec s\ \vec\alpha(t) + \int \vec \phi(\vec s)\omega_t(s)d\vec s\\
 \Psi \vec\alpha(t+1) &= \int\int \vec\phi(\vec s)\kappa(\vec s, \vec r) \vec\phi(\vec r)^\intercal d\vec r d \vec s\ \vec\alpha(t) + \int \vec \phi(\vec s)\omega_t(s)d\vec s.
 \end{split}
@@ -133,8 +124,7 @@ This is exactly what the IDE package [@zammit2022IDE] in R does, and, correspond
 Let $\vec\eta_t \sim \mathcal N(0, \Sigma_\eta)$, and $\cov[\vec\eta_t, \vec \eta_{t+\tau}] =0$, $\forall \tau>0$. 
 Then $\omega_t(\vec s)$ is also normally distributed, with covariance
 
-$$
-\cov [\omega_t(\vec s), \omega_{t+\tau}(\vec r)] = \begin{cases}
+$$\cov [\omega_t(\vec s), \omega_{t+\tau}(\vec r)] = \begin{cases}
 \vec\phi(\vec s)^\intercal \Sigma_\eta \vec\phi(\vec r) & \text{if }\tau=0\\
 0 & \text{else}\\
 \end{cases}
@@ -143,37 +133,32 @@ $$
 #### Proof:
 
 Normality is clear, since $\vec\eta_t$ is a linear combination of $\omega_t(\vec s)$  <span style="color: red;">[NOTE: I'm pretty sure this is true, certainly a linear combination of gaussian is gaussian, but the converse is true as well right?
+Thinking about it, no this is not generally true. I don't think it makes a problem for this case, but it is worth thinking about and expanding upon.
 ]</span>.
 
 Consider $\Psi \vec\eta_t$.
 It is clearly normal, with expectation zero and variance (using (@eq-gram)),
 
-$$
-\begin{split}
+$$\begin{split}
 \var[\Psi \vec\eta_t] &= \Psi \var[\vec\omega_t] \Psi^\intercal = \Psi\Sigma_\eta\Psi^\intercal,\\
 &= \int_{\mathcal D_s} \vec\phi(\vec s) \vec\phi(\vec s)^\intercal d\vec s \  \Sigma_\eta \ \int_{\mathcal D_s} \vec\phi(\vec r) \vec\phi(\vec r)^\intercal d\vec r\\
 &=  \int\int_{\mathcal D_s^2} \vec\phi(\vec s) \vec\phi(\vec s)^\intercal \  \Sigma_\eta \  \vec\phi(\vec r) \vec\phi(\vec r)^\intercal d\vec r d\vec s\\
 \end{split}
-$$ {#eq-var1}
+$${#eq-var1}
 
 Since it has zero expectation, we also have
 
-$$
-\begin{split}
+$$\begin{split}
 \var[\Psi\vec\eta_t] &= \mathbb E[(\Psi\vec\eta_t) (\Psi\vec\eta_t)^\intercal] = \mathbb E[\Psi\vec\eta_t\vec\eta_t^\intercal\Psi^\intercal]\\
 &= \mathbb E \left[ \int_{\mathcal D_s} \vec\phi(\vec s)\omega_t(\vec s)d\vec s \int_{\mathcal D_s} \vec \phi(\vec r)^\intercal \omega_t(\vec r) d\vec r \right]\\
 &= \int\int_{\mathcal D_s^2} \vec\phi(\vec s)\  \mathbb E[\omega_t(\vec s)\omega_t(\vec r)]\  \vec \phi(\vec r)^\intercal d\vec s d \vec r.
 \end{split} 
-$$ {#eq-var2}
+$${#eq-var2}
 
 We can see that, comparing (@eq-var1) and (@eq-var2), we have
 
+$$\cov [\omega_t(\vec s), \omega_t(\vec r)] = \mathbb E[\omega_t(\vec s)\omega_t(\vec r)]= \vec\phi(\vec s)^\intercal \Sigma_\eta \vec\phi(\vec r).
 $$
-\cov [\omega_t(\vec s), \omega_t(\vec r)] = \mathbb E[\omega_t(\vec s)\omega_t(\vec r)]= \vec\phi(\vec s)^\intercal \Sigma_\eta \vec\phi(\vec r).
-$$
-
-
-
 
 
 
@@ -182,18 +167,16 @@ $$
 There are a few ways to handle the kernel. 
 One of the most obvious is to expand it out into a spectral decomposition as well;
 
-$$
-\kappa \approx \sum_i \beta_i\psi(\vec s, \vec r).
+$$\kappa \approx \sum_i \beta_i\psi(\vec s, \vec r).
 $$
 
-This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on $\mathbb R^2\times \mathbb R^2$; to get a wide enough space of possible functions, we would likely need many basis coefficients. 
+This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on $\mathbb R^2\times \mathbb R^2$; to get a wide enough space of possible functions, we would likely need many terms of the basis expansion. 
 
 A much simpler approach would be to simply parameterise the kernel function, to $\kappa(\vec s, \vec r, \vec \theta_\kappa)$. 
 We then establish a simple shape for the kernel (e.g. Gaussian) and rely on very few parameters (for example, scale, shape, offsets). 
 The example kernel used in the program is Gaussian kernel;
 
-$$
-\kappa(\vec s, \vec r; \vec m, a, b) = a \exp \left( -\frac{1}{b} \Vert \vec s- \vec r +\vec m\Vert^2 \right)
+$$\kappa(\vec s, \vec r; \vec m, a, b) = a \exp \left( -\frac{1}{b} \Vert \vec s- \vec r +\vec m\Vert^2 \right)
 $$
 
 Of course, this kernel lacks spatial dependance.
@@ -204,238 +187,213 @@ The actual parameters of such a spatially-variant kernel are then the basis coef
 
 # Filtering, Forecasting and Maximum Likelihood Estimation
 
-Firstly, we finish establishing our model, now with the spectral form;
+Firstly, let's write out our model in its spectral form. 
+Obsviously, we can only make observations of the observation process $Z$ and discrete locations.
+Lets assume that at each time $t$ there are $n_t$ observations at locations $\vec s_{1,t},\dots, \vec s_{n_{t},t}$.
+We write the vector of the process at these points as $\vec Y(t) = (Y(s_{1,t};t), \dots, Y(s_{n_{t},t};t))^\intercal$, and, in it's expanded form $\vec Y(t) = \Phi_t \vec\alpha_t$, where $\Phi \in \mathbb R^{r\times n_{t}}$ is
 
+$$\begin{split}
+\{\Phi_{t}\}_{i, j} = \phi_{i}(s_{j,t}).
+\end{split}
 $$
-\begin{split}
-\vec Z(t) &= \vec Y(t) + X \vec \beta + \vec \epsilon_t, \quad t=0,1,\dots, T,\\
-Y(\vec s;t) &= \vec \alpha(t)^\intercal \vec \phi(\vec s), \quad t = 0,1,\dots, T,\\
+
+For the covariates, we write the matrix $X_t = (\vec X(\vec s_{1, t}), \dots, \vec X(\vec s_{1=n_{t}, t})^\intercal$.
+We then have
+
+$$\begin{split}
+\vec Z(t) &= \vec Y(t) + X_{t} \vec \beta + \vec \epsilon_t, \quad t=0,1,\dots, T,\\
 \vec \alpha(t+1) &= M\vec \alpha(t) + \vec\eta_t,\quad t = 1,2,\dots, T,\\
 M &= \int_{\mathcal D_s}\vec\phi(\vec s) \vec\phi(\vec s)^\intercal d\vec s \int_{\mathcal D_s^2}\vec\phi(\vec s) \kappa(\vec s, \vec r; \vec\theta_\kappa)\vec\phi(\vec r)^\intercal d\vec r d \vec s,
 \end{split}
 $$
 
-where $\vec Y(t) = (Y(\vec s_{1};t), \dots, Y(\vec s_{n};t))$ for stations $\{\vec s_{i}\}_{i=1,\dots, n}$.
+We can also 'skip' the process and see the more traditional LDSTM form;
 
-We can also combine the first two lines to 'skip' the process and see the more traditional LDSTM form;
-
-$$
-\begin{split}
-\vec Z(t) &= \Phi\vec\alpha(t) + X\vec\beta + \vec \epsilon_t,\quad &t = 0,1,\dots, T,\\
-\vec\alpha(t+1) &= M\vec \alpha(t) + \vec\eta_t,\quad &t = 1,2,\dots, T,\\
+$$\begin{split}
+\vec Z(t) &= \Phi_{t} \vec \alpha(t) + X_{t}\vec\beta + \vec \epsilon_t,\quad &t = 0,1,\dots, T,\\
+\vec \alpha(t+1) &= M \vec \alpha(t) + \vec\eta_t,\quad &t = 1,2, \dots, T,\\
 \end{split}
 $${#eq-ldstm}
 
 where $\Phi = (\vec \phi(\vec s_1),\dots,\vec \phi(\vec s_n))^\intercal$.
-We should also initialise $\vec \alpha(0) \sim \mathcal N^{r}(\vec m_{0}, \Sigma_{0})$.
-We also fix distrubtions to the noise terms,
+We should also initialise $\vec \alpha(0) \sim \mathcal N^{r}(\vec m_{0}, \Sigma_{0})$, and fix simple distrubtions to the noise terms,
 
-$$
-\begin{split}
-\vec\epsilon_t \sim \mathcal N(0,\Sigma_\epsilon),\\
-\vec\eta_t \sim \mathcal N(0,\Sigma_\eta),
+$$\begin{split}
+\epsilon_{t,i} \overset{\mathrm{iid}}{\sim} \mathcal N(0,\sigma^2_\epsilon),\\
+\eta_{t,i} \overset{\mathrm{iid}}{\sim} \mathcal N(0,\sigma^2_\eta),
 \end{split}
 $$
 
 which are independant in time.
 
-As in, for example, [@wikle1999dimension], this is now in a traditional enough form that the Kalman filter can be applied to fiter and compute many necessary quantities for inference.
+As in, for example, [@wikle1999dimension], this is now in a traditional enough form that the Kalman filter can be applied to filter and compute many necessary quantities for inference, including the marginal likelihood.
 We can use these quantities in either an EM algorithm or a Bayesian approach. Firstly, we cover the EM algorithm applied to this system.
 
 At most, the parameters to be estimated are
 
-$$
-\begin{split}
-\vec\theta = \left(\vec\theta_\kappa^\intercal, \vec\beta^\intercal, \vec m_0^\intercal, \mathrm{vec}[\Sigma_\epsilon]^\intercal, \mathrm{vec}[\Sigma_\eta]^\intercal, \mathrm{vec}[\Sigma_0]\right),
+$$\begin{split}
+\vec\theta = \left(\vec\theta_\kappa^\intercal, \vec\beta^\intercal, \vec m_0^\intercal, \sigma^{2}_{\epsilon}, \sigma^{2}_{\eta}, \mathrm{vec}[\Sigma_0]\right),
 \end{split}
 $$
 
 where the $\mathrm{vec}[\cdot]$ operator gives the elements of the matrix in a column vector.
 Of course, in practice, some of these may be estimated outside of the algorithm, fixed, given a much simpler form (e.g. $\Sigma_\eta = \sigma_\eta^2 I_d$), etc.
 
-## EM Algorithm
+There are two approaches we can make from here; directly maximising the marginal data likelihood using only the Kalman filter, or maximising the full likelihood with the EM algorithm.
 
-The E step of the EM algorithm relies on the quantity 
+## The Marginal Likelihood
 
-$$
-\begin{split}
-\mathcal Q(\vec \theta; \vec \theta') = \mathbb E_{\vec Z_t\sim p(Z \mid \vec\alpha_t,\vec\theta)}[\log p_{\vec\theta}(Z^{(T)}, A^{(T)})\mid Z^{(T)}],
-\end{split}
-$$ {#eq-Qdef}
-
-where $Z^{(T)} = \{\vec Z_t\}_{t=0,\dots,T}$, $A^{(T)} = \{\vec \alpha_t\}_{t=0,\dots,T}$ and $A^{(T-1)} = \{\vec \alpha_t\}_{t=0,\dots,T-1}$. This approximates $\log p_\theta(\{\vec Z_t\}, \{\vec\alpha_t\})$.
-Using our model hierarchy, we have, 
-
-$$
-\begin{split}
-p_{\vec\theta}(Z^{(T)}, A^{(T)}\mid \vec\theta) &= p(Z^{(T)}\mid A^{(T-1)}, \vec\theta)\\
-&\times p(A^{(T)} \mid A^{(T-1)}, \vec\theta)\\
-&\times p(\alpha_0\mid \vec\theta).
-\end{split}
-$$
-
-We will tackle each of these terms individually. Firstly, for the data generating term, we have (using $\eqc$ to denote 'equal up to an additive constant')
-
-$$
-\begin{split}
-&-2\log p(Z^{(T)}\mid A^{(T)}, \vec\theta)\\ 
-&\eqc \sum_{t=0}^T \left(\log(\det(\Sigma_\epsilon)) + (\vec Z(t) - \Phi\vec\alpha(t) - X\vec\beta)^\intercal \Sigma_\epsilon^{-1}(\vec Z(t) - \Phi\vec\alpha(t) - X\vec\beta)\right)\\
-&=T\log\det(\Sigma_\epsilon) + \mathrm{tr}(\Sigma_\epsilon^{-1}\{\left[\sum_{t=0}^T\vec Z(t)\vec Z(t)^\intercal\right] - 2\Phi\left[\sum_{t=0}^T\vec\alpha(t)\vec Z(t)^\intercal\right]\\
-&\quad\quad - 2X\vec\beta\sum_{t=0}^T \vec Z(t)^\intercal + \Phi\left[\sum_{t=0}^T \vec\alpha(t)\vec\alpha(t)^\intercal\right]\Phi^\intercal\\
-&\quad\quad + 2X\beta\Phi\sum_{t=0}^T\vec \alpha(t) + (T+1)X\vec\beta\vec\beta^\intercal X^\intercal\}).
-\end{split}
-$$
-
-<span style="color: red;">[NOTE: Yes, the formatting of this bothers me greatly. I'm also pretty sure I've mucked up what should be $z_t$ and $Z_t$ around here.
-Also, $X$ is data as well; it should strictly be in some of the conditinoing above, namely is [@eq-Qdef]. And should X be time varying?
-]</span>
-
-For the process terms,
-
-$$
-\begin{split}
-&-2\log p(A^{(T)}mid A^{(T-1)}, \vec\theta)\\ 
-&\eqc\sum_{t=1}^T \left(\log(\det(\Sigma_\eta))+(\vec \alpha(t) - M(\vec\theta_\kappa)\alpha(t-1))^\intercal\Sigma_\eta^{-1}(\vec \alpha(t) - M(\vec\theta_\kappa)\alpha(t-1))\right)\\
-&= T\log(\det(\Sigma_\eta)) + \mathrm{tr}(\Sigma_\eta^{-1}\{\left[\sum_{t=1}^T\vec\alpha(t)\vec\alpha(t)^\intercal\right] - 2M(\vec\theta_\kappa) \left[\sum_{t=1}^T\vec\alpha(t-1)\vec\alpha(t)^\intercal\right] \\
-&\quad\quad +M(\vec\theta_\kappa)^\intercal M(\vec{\theta}_\kappa)\left[\sum_{t=1}^T\vec\alpha(t-1)\vec{\alpha}(t-1)^\intercal\right]\}),\\
-\end{split}
-$$
-
-and finally
-
-$$
-\begin{split}
-&-2\log p(\vec\alpha(0)\mid\vec\theta)\\
-&\eqc \log(\det(\Sigma_0)) + (\vec\alpha_0 - \vec m_0)^\intercal \Sigma_0^{-1} (\vec\alpha_0 - \vec m_0)\\
-&= \log(\det(\Sigma_0)) + \mathrm{tr}(\Sigma_0^{-1}\{\vec\alpha_0\vec\alpha_0^\intercal\} - 2\vec\alpha_0\vec m_0^\intercal + \vec m_0\vec m_0^\intercal).
-\end{split}
-$$
-
-Taking the expectation, summing, and giving names to some relevant quantities,
-
-$$
-\begin{split}
-\mathcal Q(\vec\theta;\vec\theta') &= \mathbb E_{Z^{(T)}\sim p(Z \mid A^{(T)},\vec\theta')}[\log p_{\vec\theta}(Z^{(T)}, A^{(T)}\mid Z^{(T)} = z^{(T)}]\\
-&\eqc -\frac12(\mathrm{tr}(\Sigma_\epsilon^{-1}\{\Xi^{(z)} - 2\Phi\Xi^{(\alpha,z)}- 2X\vec\beta\xi^{(z)\intercal} + \Phi\Xi^{(\alpha)}\Phi^\intercal\\
-&\quad\quad\quad\quad\quad + 2X\beta\Phi\xi^{(\alpha)} + (T+1)X\vec\beta\vec\beta^\intercal X^\intercal\})\\
-&\quad\quad+\mathrm{tr}(\Sigma_\eta^{-1}\{(\Xi^{(\alpha)} - \vec\alpha_0\vec\alpha_0^\intercal) - 2M(\vec\theta_\kappa) \vec\alpha(t-1)\vec\alpha(t)^\intercal \\
-&\quad\quad\quad\quad\quad\quad +M(\vec\theta_\kappa)^\intercal M(\vec{\theta}_\kappa)\Xi^{(\alpha,-1)}\})\\
-&\quad\quad+ \mathrm{tr}(\Sigma_0^{-1}\{\vec\alpha_0\vec\alpha_0^\intercal\} - 2\vec\alpha_0\vec m_0^\intercal + \vec m_0\vec m_0^\intercal)\\
-&\quad\quad + \log(\det(\Sigma_\epsilon^T\Sigma_\eta^T\Sigma_0)))
-\end{split} 
-$${#eq-Q}
-
-where
-
-$$
-\begin{split}
-\xi^{(z)} &:= \sum_{t=0}^T \vec z(t)\\
-\xi^{(\alpha)} &:= \sum_{t=0}^T\mathbb{E}_{\vec\theta'}[\vec \alpha(t)\mid Z^{(T)} = z^{(T)}]\\
-\Xi^{(z)} &:= \sum_{t=0}^T\vec z(t)\vec z(t)^\intercal\\
-\Xi^{(\alpha,z)} &:= \sum_{t=0}^T\mathbb{E}_{\vec\theta'}[\vec\alpha(t)\mid Z^{(T)} = z^{(T)}]\vec z(t)^\intercal\\
-\Xi^{(\alpha)} &:= \sum_{t=0}^T\mathbb{E}_{\vec\theta'}[\vec\alpha(t)\vec\alpha(t)^\intercal\mid Z^{(T)} = z^{(T)}]\\
-\Xi^{(\alpha,-1)} &:= \sum_{t=1}^T\mathbb{E}_{\vec\theta'}[\vec\alpha(t-1)\vec\alpha(t)^\intercal\mid Z^{(T)} = z^{(T)}]
-\end{split}
-$$ {#eq-kalmanterms}
-
-In the EM algorithm, an estimate for the Maximum Likelihood estimate involves changing $\theta$ in order to increase (@eq-Q), which can be shown to guarantee that the Likelihood $L(\vec\theta)$ also increases.
-The idea is then that repeatedly alternating between adjusting $\vec\theta$ to increase @eq-Q, and then recomputing the terms in @eq-kalmanterms.
-These terms are computed using standard Kalman techniques.
-These give optimal linear estimates of these quantities (and the optimal overall estimates for the Gaussian case). 
-A description of this method is presented in the next section.
-
-## Kalman Filter and Smoother
-
+The Kalman filter gives us linear estimates for the distribution of $\vec\alpha_r\mid \{Z_t\}_{t=0,...,s}$.
 Firstly, we should establish some notation.
 Write
-$$
-\begin{split}
+
+$$\begin{split}
 m_{r \mid s} &= \mathbb E[\vec\alpha_r \mid \{Z_t\}_{t=0,\dots,s}]\\
-P_{r \mid s} &= \var[\vec\alpha_r \mid \{Z_t\}_{t=0,\dots,s}]\\.
-P_{r,q \mid s} &= \cov[\vec\alpha_r, \vec\alpha_q \mid \{Z_t\}_{t=0,\dots,s}]
+P_{r \mid s} &= \var[\vec\alpha_r \mid \{Z_t\}_{t=0,\dots,s}]\\
+P_{r,q \mid s} &= \cov[\vec\alpha_r, \vec\alpha_q \mid \{Z_t\}_{t=0,\dots,s}].
 \end{split}
 $$
 
-
-These are computed in two phases; filtering to find $\{m_{t\mid t}\}_{t=0,\dots,T}$ and $\{P_{t\mid t}\}_{t=0,\dots,T}$, then a smoothing phase to find $\{m_{t\mid T}\}_{t=0,\dots,T}$ and $\{P_{t\mid T}\}_{t=0,\dots,T}$, which are exactly the values needed for @eq-kalmanterms.
-
+For the initial terms, $m_{0\mid0}=m_0$ and $P_{0\mid0}=\Sigma_0$.
 To move the filter forward, that is, given $m_{r\mid s}$ and $P_{r\mid s}$, to get $m_{t+1\mid t+1}$ and $P_{t+1\mid t+1}$, we first do
-$$
-\begin{split}
-\vec m_{t+1\mid t} &= M \vec x_{t\mid t}\\
+
+$$\begin{split}
+\vec m_{t+1\mid t} &= M \vec m_{t\mid t}\\
 P_{t+1\mid t} &= M P_{t\mid t} M^\intercal + \Sigma_\eta,
 \end{split}
 $$ {#eq-kalman-midterms}
 
-then we add our new information, $z_{t-1}$, adjusted for the _Kalman gain_;
-$$
-\begin{split}
-m_{t+1\mid t+1} &= \vec m_{t+1\mid t} + K_t(z_t-\Phi \vec m_{t+1\mid t}-X\vec\beta)\\
-P_{t+1\mid t+1} &= [I- K_t\Phi]P_{t+1\mid t}
+then we add our new information, $z_{t}$, adjusted for the _Kalman gain_;
+
+$$\begin{split}
+\vec m_{t+1\mid t+1} &= \vec m_{t+1\mid t} + K_t \vec e_t\\
+P_{t+1\mid t+1} &= [I- K_t\Phi_{t}]P_{t+1\mid t}
 \end{split} 
 $$ {#eq-kalmanfilt}
-where $K_t$ is the Kalman gain;
+ 
+where $K_t$ is the _Kalman gain_;
+
+$$\begin{split}
+K_t = P_{t+1\mid t}\Phi_{t}^\intercal [\Phi_t P_{t+1\mid t} \Phi_{t}^\intercal + \Sigma_\epsilon]^{-1},
+\end{split}
 $$
-\begin{split}
-K_t = P_{t+1\mid t}\Phi^\intercal [\Phi P_{t+1\mid t} \Phi^\intercal + \Sigma_\epsilon]^{-1}.
+
+and $\vec e_t$ are the _prediction errors_
+
+$$\begin{split}
+\vec e_t = z_t-\Phi_{t} \vec m_{t+1\mid t}-X_{t}\vec\beta
 \end{split}
 $$
 
 Starting with $m_{0\mid0} = m_0$ and $P_{0\mid0} =\Sigma_0$, we can then iteratively move across the data to eventually compute $m_{T\mid T}$ and $P_{T\mid T}$. 
-We can then work backwards from these values using what is known as the _Kalman Smoother_;
+
+Assuming Gaussian all random variables here are Guassian, this is the optimal mean-square estimators for these quantities, but even outside of the Gaussian case, these are optimal for the class of _linear_ operators.
+
+We can compute the marginal data likelihood alongside the kalman fiter using the prediciton errors $\vec e_t$. 
+These, under the assumptions we have made about $\eta$ and $\epsilon$ being normal, are also normal with zero mean and variance
+
+$$\begin{split}
+\mathbb V\mathrm{ar}[\vec e_t]=\Sigma_t= \Phi_{t} P_{t+1\mid t} \Phi_{t}^\intercal + \Sigma_\epsilon. 
+\end{split}
 $$
-\begin{split}
-\vec m_{t-1\mid T} &= \vec m_{t-1\mid t-1} + J_{t11}(\vec m_{t\mid T} - \vec m_{t\mid t-1}),\\
+
+Therefore, the log-likelihood at each time is
+
+$$\begin{split}
+\mathcal L(Z\mid\vec\theta) = -\frac12\sum \log\det(\Sigma_t(\vec\theta)) - \frac12 \sum\vec e_t(\vec\theta)^\intercal\Sigma_{t}(\vec\theta)^{-1} \vec e_t(\vec\theta).
+\end{split}
+$$
+
+Summing these across time, we get the log likelihood for all the data. 
+Using this log likelihood, we can now do maximum likelihood estimation. This is implemented in the code with ```IDEM.data_mle_fit```. 
+See examples of this in the [fitting page](fitting.html).
+
+## Kalman Smoothers
+
+Beyond the Kalman filters, we can also do Kalman smoothers. 
+That is, filters estimate $\vec m_{T\mid T}$ and $P_{T\mid T}$, but there is use for estimating $\vec m_t\mid T$ and $P_{t\mid T}$ for all $t=0,\dots, T$.
+
+We can then work backwards from these values using what is known as the _Rauch-Tung-Striebel (RTS) smoother_;
+
+$$\begin{split}
+\vec m_{t-1\mid T} &= \vec m_{t-1\mid t-1} + J_{t-1}(\vec m_{t\mid T} - \vec m_{t\mid t-1}),\\
 P_{t-1\mid T} &= P_{t-1\mid t-1} + J_{t-1}(P_{t\mid T} - P_{t\mid t-1})J_{t-1}^\intercal,
 \end{split}
 $$ {#eq-kalmansmooth}
+ 
 where,
-$$
-\begin{split}
+ 
+$$\begin{split}
 J_{t-1} = P_{t-1\mid t-1}M^\intercal[P_{t\mid t-1}]^{-1}.
 \end{split}
 $$
 
 We can clearly see, then, that it is crucial to keep the values in @eq-kalman-midterms.
 
-We can then also use the _Lag-One Covariance Smoother_.
-From 
-$$
-\begin{split}
-P_{T,T-1\mid T} = (I - K_T\Phi) MP_{T-1\mid T-1},
+We can then also compute the lag-one cross-covariance matrices $P_{t,t-1\mid T}$ using the _Lag-One Covariance Smoother_ (is this what they call the RTS smoother?)
+From
+
+$$\begin{split}
+P_{T,T-1\mid T} = (I - K_T\Phi_{T}) MP_{T-1\mid T-1},
 \end{split}
 $$
+
 we can compute the lag-one covariances
-$$
-\begin{split}
+
+$$\begin{split}
 P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal
 \end{split}
 $$ {#eq-lag1smooth}
-Then, to find the expectations we need in @eq-kalmanterms, we have;
 
-$$
-\begin{split}
-\mathbb E_{\theta'}[\vec\alpha(t)\mid Z^{(T)}=z^{(T)}] &= \vec m_{t \mid T}\\
-\mathbb E_{\theta'}[\vec\alpha(t)\vec\alpha(t)^\intercal\mid Z^{(T)}=z^{(T)}] &= P_{t\mid T} - \vec m_{t\mid T}\vec m_{t\mid T}^\intercal\\
-\mathbb E_{\theta'}[\vec\alpha(t-1)\vec\alpha(t)^\intercal\mid Z^{(T)}=z^{(T)}] &= P_{t,t-1\mid T}^\intercal - \vec m_{t\mid T} \vec m_{t-1\mid T}^\intercal.
+The values computed above can now be used to implement the EM algorithm below.
+
+## EM Algorithm
+
+Instead of the marginal data likelihood, we may instead want to work with the 'full' likelihood, including the unobserved process, $l(\vec z(1),\dots, \vec z(T), \vec Y(1), \dots, \vec Y(T)\mid \vec\theta)$, or, equivalently, $l(\vec z(1),\dots, \vec z(t), \vec \alpha(1), \dots, \vec\alpha(T)\mid \vec\theta)$.
+This is difficult to maximise directly, but can be done with the EM algorithm, consisting  of two steps, which can be shown to always increase the full likelihood.
+
+Firstly, the E step is to find the function
+
+$$\begin{split}
+\mathcal Q(\vec \theta; \vec \theta') = \mathbb E_{\vec Z(t)\sim p(Z \mid \vec\alpha(t),\vec\theta)}[\log p_{\vec\theta}(Z^{(T)}, A^{(T)})\mid Z^{(T)}],
 \end{split}
-$$
+$$ {#eq-Qdef}
 
-# Algorithm for Maximum Likelihood estimation
+where $Z^{(T)} = \{\vec z_t\}_{t=0,\dots,T}$, $A^{(T)} = \{\vec \alpha_t\}_{t=0,\dots,T}$ and $A^{(T-1)} = \{\vec \alpha_t\}_{t=0,\dots,T-1}$. This approximates $\log p_\theta(Z^{(T)}, A^{(T)})$.
+
+### Proposition 1
+
+We have
+
+$$\small{\begin{split}
+-2\mathcal Q(\vec\theta;\vec\theta') &= \mathbb E_{Z^{(T)}\sim p(Z \mid A^{(T)},\vec\theta')}[\log p_{\vec\theta}(Z^{(T)}, A^{(T)}\mid Z^{(T)} = z^{(T)}]\\
+&\eqc \sigma_\epsilon^2 [\sum_{t=0}^{T}\vec z_t^{\intercal}z_t - 2\Phi_t(\sum_{t=1}^{T} \vec z_t^\intercal \vec m_{t\mid T}) - 2(\sum_{t=0}^{T} \vec z_t^T)X_t\vec\beta\\
+&\quad\quad\quad +\Phi_t^\intercal(\sum_{t=0}^{T}\mathrm{tr}\{P_{t\mid T} - \vec m_{t\mid T}\vec m_{t\mid T}^{\intercal}\})\Phi_t + 2X_t\vec\beta\Phi_t(\sum_{t=0}^{T}\vec m_{t\mid T}) + (\sum_{t=1}^{T}X_t^\intercal \vec\beta^{\intercal}\vec\beta X_t)]\\
+&\quad + \mathrm{tr}\{\Sigma_\eta^{-1}[(\sum_{t=1}^{T}P_{t\mid T} - m_{t\mid T}) - 2M(\sum_{t=1}^{T}P_{t,t-1\mid T} - \vec m_{t-1,T}\vec m_{t\mid T}^{\intercal})\\
+&\quad\quad\quad\quad\quad + M(\sum_{t=1}^{T}P_{t-1\mid T} - \vec m_{t-1\mid T}\vec m_{t-1\mid T}^{\intercal})M^\intercal]\}\\
+&\quad + \mathrm{tr}\{\Sigma_0^{-1}[P_{0\mid T} - m_{0\mid T}m_{0\mid T}^{\intercal} - 2\vec m_{0\mid T}\vec m_0 + \vec m_0\vec m_0^\intercal]\}\\
+&\quad + \log(\det(\sigma_\epsilon^{2T}\Sigma_\eta^{T+1}\Sigma_0)))
+\end{split}} 
+$$ {#eq-Q}
+
+#### Proof
+
+See appendix.
+
+In the EM algorithm, we maximise the full likelihood by changing $\vec \theta$ in order to increase (@eq-Q), which can be shown to guarantee that the Likelihood $L(\vec \theta)$ also increases.
+The idea is then that repeatedly alternating between adjusting $\vec \theta$ to increase @eq-Q, and then doing the filters and smoothers to obtain new values for $\vec m_{t\mid T}$, $P_{t\mid T}$, and $P_{t,t-1\mid T}$.
+
+# Algorithm for Maximum Complete-data Likelihood estimation
 
 Overall, our algorithm for Maximum Likelihood estimation is:
 
 1. Set $i=0$ and take an initial guess for the parameters we are considering, $\vec\theta_0=\vec\theta_i$
-2. Starting from $\vec m_{0\mid 0}=\vec m_0, P_{0\mid0}=\Sigma_0$, run the __Kalman Filter__ to get $\vec m_{t\mid t}$, $P_{t\mid t}$, and $K_t$ for all $t$ (@eq-kalmanfilt),
+2. Starting from $\vec m_{0\mid 0}=\vec m_0, P_{0\mid0}=\Sigma_0$, run the __Kalman Filter__ to get $\vec m_{t\mid t}$, $P_{t\mid t}$, and $K_t$ for all $t$ @eq-kalmanfilt,
 3. Starting from $\vec m_{T\mid T}, P_{T\mid T}$, run the __Kalman Smoother__ to get $\vec m_{t\mid T}$, $P_{t\mid T}$, and $J_t$ for all $t$ (@eq-kalmansmooth),
-4. Starting from $P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1}$, run the __Lag-One Smoother__ to get $\vec m_{t,t-1\mid T}$ and $P_{t,t-1\mid T}$ for all $t$ (@eq-lag1smooth),
+4. Starting from $P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1}$, run the __Lag-One Smoother__ to get $\vec m_{t,t-1\mid T}$ and $P_{t,t-1\mid T}$ for all $t$ @eq-lag1smooth,
 5. Use the above values to construct $\mathcal Q(\vec\theta;\vec \theta')$ in @eq-Q,
 6. Maximise the function $\mathcal Q(\vec\theta;\vec \theta')$ to get a new guess $\vec \theta_{i+1}$, then return to step 2,
 8. Stop once a certain criteria is met.
 
 <span style="color: red;">[NOTE: You need to add the reference for 'Time-Series Analysis and its Applications'!
-]</span>
-
-<span style="color: red;">[NOTE: Of course, we could also just maximise the data likelihood computed the the Kalman filter (see p 304 in the above book). In this book, it is claimed that this performs comparitively better, but in this case we are dealing with much higher dimensions.
-The next step is to implement both of these and compare the two.
 ]</span>
