@@ -37,6 +37,7 @@ Using ```gen_example_idem``` with the argument ````k_spat_inv=True```, we can ea
 
 
 ```{python}
+#| output: false
 import sys
 import os
 sys.path.append(os.path.abspath('../src/jax_idem'))
@@ -91,6 +92,7 @@ An example target simulation, with the underlying process (left), noisy observat
 We now create a 'shell' model, which we will fit to the above data, initialising all relevent parameters.
 
 ```{python}
+#| output: false
 # use the same kernel basis as the true model for now
 K_basis = truemodel.kernel.basis
 # scale and shape of the kernel will be the same, but the offsets will be estimated
@@ -120,6 +122,7 @@ model0 = IDEM(
 And we can simulate from this initial model with
 
 ```{python}
+#| output: false
 unfit_process_data, unfit_obs_data = model0.simulate(nobs=1, T=T + 1, key=key)
 # Plotting
 gif_st_grid(unfit_process_data, output_file="unfit_process.gif")
@@ -181,6 +184,7 @@ print(f"The log likelihood (up to a constant) of the true model is {true_ll}")
 
 :::
 
+
 ## Fitting
 
 We will now fit all the parameters that differ between the true model and ```model0```; these are the kernel 'drift'  parameters, ```IDEM.kernel.parmas[2:3]```, and the initial value of the process basis coefficients, ```IDEM.m_0```.
@@ -188,6 +192,10 @@ We can do this simply by creating an objective function which takes these parame
 Since most functions of the project are written with jit and auto-differentiation, we can also get the gradient of this objective.
 
 ```{python}
+#| eval: true
+#| echo: true
+#| output: true
+
 nobs = obs_locs.shape[0]
 PHI_obs = model0.process_basis.mfun(obs_locs)
 PHI = model0.process_basis.mfun(model0.process_grid.coords)
@@ -234,7 +242,7 @@ def objective(params):
         Sigma_eta,
         Sigma_eps,
         model0.beta,
-        obs_data_wide,
+        obs_data_wide.z,
         X_obs,
     )
     return -carry[4]
@@ -257,6 +265,10 @@ We can then use standard optimisation techniques to optimise.
 For example, using the ADAM optimiser in OPTAX,
 
 ```{python}
+#| eval: false
+#| echo: true
+#| output: false
+
 import optax
      
 start_learning_rate = 1e-1
@@ -278,6 +290,10 @@ print(param_ad)
 Putting these parameters into a new model;
 
 ```{python}
+#| eval: false
+#| echo: true
+#| output: false
+
 fitted_m_0 = param_ad["m_0"]
 fitted_ks = (jnp.array([150]), jnp.array([0.002]), jnp.array([param_ad["k1"]]), jnp.array([param_ad["k2"]]))
 fitted_kernel = param_exp_kernel(K_basis, fitted_ks)
@@ -317,6 +333,10 @@ Of course, these parameters are constrained; each one is non negative, and it ma
 To ensure all optimsers work in a similar way, OPTAX uses projections to handle this kind of constraints. Firstly, lets re-write some of the above code to also include the other parameters.
 
 ```{python}
+#| eval: false
+#| echo: true
+#| output: false
+
 k = (
     jnp.array([100.0]),
     jnp.array([0.001]),
@@ -356,6 +376,10 @@ Presumably due to the higher variances, the log likelihood here is higher that t
 Making the optimisation function,
 
 ```{python}
+#| eval: false
+#| echo: true
+#| output: false
+
 @jax.jit
 def objective(params):
     m_0, sigma2_0, sigma2_eta, sigma2_eps, ks = params
@@ -376,7 +400,7 @@ def objective(params):
         Sigma_eta,
         Sigma_eps,
         model0.beta,
-        obs_data_wide,
+        obs_data_wide.z,
         X_obs,
     )
     return -carry[4]
@@ -394,6 +418,9 @@ If we naively apply what we did before, we will get nans as some variances becom
 We can remedy this by defining a bounding box for the data;
 
 ```{python}
+#| eval: false
+#| echo: false
+#| output: false
 
 lower = (jnp.full(nbasis0, -jnp.inf),
          jnp.array(0.0),
@@ -425,18 +452,7 @@ for i in range(10):
 print(params_ad)
 ```
 
-Due to the low learning rate, this doesn't do a great job with only 10 iterations. Running any more makes compiling this notebook take a while, so to run 2000 (with a loading bar), use fitscript.py. The results are saved in "new_fitted_process.gif" and "new_fitted_kernel.gif".
-
-::: {#fig-example-5 layout-ncol=2}
-
-![Fitted process simulation](new_fitted_process.gif)
-
-![Fitted kernel](new_fitted_kernel.png)
-
-(write description)
-:::
-
-# Built-in methods
+This can take some time, so this code is not run interactively here. Instead, there are some scripts included here to run the built-in methods containing the logic above.
 
 There is now a built in method for fitting this kind of model, ```IDEM.fit```. Reading some data (generated from the R-IDE package) and formatting it with ```panda```,
 
@@ -449,3 +465,113 @@ date_mapping = {date: i-1 for i, date in enumerate(df['time'].unique(), 1)}
 df['time'] = df['time'].map(date_mapping)
 ```
 
+::: {#fig-example-5 layout-ncol=2}
+
+![Fitted process simulation](new_fitted_process.gif)
+
+![Fitted kernel](new_fitted_kernel.png)
+
+(write description)
+:::
+
+
+# Information Filter
+
+We can write the Kalman filter in a different, and possibly more useful, form; called the information filter.
+This uses, instead of means and variances, the information matrices and vectors, $Q_{k\mid l} = P_{k\mid l}^{-1}$$ and $$\nu_{k\mid l} = Q_{k\mid l}m_{k\mid l}$, respectively.
+See the [subheading on this in the Mathematics page](./mathematics.html) for more detail.
+
+Theoretically, these are identical. 
+However, this form allows to more easily begin with infinite variance ($Q_0 = 0$), which is possible with the kalman filter, but reuires skipping the first step with analytically obtained results.
+The information filter also accounts for time-variyng data better (changing number of observation locations, as well as those observations changing locations), since it requires a scan over vectors in the (always constant) state space, as opposed tot he changing data space.
+
+Let's start by generating some data with much more random observation locations.
+
+```{python}
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 3)
+
+# We'll re-use truemodel form before, but simulate from different locations
+
+nobs = jax.random.randint(keys[1], (T,), 50, 101)
+
+locs_keys = jax.random.split(keys[2], T)
+
+obs_locs = jnp.vstack(
+            [
+                jnp.column_stack(
+                    [
+                        jnp.repeat(t + 1, n),
+                        rand.uniform(
+                            locs_keys[t],
+                            shape=(n, 2),
+                            minval=0,
+                            maxval=1,
+                        ),
+                    ]
+                )
+                for t, n in enumerate(nobs)
+            ]
+        )
+
+# Simulation, but this time providing a custom value for obs_locs
+process_data, obs_data = truemodel.simulate(
+            T=T, key=keys[1], obs_locs=obs_locs
+        )
+
+# Plotting
+gif_st_grid(process_data, output_file="target_process_2.gif")
+gif_st_pts(obs_data, output_file="synthetic_observations_2.gif")
+```
+
+::: {#fig-example layout-ncol=2}
+
+![Process](target_process_2.gif)
+
+![Observations](synthetic_observations_2.gif)
+
+An example target simulation, with the underlying process (left), noisy observations (right), this time randomly variying in number and positions.
+
+:::
+
+The function  ```kalman_filter``` has no support for these kinds of observation, but ```information_filter``` does;
+
+```{python}
+
+nbasis = truemodel.process_basis.nbasis
+nu_0 = jnp.zeros(nbasis)
+Q_0 = jnp.zeros((nbasis, nbasis)) # infinite variance!
+
+obs_locs = jnp.column_stack(
+           jnp.column_stack((obs_data.x, obs_data.y))
+).T
+
+X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
+
+nus, Qs = truemodel.filter_information(
+           obs_data,
+           X_obs,
+           nu_0,
+           Q_0,
+)
+```
+
+Of course, the $\nu_{t}$ values which are the output of the information filter need a little more work to visualise like the means of the Kalman filter, so let's use a ```jnp.solve``` to extract the means;
+
+```{python}
+ms = jnp.linalg.solve(Qs, nus)
+print(ms.shape)
+print(Qs)
+print(ms[0])
+
+filt_data = basis_params_to_st_data(ms, truemodel.process_basis, truemodel.process_grid)
+
+gif_st_grid(filt_data, output_file="filtered_2.gif")
+```
+::: {#fig-example-80orsomething layout-ncol=1}
+
+![Filtered process means](filtered_2.gif)
+
+(write a description)
+
+:::

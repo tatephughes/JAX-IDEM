@@ -33,12 +33,20 @@ from utilities import (
     ST_towide,
 )
 
+from filter_smoother_functions import (
+    kalman_filter,
+    information_filter,
+)
+
 ngrids = jnp.array([41, 41])
 bounds = jnp.array([[0, 1], [0, 1]])
 
 
 class Kernel:
-    """Class defining a kernel, or a basis expansion of a kernel or its parameters."""
+    """
+    Generic class defining a kernel, or a basis expansion of a kernel,
+    and its parameters.
+    """
 
     def __init__(
         self,
@@ -52,11 +60,13 @@ class Kernel:
 
 
 def param_exp_kernel(K_basis: tuple, k: tuple):
-    """Creates a kernel in the style of AZM's R-IDE packagess"""
+    """Creates a kernel in the style of AZM's R-IDE package"""
 
     @jax.jit
     def kernel(s, r):
-        """Generates the kernel function from the kernel basis and basis coefficients"""
+        """
+        Generates the kernel function from the kernel basis and basis coefficients
+        """
         theta = (
             k[0] @ K_basis[0].vfun(s),
             k[1] @ K_basis[1].vfun(s),
@@ -101,12 +111,14 @@ class IDEM:
         self.beta = beta
         self.m_0 = m_0
         self.sigma2_0 = sigma2_0
-        
+
         if self.sigma2_0 is None:
-            self.sigma2_0 = 3.4e38 # as high variance as possible in 32 bit floats
+            self.sigma2_0 = 1000
 
     def get_sim_params(self, int_grid: Grid = create_grid(bounds, ngrids)):
-        """Helper function to grab the relevant parameters for simulation"""
+        """
+        Helper function to grab the relevant parameters for simulation
+        """
 
         M = self.M
         PHI_proc = self.PHI_proc
@@ -134,20 +146,27 @@ class IDEM:
         T=9,
         int_grid: Grid = create_grid(bounds, ngrids),
     ):
-        """Simulates from the model, using the jit-able function simIDEM.
+        """
+        Simulates from the model, using the jit-able function simIDEM.
 
         Parameters
         ----------
         key: ArrayLike
           PRNG key
         obs_locs: ArrayLike
-          the observation locations in long format. This should be a (3, *) array where the first column corresponds to time, and the last two to spatial coordinates. If this is not provided, 50 random points per time are chosen in the domain of interest.
+          the observation locations in long format. This should be a
+          (3, *) array where the first column corresponds to time, and
+          the last two to spatial coordinates. If this is not
+          provided, 50 random points per time are chosen in the domain
+          of interest.
         int_grid: ArrayLike
           The grid over which to compute the Riemann integral.
 
         Returns
         ----------
-        A tuple containing the Process data and the Observed data, both in long format in the ST_Data_Long type (see [utilities](/.env.example))
+        A tuple containing the Process data and the Observed data, both
+        in long format in the ST_Data_Long type (see
+        [utilities](/.env.example))
         """
         (
             M,
@@ -165,7 +184,8 @@ class IDEM:
         # Check that M is not explosive
         if jnp.max(jnp.absolute(jnp.linalg.eig(M)[0])) > 1.0:
             warnings.warn(
-                "Eigenvalue above the absolute value of 1. Result will be explosive."
+                """Eigenvalue above the absolute value of 1. Result
+                will be explosive."""
             )
 
         bounds = jnp.array(
@@ -187,7 +207,7 @@ class IDEM:
             if fixed_data:
                 obs_locs = jnp.column_stack(
                     [
-                        jnp.repeat(jnp.arange(T), nobs),
+                        jnp.repeat(jnp.arange(T), nobs) + 1,
                         jnp.tile(
                             rand.uniform(
                                 keys[0],
@@ -202,7 +222,7 @@ class IDEM:
             else:
                 obs_locs = jnp.column_stack(
                     [
-                        jnp.repeat(jnp.arange(T), nobs),
+                        jnp.repeat(jnp.arange(T), nobs) + 1,
                         rand.uniform(
                             keys[0],
                             shape=(T * nobs, 2),
@@ -215,6 +235,9 @@ class IDEM:
             times = jnp.unique(obs_locs[:, 0])
         else:
             times = jnp.unique(obs_locs[:, 0])
+
+        if T != len(times):
+            raise ValueError("The times in obs_locs does not match inputted T.")
 
         # X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
 
@@ -265,7 +288,7 @@ class IDEM:
 
         return (process_data, obs_data)
 
-    def filter(self, obs_data_wide, X_obs):
+    def filter(self, obs_data_wide: ST_Data_Wide, X_obs):
         obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
 
         m_0 = self.m_0
@@ -276,15 +299,10 @@ class IDEM:
         nobs = obs_locs.shape[0]
 
         if m_0 is None:
-            PHI_obs_0 = model.process_basis.mfun(obs_locs)
-            m_0 = PHI_obs_0.T @ obs_data_wide.z[:,0]
-        if self.sigma2_0 is None:
-            P_0 = 3.4e38 * jnp.eye(
-                self.process_basis.nbasis
-            )  # as high variance as possible in 32 bit floats
-        else:
-            P_0 = self.sigma2_0 * jnp.eye(m_0.shape[0])
-        
+            PHI_obs_0 = self.process_basis.mfun(obs_locs)
+            m_0 = PHI_obs_0.T @ obs_data_wide.z[:, 0]
+
+        P_0 = self.sigma2_0 * jnp.eye(m_0.shape[0])
 
         Sigma_eta = self.sigma2_eta * jnp.eye(nbasis)
         Sigma_eps = self.sigma2_eps * jnp.eye(nobs)
@@ -299,11 +317,55 @@ class IDEM:
             Sigma_eta,
             Sigma_eps,
             beta,
-            obs_data_wide,
+            obs_data_wide.z,
             X_obs,
         )
 
-        return carry[4], seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:]
+        return (carry[4], seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:])
+
+    def filter_information(
+        self,
+        obs_data: ST_Data_Long,
+        X_obs,
+        nu_0=None,
+        Q_0=None,
+    ):
+
+        nbasis = self.process_basis.nbasis
+
+        if nu_0 is None:
+            nu_0 = jnp.zeros(nbasis)
+        if Q_0 is None:
+            Q_0 = jnp.zeros((nbasis, nbasis))
+
+        obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
+        X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
+
+        unique_times = jnp.unique(obs_data.t)
+
+        if unique_times.shape[0] <= 1:
+            raise ValueError("To filter, there needs to be more that one time point.")
+
+        time_inds = tuple(jnp.arange(unique_times.shape[0]))
+        obs_locs_tuple = jax.tree.map(lambda t: obs_locs[obs_data.t == t], time_inds)
+
+        PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
+
+        carry, seq = information_filter(
+            nu_0,
+            Q_0,
+            self.M,
+            PHI_obs_tuple,
+            self.sigma2_eta,
+            self.sigma2_eps,
+            self.beta,
+            obs_data,
+            X_obs,
+        )
+
+        nus, Qs = seq
+
+        return (nus, Qs)
 
     def smooth(self, ms, Ps, mpreds, Ppreds):
         M = self.M
@@ -386,7 +448,8 @@ class IDEM:
                 jnp.full(self.beta.shape, jnp.inf),
             )
 
-        # trying to match these bounds with andrewzm's, but this is messy. Clean these up later please
+        # trying to match these bounds with andrewzm's,
+        # but this is messy. Clean these up later please
         if lower is None:
             lower = (
                 jnp.full(self.process_basis.nbasis, -jnp.inf),
@@ -408,14 +471,17 @@ class IDEM:
                 jnp.full(self.beta.shape, -jnp.inf),
             )
 
-        m_0 = PHI_obs.T @ obs_data_wide.z[:,0]
-        #sigma2_0 = 3.4e38
+        # self.m_0 = PHI_obs.T @ obs_data_wide.z[:,0]
 
-        ks0 = (jnp.log(self.kernel.params[0]),
-               jnp.log(self.kernel.params[1]),
-               self.kernel.params[2],
-               self.kernel.params[3])
-        
+        # sigma2_0 = 3.4e38
+
+        ks0 = (
+            jnp.log(self.kernel.params[0]),
+            jnp.log(self.kernel.params[1]),
+            self.kernel.params[2],
+            self.kernel.params[3],
+        )
+
         params0 = (
             self.m_0,
             jnp.log(self.sigma2_0),
@@ -424,8 +490,6 @@ class IDEM:
             self.kernel.params,
             self.beta,
         )
-
-        print(params0[1])
 
         nbasis = self.process_basis.nbasis
         nobs = obs_locs.shape[0]
@@ -477,7 +541,7 @@ class IDEM:
                 Sigma_eta,
                 Sigma_eps,
                 beta,
-                obs_data_wide,
+                obs_data_wide.z,
                 X_obs,
             )
             return -carry[4]
@@ -488,18 +552,185 @@ class IDEM:
         opt_state = optimizer.init(params)
 
         for i in tqdm(range(nits), desc="Optimising"):
-            # print("\n",params[4][0])
             grad = obj_grad(params)
-            # print(grad[4][0])
             updates, opt_state = optimizer.update(grad, opt_state)
             params = optax.apply_updates(params, updates)
             params = optax.projections.projection_box(params, lower, upper)
             nll = objective(params)
 
-            # print("\n",params[0][0])
+        # please make sure this is all the arguments necessary
+        new_fitted_model = IDEM(
+            process_basis=self.process_basis,
+            kernel=param_exp_kernel(self.kernel.basis, params[4]),
+            process_grid=self.process_grid,
+            sigma2_eta=jnp.exp(params[2]),
+            sigma2_eps=jnp.exp(params[3]),
+            beta=params[5],
+            m_0=params[0],
+            sigma2_0=jnp.exp(params[1]),
+        )
 
-            # print("\n",params[4][1])
-            # print("\n",params[4][2], params[4][3])
+        init_ll, _, _, _, _, _ = self.filter(obs_data_wide, X_obs)
+
+        print(
+            f"The log likelihood (up to a constant) of the initial model is {init_ll}"
+        )
+        print(
+            f"The final log likelihood (up to a constant) of the fit model is {-objective(params)}"
+        )
+
+        print(
+            f"\nthe final offset parameters are {params[4][2]} and {params[4][3]}\n\n"
+        )
+        print(
+            f"\nthe final variance parameters are {jnp.exp(params[1])}, {jnp.exp(params[2])}, and {jnp.exp(params[3])}\n\n"
+        )
+
+        return new_fitted_model
+
+    def fit_information_filter(
+        self,
+        obs_data: ST_Data_Long,
+        X_obs: ArrayLike,
+        fixed_ind: list = [],
+        lower=None,
+        upper=None,
+        optimizer=optax.adam(1e-3),
+        nits: int = 10,
+    ):
+        obs_data_wide = ST_towide(obs_data)
+        obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
+        PHI_obs = self.process_basis.mfun(obs_locs)
+
+        bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
+
+        if upper is None:
+            upper = (
+                jnp.full(self.process_basis.nbasis, jnp.inf),
+                jnp.array(jnp.log(1000)),
+                jnp.array(jnp.log(1000)),
+                jnp.array(jnp.log(1000)),
+                (
+                    jnp.full(
+                        self.kernel.params[0].shape,
+                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
+                    ),
+                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
+                    jnp.full(self.kernel.params[2].shape, jnp.inf),
+                    jnp.full(self.kernel.params[3].shape, jnp.inf),
+                ),
+                jnp.full(self.beta.shape, jnp.inf),
+            )
+
+        # trying to match these bounds with andrewzm's,
+        # but this is messy. Clean these up later please
+        if lower is None:
+            lower = (
+                jnp.full(self.process_basis.nbasis, -jnp.inf),
+                jnp.array(jnp.log(0.0001)),
+                jnp.array(jnp.log(0.0001)),
+                jnp.array(jnp.log(0.0001)),
+                (
+                    jnp.full(
+                        self.kernel.params[0].shape,
+                        150
+                        / (self.process_grid.area * self.process_grid.ngrid)
+                        * 0.01
+                        / 1000,
+                    ),
+                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
+                    jnp.full(self.kernel.params[2].shape, -jnp.inf),
+                    jnp.full(self.kernel.params[3].shape, -jnp.inf),
+                ),
+                jnp.full(self.beta.shape, -jnp.inf),
+            )
+
+        # self.m_0 = PHI_obs.T @ obs_data_wide.z[:,0]
+
+        # sigma2_0 = 3.4e38
+
+        ks0 = (
+            jnp.log(self.kernel.params[0]),
+            jnp.log(self.kernel.params[1]),
+            self.kernel.params[2],
+            self.kernel.params[3],
+        )
+
+        params0 = (
+            self.m_0,
+            jnp.log(self.sigma2_0),
+            jnp.log(self.sigma2_eta),
+            jnp.log(self.sigma2_eps),
+            self.kernel.params,
+            self.beta,
+        )
+
+        nbasis = self.process_basis.nbasis
+        nobs = obs_locs.shape[0]
+
+        @jax.jit
+        def objective(params):
+            m_0, log_sigma2_0, log_sigma2_eta, log_sigma2_eps, ks, beta = params
+
+            logks1, logks2, ks3, ks4 = ks
+
+            ks1 = jnp.exp(logks1)
+            ks2 = jnp.exp(logks2)
+
+            sigma2_0 = jnp.exp(log_sigma2_0)
+            sigma2_eta = jnp.exp(log_sigma2_eta)
+            sigma2_eps = jnp.exp(log_sigma2_eps)
+
+            # yes, this looks bad BUT after jit-compilation, these ifs will be compiled away.
+            if "m_0" in fixed_ind:
+                m_0 = self.m_0
+            if "sigma2_0" in fixed_ind:
+                sigma2_0 = self.sigma2_0
+            if "sigma2_eta" in fixed_ind:
+                sigma2_eta = self.sigma2_eta
+            if "sigma2_eps" in fixed_ind:
+                sigma2_eps = self.sigma2_eps
+            if "ks1" in fixed_ind:
+                ks1 = self.kernel.params[0]
+            if "ks2" in fixed_ind:
+                ks2 = self.kernel.params[1]
+            if "ks3" in fixed_ind:
+                ks3 = self.kernel.params[2]
+            if "ks4" in fixed_ind:
+                ks4 = self.kernel.params[3]
+            if "beta" in fixed_ind:
+                beta = self.beta
+
+            M = self.con_M((ks1, ks2, ks3, ks4))
+
+            Sigma_eta = sigma2_eta * jnp.eye(nbasis)
+            Sigma_eps = sigma2_eps * jnp.eye(nobs)
+            P_0 = sigma2_0 * jnp.eye(nbasis)
+
+            carry, seq = kalman_filter(
+                m_0,
+                P_0,
+                M,
+                PHI_obs,
+                Sigma_eta,
+                Sigma_eps,
+                beta,
+                obs_data_wide.z,
+                X_obs,
+            )
+            return -carry[4]
+
+        obj_grad = jax.grad(objective)
+
+        params = params0
+        opt_state = optimizer.init(params)
+
+        for i in tqdm(range(nits), desc="Optimising"):
+            grad = obj_grad(params)
+            updates, opt_state = optimizer.update(grad, opt_state)
+            params = optax.apply_updates(params, updates)
+            params = optax.projections.projection_box(params, lower, upper)
+            nll = objective(params)
 
         # please make sure this is all the arguments necessary
         new_fitted_model = IDEM(
@@ -568,7 +799,7 @@ def simIDEM(
     sigma2_eta: float
       The variance of the process noise (currently iid, will be a covariance matrix in the future)
     sigma2_eps: float
-      The variance of the observation noise (currently iid, will be a covariance matrix in the future)
+      The variance of the observation noise
     alpha0: ArrayLike (r,)
       The initial value for the process basis coefficients
     process_grid: Grid
@@ -595,9 +826,9 @@ def simIDEM(
         nextstate = M @ carry + jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
         return (nextstate, nextstate)
 
-    alpha_keys = rand.split(keys[3], T - 1)
+    alpha_keys = rand.split(keys[3], T)
 
-    alpha = jnp.vstack((alpha0, jl.scan(step, alpha0, alpha_keys)[1]))
+    alpha = jl.scan(step, alpha0, alpha_keys)[1]
 
     @jax.jit
     def get_process(alpha):
@@ -632,104 +863,6 @@ def simIDEM(
     )
 
     return (process_vals, obs_vals)
-
-
-# ONLY SUPPORTS FIXED OBSERVATION LOCATIONS
-@jax.jit
-def kalman_filter(
-    m_0: ArrayLike,
-    P_0: ArrayLike,
-    M: ArrayLike,
-    PHI_obs: ArrayLike,
-    Sigma_eta: ArrayLike,
-    Sigma_eps: ArrayLike,
-    beta: ArrayLike,
-    obs_data: ST_Data_Wide,  # Wide implies fixed data locs, assuming no missing data
-    X_obs: ArrayLike,
-) -> tuple:
-    """
-    Applies the Kalman Filter to a wide-format matrix of data.
-    For jit-ability, this only allows full (no missing) data in a wide format.
-    I hypothesise that, with a temporally parallelised filter, this will both be quicker and have this limitation removed.
-
-    Parameters
-    ----------
-    m_0: ArrayLike (r,)
-      The initial means of the process vector
-    P_0: ArrayLike (r,r)
-      The initial Covariance matrix of the process vector
-    M: ArrayLike (r,r)
-      The transition matrix of the process
-    PHI_obs: ArrayLike (r,n)
-      The process-to-data matrix
-    Sigma_eta: Arraylike (r,r)
-      The Covariance matrix of the process noise
-    Sigma_eps: ArrayLike (n,n)
-      The Covariance matrix of the observation noise
-    beta: ArrayLike (p,)
-      The covariate coefficients for the data
-    obs_data: ST_Data_Wide
-      The observed data to be filtered
-    X_obs: ArrayLike (n,p)
-      The matrix of covariate values
-    Returns
-    ----------
-    A tuple containing:
-      ll: The log (data) likelihood of the data
-      ms: (T,r) The posterior means $m_{t mid t}$ of the process given the data 1:t
-      Ps: (T,r,r) The posterior covariance matrices $P_{t mid t}$ of the process given the data 1:t
-      mpreds: (T-1,r) The predicted next-step means $m_{t mid t-1}$ of the process given the data 1:t-1
-      Ppreds: (T-1,r,r) The predicted next-step covariances $P_{t mid t-1}$ of the process given the data 1:t-1
-      Ks: (n,r) The Kalman Gains at each time step
-    """
-
-    nbasis = m_0.shape[0]
-    nobs = obs_data.z.shape[0]
-
-    @jax.jit
-    def step(carry, z_t):
-        m_tt, P_tt, _, _, ll, _ = carry
-
-        # predict
-        m_pred = M @ m_tt
-        P_pred = M @ P_tt @ M.T + Sigma_eta
-
-        # Update
-        eps_t = z_t - PHI_obs @ m_pred - X_obs @ beta
-        # K_t = (
-        #    P_pred
-        #    @ PHI_obs.T
-        #    @ solve(PHI_obs @ P_pred @ PHI_obs.T + Sigma_eps, jnp.eye(nobs))
-        # )
-
-        K_t = (solve(PHI_obs @ P_pred @ PHI_obs.T + Sigma_eps, PHI_obs) @ P_pred.T).T
-
-        m_up = m_pred + K_t @ eps_t
-
-        P_up = (jnp.eye(nbasis) - K_t @ PHI_obs) @ P_pred
-
-        # likelihood of epsilon, using cholesky decomposition
-        chol_Sigma_t = jnp.linalg.cholesky(PHI_obs @ P_pred @ PHI_obs.T + Sigma_eps)
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t)
-        # ll_new = ll + jnp.linalg.slogdet(chol_Sigma_t)[1] - 0.5 * jnp.dot(z, z)
-        ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
-
-        return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
-            m_up,
-            P_up,
-            m_pred,
-            P_pred,
-            ll_new,
-            K_t,
-        )
-
-    result = jl.scan(
-        step,
-        (m_0, P_0, m_0, P_0, 0, jnp.zeros((nbasis, nobs))),
-        obs_data.z.T,
-    )
-
-    return result
 
 
 @jax.jit
@@ -856,7 +989,10 @@ def gen_example_idem(
     sigma2_eta=0.05**2,
     sigma2_eps=0.01**2,
 ):
-    """Creates an example IDE model, with randomly generated kernel on the domain [0,1]x[0,1]. Intial value of the process is simply some of the coefficients for the process basis are set to 1. The kernel has a Gaussian shape, with parameters defined as basis expansions in order to allow for spatial variance.
+    """Creates an example IDE model, with randomly generated kernel on the domain
+    [0,1]x[0,1]. Intial value of the process is simply some of the coefficients for the
+    process basis are set to 1. The kernel has a Gaussian shape, with parameters defined
+    as basis expansions in order to allow for spatial variance.
 
     Parameters
     ----------
@@ -865,9 +1001,11 @@ def gen_example_idem(
     k_spat_inv: Bool
       Whether or not the generated kernel should be spatially invariant.
     ngrid: ArrayLike
-      The resolution of the grid at which the process is computed. Should have shape (2,).
+      The resolution of the grid at which the process is computed.
+      Should have shape (2,).
     nints: ArrayLike
-      The resolution of the grid at which Riemann integrals are computed. Should have shape (2,)
+      The resolution of the grid at which Riemann integrals are computed.
+      Should have shape (2,)
     nobs: int
       The number of observations per time interval.
 
@@ -919,7 +1057,9 @@ def gen_example_idem(
         )
         kernel = param_exp_kernel(K_basis, k)
 
-    beta = jnp.array([0., 0., 0.])
+    print(kernel.params)
+
+    beta = jnp.array([0.0, 0.0, 0.0])
 
     return IDEM(
         process_basis=process_basis,

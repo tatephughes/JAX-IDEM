@@ -41,27 +41,29 @@ K_basis = (
 k = (
     jnp.array([150.]),
     jnp.array([0.002]),
-    jnp.array([0.1]),
-    jnp.array([-0.1]),
+    jnp.array([-0.]),
+    jnp.array([0.]),
 )
 # This is the kind of kernel used by ```gen_example_idem```
 kernel = param_exp_kernel(K_basis, k)
 
-process_basis = place_basis() # courser process basis with 25 total basis functions
-#nbasis0 = process_basis2.nbasis
+process_basis = place_basis()
 
-PHI_obs_0 = model0.process_basis.mfun(obs_locs)
-maybe_0 = PHI_obs_0.T @ obs_data_wide.z[:,0]
+#PHI_obs = process_basis.mfun(obs_locs)
+#m_0 = PHI_obs.T @ (obs_data_wide.z[:,0] - X_obs@jnp.array([0.2, 0.2, 0.2]))
+#print(m_0)
+
+m_0 = jnp.zeros(process_basis.nbasis).at[64].set(1.)
 
 model0 = IDEM(
         process_basis = process_basis,
         kernel=kernel,
         process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
-        sigma2_eta = 0.05**2,
+        sigma2_eta = 0.01**2,
         sigma2_eps = 0.01**2,
-        beta = jnp.array([0., 0., 0.]),
-        m_0 = ,
-        sigma2_0 = 0.1
+        beta = jnp.array([0.2, 0.2, 0.2]),
+        m_0 = m_0,
+        sigma2_0 = 1000
 )
 
 
@@ -72,7 +74,7 @@ print(ll0)
 quick_fit_model = model0.data_mle_fit(
     obs_data,
     X_obs,
-    fixed_ind=["m_0"],
-    optimizer=optax.adam(1e-3),
-    nits=5,
+    fixed_ind=["m_0","sigma2_0", "ks1", "ks2"],
+    optimizer=optax.adam(1e-1),
+    nits=10,
 )

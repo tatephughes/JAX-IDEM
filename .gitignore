@@ -82,5 +82,4 @@ jax.iml
 /.quarto/
 
 # test files
-/org_notebooks/
 /test_scripts/

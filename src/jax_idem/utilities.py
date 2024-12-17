@@ -172,16 +172,20 @@ def place_basis(
     # return {"vfun": basis_vfun, "mfun": eval_basis, "r": nbasis, "pars": params}
 
 
-def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N:int=20):
+def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
+
+    # Note that the (N**2/2 + N/2)th coefficient must be real
+
+    if N % 2 != 0:
+        raise Exception("Only even N for convenience")
 
     N = float(N)
 
     @jax.jit
     def phi(k, s):
-        return jnp.sqrt(1/(2*N)) * jnp.exp(2*jnp.pi*1.j*(jnp.dot(k,s)))
+        return jnp.sqrt(1 / (2 * N)) * jnp.exp(2 * jnp.pi * 1.0j * (jnp.dot(k, s)))
 
-    
-    x, y = jnp.meshgrid(jnp.arange(N), jnp.arange(N))
+    x, y = jnp.meshgrid(jnp.arange(N + 1) - N / 2, jnp.arange(N + 1) - N / 2)
     pairs = jnp.stack([x.flatten(), y.flatten()], axis=-1)
 
     @jax.jit
@@ -191,12 +195,12 @@ def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N:int=20):
     @jax.jit
     def eval_basis(s_array):
         return jax.vmap(jax.vmap(phi, in_axes=(0, None)), in_axes=(None, 0))(
-            pairs, s_array, 
+            pairs,
+            s_array,
         )
 
     return Basis(basis_vfun, eval_basis, pairs, int(N**2))
-  
-      
+
 
 def plot_kernel(kernel, output_file="kernel.png"):
     grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([10, 10])).coords
@@ -292,7 +296,7 @@ def plot_st_long(data: ST_Data_Long):
     # Loop through each time point and create a scatter plot
     for t in range(T):
         # fairly sure this should use jnp.where or similar
-        time_data = data_array[data_array[:, 2] == t]
+        time_data = data_array[data_array[:, 2] == t + 1]
         x = time_data[:, 0]
         y = time_data[:, 1]
         values = time_data[:, 3]
@@ -305,7 +309,7 @@ def plot_st_long(data: ST_Data_Long):
             vmin=vmin,
             vmax=vmax,
         )
-        axes[t].set_title(f"Time = {t}", fontsize=11)
+        axes[t].set_title(f"Time = {t+1}", fontsize=11)
         # axes[t].set_xlabel("x", fontsize=9)
         # axes[t].set_ylabel("y", fontsize=9)
         axes[t].tick_params(
