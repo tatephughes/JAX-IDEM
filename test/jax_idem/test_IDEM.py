@@ -12,7 +12,6 @@ import utilities
 
 
 class testSimIDEM:
-
     @pytest.fixture(autouse=True)
     def setup(self):
         # this key gives non-explosive kernel

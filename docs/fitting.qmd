@@ -108,7 +108,7 @@ kernel = param_exp_kernel(K_basis, k)
 process_basis2 = place_basis(nres=1, min_knot_num=5) # courser process basis with 25 total basis functions
 nbasis0 = process_basis2.nbasis
 
-model0 = IDEM(
+model0 = IDEM_model(
         process_basis = process_basis2,
         kernel=kernel,
         process_grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),

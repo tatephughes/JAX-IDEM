@@ -5,7 +5,7 @@ import jax.random as rand
 import jax
 import jax.numpy as jnp
 import jax.lax as jl
-from jax.numpy.linalg import vector_norm, solve
+from jax.numpy.linalg import solve
 
 from tqdm import tqdm
 import optax
@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 # typing imports
 from jax.typing import ArrayLike
-from typing import Callable, NamedTuple  # , Union
+from typing import Callable
 from functools import partial
 
 import warnings
@@ -65,7 +65,8 @@ def param_exp_kernel(K_basis: tuple, k: tuple):
     @jax.jit
     def kernel(s, r):
         """
-        Generates the kernel function from the kernel basis and basis coefficients
+        Generates the kernel function from the kernel basis and basis
+        coefficients
         """
         theta = (
             k[0] @ K_basis[0].vfun(s),
@@ -78,12 +79,13 @@ def param_exp_kernel(K_basis: tuple, k: tuple):
             ),
         )
 
-        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
+        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2))
+                                  / theta[1])
 
     return Kernel(basis=K_basis, params=k, function=kernel)
 
 
-class IDEM:
+class IDEM_Model:
     """The Integro-differential Equation Model."""
 
     def __init__(
@@ -116,9 +118,9 @@ class IDEM:
             self.sigma2_0 = 1000
 
     def get_sim_params(self, int_grid: Grid = create_grid(bounds, ngrids)):
-        """
-        Helper function to grab the relevant parameters for simulation
-        """
+        """Helper function to grab the relevant parameters for simulation"""
+
+        # This is likely to be removed in the future.
 
         M = self.M
         PHI_proc = self.PHI_proc
@@ -158,7 +160,7 @@ class IDEM:
           (3, *) array where the first column corresponds to time, and
           the last two to spatial coordinates. If this is not
           provided, 50 random points per time are chosen in the domain
-          of interest.
+          of interest.d
         int_grid: ArrayLike
           The grid over which to compute the Riemann integral.
 
@@ -237,12 +239,11 @@ class IDEM:
             times = jnp.unique(obs_locs[:, 0])
 
         if T != len(times):
-            raise ValueError("The times in obs_locs does not match inputted T.")
-
-        # X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
+            raise ValueError("The times in obs_locs does not match inputted T")
 
         obs_locs_tree = jax.tree.map(
-            lambda t: obs_locs[jnp.where(obs_locs[:, 0] == t)][:, 1:], list(times)
+            lambda t: obs_locs[jnp.where(
+                obs_locs[:, 0] == t)][:, 1:], list(times)
         )
         PHI_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
 
@@ -276,7 +277,8 @@ class IDEM:
             )
         )
 
-        pdata = jnp.column_stack([t_process_locs, jnp.concatenate(process_vals)])
+        pdata = jnp.column_stack(
+            [t_process_locs, jnp.concatenate(process_vals)])
 
         process_data = ST_Data_Long(
             x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3]
@@ -338,16 +340,22 @@ class IDEM:
         if Q_0 is None:
             Q_0 = jnp.zeros((nbasis, nbasis))
 
-        obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
-        X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
+        obs_locs = jnp.column_stack(
+            jnp.column_stack((obs_data.x, obs_data.y))).T
+        X_obs = jnp.column_stack(
+            [jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
 
         unique_times = jnp.unique(obs_data.t)
 
         if unique_times.shape[0] <= 1:
-            raise ValueError("To filter, there needs to be more that one time point.")
+            raise ValueError(
+                """To filter, there needs to be more that one time
+                               point."""
+            )
 
         time_inds = tuple(jnp.arange(unique_times.shape[0]))
-        obs_locs_tuple = jax.tree.map(lambda t: obs_locs[obs_data.t == t], time_inds)
+        obs_locs_tuple = jax.tree.map(
+            lambda t: obs_locs[obs_data.t == t], time_inds)
 
         PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
 
@@ -376,7 +384,8 @@ class IDEM:
         return (
             jnp.vstack([jnp.flip(seq[0], axis=1), ms[-1]]),
             jnp.concatenate(
-                [jnp.flip(seq[1], axis=1), jnp.reshape(Ps[-1], (1, nbasis, nbasis))]
+                [jnp.flip(seq[1], axis=1), jnp.reshape(
+                    Ps[-1], (1, nbasis, nbasis))]
             ),
             jnp.flip(seq[2], axis=1),
         )
@@ -406,9 +415,11 @@ class IDEM:
                     ]
                 ),
             )
-            return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
+            return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2))
+                                      / theta[1])
 
-        K = outer_op(self.process_grid.coords, self.process_grid.coords, kernel)
+        K = outer_op(self.process_grid.coords,
+                     self.process_grid.coords, kernel)
         return (
             solve(self.GRAM, self.PHI_proc.T @ K @ self.PHI_proc)
             * self.process_grid.area**2
@@ -439,9 +450,11 @@ class IDEM:
                 (
                     jnp.full(
                         self.kernel.params[0].shape,
-                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
+                        150 / (self.process_grid.area *
+                               self.process_grid.ngrid) * 10,
                     ),
-                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
+                    jnp.full(self.kernel.params[1].shape,
+                             ((bound_di / 2) ** 2) / 10),
                     jnp.full(self.kernel.params[2].shape, jnp.inf),
                     jnp.full(self.kernel.params[3].shape, jnp.inf),
                 ),
@@ -464,7 +477,8 @@ class IDEM:
                         * 0.01
                         / 1000,
                     ),
-                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
+                    jnp.full(self.kernel.params[1].shape,
+                             (bound_di / 2) ** 2 * 0.001),
                     jnp.full(self.kernel.params[2].shape, -jnp.inf),
                     jnp.full(self.kernel.params[3].shape, -jnp.inf),
                 ),
@@ -487,7 +501,7 @@ class IDEM:
             jnp.log(self.sigma2_0),
             jnp.log(self.sigma2_eta),
             jnp.log(self.sigma2_eps),
-            self.kernel.params,
+            ks0,
             self.beta,
         )
 
@@ -496,7 +510,12 @@ class IDEM:
 
         @jax.jit
         def objective(params):
-            m_0, log_sigma2_0, log_sigma2_eta, log_sigma2_eps, ks, beta = params
+            (m_0,
+             log_sigma2_0,
+             log_sigma2_eta,
+             log_sigma2_eps,
+             ks,
+             beta, ) = params
 
             logks1, logks2, ks3, ks4 = ks
 
@@ -507,7 +526,8 @@ class IDEM:
             sigma2_eta = jnp.exp(log_sigma2_eta)
             sigma2_eps = jnp.exp(log_sigma2_eps)
 
-            # yes, this looks bad BUT after jit-compilation, these ifs will be compiled away.
+            # yes, this looks bad BUT after jit-compilation,
+            # these ifs will be compiled away.
             if "m_0" in fixed_ind:
                 m_0 = self.m_0
             if "sigma2_0" in fixed_ind:
@@ -556,10 +576,9 @@ class IDEM:
             updates, opt_state = optimizer.update(grad, opt_state)
             params = optax.apply_updates(params, updates)
             params = optax.projections.projection_box(params, lower, upper)
-            nll = objective(params)
 
         # please make sure this is all the arguments necessary
-        new_fitted_model = IDEM(
+        new_fitted_model = IDEM_Model(
             process_basis=self.process_basis,
             kernel=param_exp_kernel(self.kernel.basis, params[4]),
             process_grid=self.process_grid,
@@ -573,17 +592,21 @@ class IDEM:
         init_ll, _, _, _, _, _ = self.filter(obs_data_wide, X_obs)
 
         print(
-            f"The log likelihood (up to a constant) of the initial model is {init_ll}"
+            f"""The log likelihood (up to a constant) of the initial model is
+               {init_ll}"""
         )
         print(
-            f"The final log likelihood (up to a constant) of the fit model is {-objective(params)}"
+            f"""The final log likelihood (up to a constant) of the fit model is
+               {-objective(params)}"""
         )
 
         print(
-            f"\nthe final offset parameters are {params[4][2]} and {params[4][3]}\n\n"
+            f"""\nthe final offset parameters are {params[4][2]} and
+               {params[4][3]}\n\n"""
         )
         print(
-            f"\nthe final variance parameters are {jnp.exp(params[1])}, {jnp.exp(params[2])}, and {jnp.exp(params[3])}\n\n"
+            f"""\nthe final variance parameters are {jnp.exp(params[1])},
+               {jnp.exp(params[2])}, and {jnp.exp(params[3])}\n\n"""
         )
 
         return new_fitted_model
@@ -613,9 +636,11 @@ class IDEM:
                 (
                     jnp.full(
                         self.kernel.params[0].shape,
-                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
+                        150 / (self.process_grid.area *
+                               self.process_grid.ngrid) * 10,
                     ),
-                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
+                    jnp.full(self.kernel.params[1].shape,
+                             ((bound_di / 2) ** 2) / 10),
                     jnp.full(self.kernel.params[2].shape, jnp.inf),
                     jnp.full(self.kernel.params[3].shape, jnp.inf),
                 ),
@@ -638,7 +663,8 @@ class IDEM:
                         * 0.01
                         / 1000,
                     ),
-                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
+                    jnp.full(self.kernel.params[1].shape,
+                             (bound_di / 2) ** 2 * 0.001),
                     jnp.full(self.kernel.params[2].shape, -jnp.inf),
                     jnp.full(self.kernel.params[3].shape, -jnp.inf),
                 ),
@@ -661,7 +687,7 @@ class IDEM:
             jnp.log(self.sigma2_0),
             jnp.log(self.sigma2_eta),
             jnp.log(self.sigma2_eps),
-            self.kernel.params,
+            ks0,
             self.beta,
         )
 
@@ -670,7 +696,8 @@ class IDEM:
 
         @jax.jit
         def objective(params):
-            m_0, log_sigma2_0, log_sigma2_eta, log_sigma2_eps, ks, beta = params
+            (m_0, log_sigma2_0, log_sigma2_eta,
+             log_sigma2_eps, ks, beta, ) = params
 
             logks1, logks2, ks3, ks4 = ks
 
@@ -681,7 +708,6 @@ class IDEM:
             sigma2_eta = jnp.exp(log_sigma2_eta)
             sigma2_eps = jnp.exp(log_sigma2_eps)
 
-            # yes, this looks bad BUT after jit-compilation, these ifs will be compiled away.
             if "m_0" in fixed_ind:
                 m_0 = self.m_0
             if "sigma2_0" in fixed_ind:
@@ -730,10 +756,9 @@ class IDEM:
             updates, opt_state = optimizer.update(grad, opt_state)
             params = optax.apply_updates(params, updates)
             params = optax.projections.projection_box(params, lower, upper)
-            nll = objective(params)
 
         # please make sure this is all the arguments necessary
-        new_fitted_model = IDEM(
+        new_fitted_model = IDEM_Model(
             process_basis=self.process_basis,
             kernel=param_exp_kernel(self.kernel.basis, params[4]),
             process_grid=self.process_grid,
@@ -747,17 +772,21 @@ class IDEM:
         init_ll, _, _, _, _, _ = self.filter(obs_data_wide, X_obs)
 
         print(
-            f"The log likelihood (up to a constant) of the initial model is {init_ll}"
+            f"""The log likelihood (up to a constant) of the initial model is
+             {init_ll}"""
         )
         print(
-            f"The final log likelihood (up to a constant) of the fit model is {-objective(params)}"
+            f"""The final log likelihood (up to a constant) of the fit model
+               is {-objective(params)}"""
         )
 
         print(
-            f"\nthe final offset parameters are {params[4][2]} and {params[4][3]}\n\n"
+            f"""\nthe final offset parameters are {params[4][2]} and
+             {params[4][3]}\n\n"""
         )
         print(
-            f"\nthe final variance parameters are {jnp.exp(params[1])}, {jnp.exp(params[2])}, and {jnp.exp(params[3])}\n\n"
+            f"""\nthe final variance parameters are {jnp.exp(params[1])},
+             {jnp.exp(params[2])}, and {jnp.exp(params[3])}\n\n"""
         )
 
         return new_fitted_model
@@ -780,7 +809,8 @@ def simIDEM(
 ) -> ArrayLike:
     """
     Simulates from a given IDE model.
-    For jit-ability, this only takes in certain parameters. For ease of use, use IDEM.simulate.
+    For jit-ability, this only takes in certain parameters. For ease of use,
+    use IDEM.simulate.
 
     Parameters
     ----------
@@ -793,22 +823,27 @@ def simIDEM(
     PHI_proc: ArrayLike (ngrid,r)
       The process basis coefficient matrix of the points on the process grid
     PHI_obs: ArrayLike (n*T,r*T)
-      The process basis coefficient matrices of the observation points, in block-diagonal form
+      The process basis coefficient matrices of the observation points, in
+      block-diagonal form
     beta: ArrayLike (p,)
       The covariate coefficients for the data
     sigma2_eta: float
-      The variance of the process noise (currently iid, will be a covariance matrix in the future)
+      The variance of the process noise (currently iid, will be a covariance
+      matrix in the future)
     sigma2_eps: float
       The variance of the observation noise
     alpha0: ArrayLike (r,)
       The initial value for the process basis coefficients
     process_grid: Grid
-      The grid at which to expand the process basis coefficients to the process function
+      The grid at which to expand the process basis coefficients to the
+      process function
     int_grid: Grid
-      The grid to compute the Riemann integrals over (will be replaced with a better method soon)
+      The grid to compute the Riemann integrals over (will be replaced with a
+      better method soon)
     Returns
     ----------
-    A tuple containing the values of the process and the values of the observation.
+    A tuple containing the values of the process and the values of the
+      observation.
     """
 
     # key setup
@@ -823,7 +858,8 @@ def simIDEM(
 
     @jax.jit
     def step(carry, key):
-        nextstate = M @ carry + jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
+        nextstate = M @ carry + \
+            jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
         return (nextstate, nextstate)
 
     alpha_keys = rand.split(keys[3], T)
@@ -837,24 +873,7 @@ def simIDEM(
     vget_process = jax.vmap(get_process)
 
     process_vals = vget_process(alpha)
-
-    # X_proc = jnp.column_stack([jnp.ones(s_grid.shape[0]), s_grid])
-    # beta = jnp.array([0.2, 0.2, 0.2])
-
-    # X_obs = jl.map(
-    #    lambda arr: jnp.column_stack([jnp.ones(arr.shape[0]), arr]), obs_locs
-    # )
-
-    # X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
     X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
-
-    # @jax.jit
-    # def get_obs(X_obs_1, PHI_obs_1, alpha_1):
-    #    return (
-    #        X_obs_1 @ beta
-    #        + PHI_obs_1 @ alpha_1
-    #        + jnp.sqrt(sigma2_eps) * rand.normal(key, shape=(nobs,))
-    #    )
 
     obs_vals = (
         X_obs @ beta
@@ -946,35 +965,37 @@ def Q(
     con_M: Callable,  # function to take kernel params and give M
 ):
     M = con_M(ks)
-    nbasis = m_0.shape[0]
+    # nbasis = m_0.shape[0]
 
-    obs_locs = jnp.column_stack((obs_data.x, obs_data.y))
+    # obs_locs = jnp.column_stack((obs_data.x, obs_data.y))
 
     _, seq = kalman_filter(
         m_0, Sigma_0, M, PHI_obs, Sigma_eta, Sigma_eps, beta, obs_data, X_obs
     )
 
     # In hindsight, storing all Ks is a waste of memory when only K_T is needed
-    ms, Ps, mpreds, Ppreds, Ks = seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:]
+    # (ms, Ps, mpreds, Ppreds,
+    # Ks) = seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:]
+    #
+    # _, seq2 = kalman_smoother(ms, Ps, mpreds, Ppreds, M)
 
-    _, seq2 = kalman_smoother(ms, Ps, mpreds, Ppreds, M)
-
-    m_tTs, P_tTs, Js = (
-        jnp.vstack([jnp.flip(seq[0], axis=1), ms[-1]]),
-        jnp.concatenate(
-            [jnp.flip(seq[1], axis=1), jnp.reshape(Ps[-1], (1, nbasis, nbasis))]
-        ),
-        jnp.flip(seq[2], axis=1),
-    )
-
-    _, seq3 = lag1_smoother(Ps, Js, Ks[-1], PHI_obs, M)
-    P_TTmT = (jnp.eye(nbasis) - Ks[-1] @ PHI_obs) @ M @ Ps[-2]
-
-    P_ttmTs = jnp.concatenate(
-        [jnp.flip(seq, axis=1), jnp.reshape(P_TTmT, (1, nbasis, nbasis))]
-    )
-
-    xi_z = jnp.sum(obs_locs, axis=0)
+    # m_tTs, P_tTs, Js = (
+    #   jnp.vstack([jnp.flip(seq[0], axis=1), ms[-1]]),
+    #   jnp.concatenate(
+    #       [jnp.flip(seq[1], axis=1), jnp.reshape(
+    #           Ps[-1], (1, nbasis, nbasis))]
+    #   ),
+    #   jnp.flip(seq[2], axis=1),
+    # )
+    #
+    #    _, seq3 = lag1_smoother(Ps, Js, Ks[-1], PHI_obs, M)
+    #    P_TTmT = (jnp.eye(nbasis) - Ks[-1] @ PHI_obs) @ M @ Ps[-2]
+    #
+    #    P_ttmTs = jnp.concatenate(
+    #        [jnp.flip(seq, axis=1), jnp.reshape(P_TTmT, (1, nbasis, nbasis))]
+    #    )
+    #
+    #    xi_z = jnp.sum(obs_locs, axis=0)
 
 
 def gen_example_idem(
@@ -989,10 +1010,11 @@ def gen_example_idem(
     sigma2_eta=0.05**2,
     sigma2_eps=0.01**2,
 ):
-    """Creates an example IDE model, with randomly generated kernel on the domain
-    [0,1]x[0,1]. Intial value of the process is simply some of the coefficients for the
-    process basis are set to 1. The kernel has a Gaussian shape, with parameters defined
-    as basis expansions in order to allow for spatial variance.
+    """Creates an example IDE model, with randomly generated kernel on the
+      domain [0,1]x[0,1]. Intial value of the process is simply some of the
+      coefficients for the process basis are set to 1. The kernel has a
+      Gaussian shape, with parameters defined as basis expansions in order to
+      allow for spatial variance.
 
     Parameters
     ----------
@@ -1061,7 +1083,7 @@ def gen_example_idem(
 
     beta = jnp.array([0.0, 0.0, 0.0])
 
-    return IDEM(
+    return IDEM_Model(
         process_basis=process_basis,
         kernel=kernel,
         process_grid=process_grid,
@@ -1087,12 +1109,14 @@ def basis_params_to_st_data(alphas, process_basis, process_grid):
     grids = jnp.tile(process_grid.coords, (T, 1, 1))
     t_locs = jnp.vstack(
         jl.map(
-            lambda i: jnp.column_stack([jnp.tile(i, grids[i].shape[0]), grids[i]]),
+            lambda i: jnp.column_stack(
+                [jnp.tile(i, grids[i].shape[0]), grids[i]]),
             jnp.arange(T),
         )
     )
     pdata = jnp.column_stack([t_locs, jnp.concatenate(vals)])
-    data = ST_Data_Long(x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3])
+    data = ST_Data_Long(x=pdata[:, 1], y=pdata[:, 2],
+                        t=pdata[:, 0], z=pdata[:, 3])
     return data
 
 
@@ -1132,17 +1156,24 @@ def param_unwrap(params_wrapped: ArrayLike, dims: tuple):
     sigma2_eps = params_wrapped[nbasis + 1]
     sigma2_eta = params_wrapped[nbasis + 2]
     k = (
-        params_wrapped[nbasis + 3 : nbasis + 3 + kbasis1],
-        params_wrapped[nbasis + 3 + kbasis1 : nbasis + 3 + kbasis1 + kbasis2],
+        params_wrapped[nbasis + 3: nbasis + 3 + kbasis1],
+        params_wrapped[nbasis + 3 + kbasis1: nbasis + 3 + kbasis1 + kbasis2],
         params_wrapped[
-            nbasis + 3 + kbasis1 + kbasis2 : nbasis + 3 + kbasis1 + kbasis2 + kbasis3
+            nbasis
+            + 3
+            + kbasis1
+            + kbasis2: nbasis
+            + 3
+            + kbasis1
+            + kbasis2
+            + kbasis3
         ],
         params_wrapped[
             nbasis
             + 3
             + kbasis1
             + kbasis2
-            + kbasis3 : nbasis
+            + kbasis3: nbasis
             + 3
             + kbasis1
             + kbasis2

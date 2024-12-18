@@ -245,6 +245,87 @@ class ST_Data_Long(NamedTuple):
     z: ArrayLike
 
 
+class st_data:
+    def __init__(self, x: ArrayLike, y: ArrayLike, t: ArrayLike, z: ArrayLike):
+        self.x = x
+        self.y = y
+        self.t = t
+        self.z = z
+
+        self.fig, self.ax = plt.subplots()
+
+        nrows = int(jnp.ceil(T / 3))
+
+        # Create a figure and axes for the subplots
+        self.fig, self.axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
+        self.axes = self.axes.flatten()
+        self.plot_on_axes()
+
+    def as_wide(self):
+        data_array = jnp.column_stack((self.x, self.y, self.t, self.z))
+
+        times = jnp.unique(data_array[:, 2])
+        xycoords = jnp.unique(data_array[:, 0:2], axis=0)
+        nlocs = data_array.shape[0]
+
+        @jax.jit
+        def extract(array):  # (from a generative model, dont trust!)
+            array_no_nan = jax.numpy.nan_to_num(array, nan=0.0)
+            float_value = jnp.sum(array_no_nan)
+            return float_value
+
+        @jax.jit
+        def getval(xy, t):
+            xyt = jnp.hstack((xy, t))
+            mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
+            masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
+            return jl.cond(
+                jnp.all(jnp.isnan(masked)), lambda x: jnp.nan, lambda x: extract(masked), 0
+            )
+
+        return {'x':xycoords[:, 0], 'y':xycoords[:, 1], 'z':outer_op(xycoords, times, getval)}
+
+    def plot_on_axes(self):
+        
+        data_array = jnp.column_stack([self.x,self.y,self.t,self.z])
+
+        T = int(jnp.max(self.t) - jnp.min(self.t)) + 1
+
+        vmin = jnp.min(self.z)
+        vmax = jnp.max(self.z)
+
+        # Loop through each time point and create a scatter plot
+        for t in range(T):
+            # fairly sure this should use jnp.where or similar
+            time_data = data_array[data_array[:, 2] == t + 1]
+            x = time_data[:, 0]
+            y = time_data[:, 1]
+            values = time_data[:, 3]
+
+            scatter = self.axes[t].scatter(
+                x,
+                y,
+                c=values,
+                cmap="viridis",
+                vmin=vmin,
+                vmax=vmax,
+            )
+            self.axes[t].set_title(f"Time = {t+1}", fontsize=11)
+            # axes[t].set_xlabel("x", fontsize=9)
+            # axes[t].set_ylabel("y", fontsize=9)
+            self.axes[t].tick_params(
+                axis="both", which="major", labelsize=5
+            )  # Set tick labels font size
+
+            # Add color bar
+            self.fig.colorbar(scatter, ax=self.axes[t])
+
+        self.fig.tight_layout()
+
+    def show_plot(self):
+        self.fig.show()
+
+
 def ST_tolong(data: ST_Data_Wide):
     return "not implemented"
 
