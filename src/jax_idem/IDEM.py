@@ -27,10 +27,9 @@ from utilities import (
     outer_op,
     Basis,
     Grid,
-    ST_Data_Long,
-    ST_Data_Wide,
     plot_st_long,
     ST_towide,
+    st_data
 )
 
 from filter_smoother_functions import (
@@ -44,8 +43,8 @@ bounds = jnp.array([[0, 1], [0, 1]])
 
 class Kernel:
     """
-    Generic class defining a kernel, or a basis expansion of a kernel,
-    and its parameters.
+    Generic class defining a kernel, or a basis expansion of a kernel with
+    its parameters.
     """
 
     def __init__(
@@ -53,10 +52,48 @@ class Kernel:
         function: Callable,
         basis: tuple = None,
         params: tuple = None,
+        form: str = "expansion"
     ):
         self.basis = basis
         self.params = params
         self.function = function
+        self.form = form
+
+        if form == "expansion":
+            self.fig, self.axes = plt.subplots(figsize=(6, 5))
+            self.plot_on_axes()
+
+    def plot_on_axes(self,
+                     bounds=jnp.array([[0, 1], [0, 1]])):
+
+        grid = create_grid(bounds, jnp.array([10, 10])).coords
+
+        def offset(s):
+            return -jnp.array(
+                [
+                    self.params[2] @ self.basis[2].vfun(s),
+                    self.params[3] @ self.basis[3].vfun(s),
+                ]
+            )
+
+        vecoffset = jax.vmap(offset)
+
+        offsets = vecoffset(grid)
+
+        self.axes.quiver(grid[:, 0], grid[:, 1], offsets[:, 0], offsets[:, 1])
+        # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
+
+        self.axes.set_xticks([])
+        self.axes.set_yticks([])
+
+        self.axes.set_title("Kernel Direction")
+
+    def show_plot(self):
+        if self.form != "expansion":
+            raise Exception("""Kernel graphs only available for kernels formed
+                              with knot-based basis functions""")
+        else:
+            self.fig.show()
 
 
 def param_exp_kernel(K_basis: tuple, k: tuple):
@@ -280,17 +317,17 @@ class IDEM_Model:
         pdata = jnp.column_stack(
             [t_process_locs, jnp.concatenate(process_vals)])
 
-        process_data = ST_Data_Long(
+        process_data = st_data(
             x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3]
         )
 
-        obs_data = ST_Data_Long(
+        obs_data = st_data(
             x=obs_locs[:, 1], y=obs_locs[:, 2], t=obs_locs[:, 0], z=obs_vals
         )
 
         return (process_data, obs_data)
 
-    def filter(self, obs_data_wide: ST_Data_Wide, X_obs):
+    def filter(self, obs_data_wide: st_data, X_obs):
         obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
 
         m_0 = self.m_0
@@ -327,7 +364,7 @@ class IDEM_Model:
 
     def filter_information(
         self,
-        obs_data: ST_Data_Long,
+        obs_data: st_data,
         X_obs,
         nu_0=None,
         Q_0=None,
@@ -340,12 +377,17 @@ class IDEM_Model:
         if Q_0 is None:
             Q_0 = jnp.zeros((nbasis, nbasis))
 
+        unique_times = jnp.unique(obs_data.t)
+
         obs_locs = jnp.column_stack(
             jnp.column_stack((obs_data.x, obs_data.y))).T
-        X_obs = jnp.column_stack(
-            [jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
-
-        unique_times = jnp.unique(obs_data.t)
+        obs_locs_tuple = [obs_locs[obs_locs[:, 0] == t][:, 1:]
+                          for t in unique_times]
+        # X_obs = jnp.column_stack(
+        #    [jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
+        X_obs_tuple = jax.tree.map(lambda locs:
+                                   jnp.column_stack((jnp.ones(len(locs)),
+                                                     locs)), obs_locs_tuple)
 
         if unique_times.shape[0] <= 1:
             raise ValueError(
@@ -353,11 +395,9 @@ class IDEM_Model:
                                point."""
             )
 
-        time_inds = tuple(jnp.arange(unique_times.shape[0]))
-        obs_locs_tuple = jax.tree.map(
-            lambda t: obs_locs[obs_data.t == t], time_inds)
-
         PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
+
+        z = [obs_data.z[obs_data.t == t] for t in unique_times]
 
         carry, seq = information_filter(
             nu_0,
@@ -367,8 +407,8 @@ class IDEM_Model:
             self.sigma2_eta,
             self.sigma2_eps,
             self.beta,
-            obs_data,
-            X_obs,
+            z,
+            X_obs_tuple,
         )
 
         nus, Qs = seq
@@ -427,7 +467,7 @@ class IDEM_Model:
 
     def data_mle_fit(
         self,
-        obs_data: ST_Data_Long,
+        obs_data: st_data,
         X_obs: ArrayLike,
         fixed_ind: list = [],
         lower=None,
@@ -613,7 +653,7 @@ class IDEM_Model:
 
     def fit_information_filter(
         self,
-        obs_data: ST_Data_Long,
+        obs_data: st_data,
         X_obs: ArrayLike,
         fixed_ind: list = [],
         lower=None,
@@ -808,7 +848,7 @@ def simIDEM(
     int_grid: Grid = create_grid(bounds, ngrids),
 ) -> ArrayLike:
     """
-    Simulates from a given IDE model.
+    Simulates from a IDE model.
     For jit-ability, this only takes in certain parameters. For ease of use,
     use IDEM.simulate.
 
@@ -882,73 +922,6 @@ def simIDEM(
     )
 
     return (process_vals, obs_vals)
-
-
-@jax.jit
-def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
-    # not implemented
-    nbasis = ms[0].shape[0]
-
-    @jax.jit
-    def step(carry, y):
-        m_tmtm = y[0]
-        P_tmtm = y[1]
-        m_ttm = y[2]
-        P_ttm = y[3]
-
-        m_tT = carry[0]
-        P_tT = carry[1]
-
-        J_tm = P_tmtm @ M.T @ solve(P_ttm, jnp.eye(nbasis))
-
-        m_tmT = m_tmtm - J_tm @ (m_tT - m_ttm)
-        P_tmT = P_tmtm - J_tm @ (P_tT - P_ttm) @ J_tm.T
-
-        return (m_tmT, P_tmT, J_tm), (m_tmT, P_tmT, J_tm)
-
-    ys = (
-        jnp.flip(ms[0:-1], axis=1),
-        jnp.flip(Ps[0:-1], axis=1),
-        jnp.flip(mpreds, axis=1),
-        jnp.flip(Ppreds, axis=1),
-    )
-    init = (ms[-1], Ps[-1], jnp.zeros((nbasis, nbasis)))
-
-    result = jl.scan(step, init, ys)
-
-    return result
-
-
-@jax.jit
-def lag1_smoother(Ps, Js, K_T, PHI_obs: ArrayLike, M: ArrayLike):
-    nbasis = Ps[0].shape[0]
-    P_TTmT = (jnp.eye(nbasis) - K_T @ PHI_obs) @ M @ Ps[-2]
-
-    @jax.jit
-    def step(carry, y):
-        P_tt = y[0]
-        P_tmtm = y[1]
-        J_t = y[2]
-        J_tm = y[3]
-
-        P_tptT = carry
-
-        P_ttmT = P_tt @ J_tm.T + J_t @ (P_tptT - M @ P_tmtm) @ J_tm.T
-
-        return P_ttmT, P_ttmT
-
-    ys = (
-        jnp.flip(Ps[1:-1], axis=1),
-        jnp.flip(Ps[0:-2], axis=1),
-        jnp.flip(Js[1:], axis=1),
-        jnp.flip(Js[0:-1], axis=1),
-    )
-
-    init = P_TTmT
-
-    result = jl.scan(step, init, ys)
-
-    return result
 
 
 @partial(jax.jit, static_argnames=["con_M"])
@@ -1102,7 +1075,7 @@ def basis_params_to_st_data(alphas, process_basis, process_grid):
 
     @jax.jit
     def get_process(alpha):
-        return PHI_proc @ alpha
+        return PHI_proc @ alpha  # Could I not just multiply by PHI_proc?
 
     vget_process = jax.vmap(get_process)
     vals = vget_process(alphas)  # process values
@@ -1115,8 +1088,8 @@ def basis_params_to_st_data(alphas, process_basis, process_grid):
         )
     )
     pdata = jnp.column_stack([t_locs, jnp.concatenate(vals)])
-    data = ST_Data_Long(x=pdata[:, 1], y=pdata[:, 2],
-                        t=pdata[:, 0], z=pdata[:, 3])
+    data = st_data(x=pdata[:, 1], y=pdata[:, 2],
+                   t=pdata[:, 0], z=pdata[:, 3])
     return data
 
 

@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
 
+# JAX imports
 import jax
 import jax.numpy as jnp
-
-# from typing import Callable
 import jax.lax as jl
 
-# import jax.random as rand
-# from jax.numpy.linalg import solve
-from jax.scipy.optimize import minimize
-
-
+# Typing imports
 from jax.typing import ArrayLike
-
 from typing import Callable, NamedTuple  # , Union
-from jax import Array
+
+# Plotting imports
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 import seaborn as sns
@@ -23,6 +18,17 @@ import io
 
 
 class Grid(NamedTuple):
+
+    """"
+    A simple grid class to store (currently exclusively regular) grids, along
+    with some key quantities such as the lenth between grid points, the
+    number of grid points and the area/volume of each grid square/cube.
+    Supports arbitrarily high dimension.
+    Ideally, in the future, this will support non-regular grids with any
+    necessary quantities to do, for example, integration over the points on the
+    grid.
+    """
+
     coords: ArrayLike
     deltas: ArrayLike
     ngrids: ArrayLike
@@ -32,22 +38,44 @@ class Grid(NamedTuple):
 
 
 class Basis(NamedTuple):
+    """
+    A simple class for spatial basis expansions.
+
+    Attributes
+    ----------
+    vfun: ArrayLike (ndim,) -> ArrayLike (nbasis,)
+      Applying to a single spatial location, evaluates all the basis functions
+      on the single location and returns the result as a vector.
+    mfun: ArrayLike (ndim, n) -> ArrayLike (nbasis, n)
+      Applying to a array of spatial points, evaluates all the basis functions
+      on each point and returns the results in a matrix.
+    params: ArrayLike(nparams, nbasis)
+      The parameters defining each basis function. For example, for bisquare
+      basis functions, the parameters are the locations of the centers of each
+      function, and the function's scale.
+    nbasis: int
+      The number of basis functions in the expansion.
+    """
     vfun: Callable
     mfun: Callable
     params: ArrayLike
     nbasis: int
 
 
-def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> (ArrayLike, float):
-    """Creates an n-dimensional grid based on the given bounds and deltas.
+def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
+    """
+    Creates an n-dimensional grid based on the given bounds and deltas.
 
     Parameters
     ----------
-      bounds: Array[[Double, Double]]; The bounds for each dimension
-      ngrid: Array[Int]; The number of columns/rows/hyper-column in each dimension
+    bounds: ArrayLike (2, n)
+      The bounds for each dimension
+    ngrid: ArrayLike (n, )
+      The number of columns/rows/hyper-column in each dimension
 
     Returns: Grid
-    Grid Object (NamedTuple) containing the coordinates, deltas, grid numbers, areas, etc. See Grid.
+      Grid Object (NamedTuple) containing the coordinates, deltas, grid
+      numbers, areas, etc. See the Grid class.
     """
 
     dimension = jnp.size(bounds, axis=0)
@@ -62,7 +90,8 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> (ArrayLike, float):
     # it should be fine for now, and it won't run inside of loops.
     axis_linspaces = [gen_range(i) for i in range(dimension)]
 
-    grid = jnp.stack(jnp.meshgrid(*axis_linspaces, indexing="ij"), axis=-1).reshape(
+    grid = jnp.stack(jnp.meshgrid(*axis_linspaces,
+                                  indexing="ij"), axis=-1).reshape(
         -1, dimension
     )
 
@@ -78,25 +107,37 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> (ArrayLike, float):
     )
 
 
-def outer_op(a: ArrayLike, b: ArrayLike, op: Callable = lambda x, y: x * y) -> Array:
-    """Computes the outer operation of two vectors, a generalisation of the outer product.
+def outer_op(a: ArrayLike,
+             b: ArrayLike,
+             op: Callable = lambda x, y: x * y) -> ArrayLike:
+    """
+    Computes the outer operation of two vectors, a generalisation of the outer
+    product.
 
     Parameters
     ----------
-    a: ArrayLike[A]; array of the first vector
-    b: ArrayLike[B]; array of the second vector
-    op: A, B -> C; A jit-function acting on an element of vec1 and an element of vec2.
-               By default, this is the outer product.
+    a: ArrayLike[A] (n, )
+      Array of the first vector
+    b: ArrayLike[B] (m, )
+      Array of the second vector
+    op: A, B -> C
+      A jit-function acting on an element of vec1 and an element of vec2.
+      By default, this is the outer product.
 
-    Returns: Array[Array[C]]
-    ----------
-    The matrix of the result of applying operation to every pair of elements from the two vectors.
+    Returns: ArrayLike[C] (n, m)
+      The matrix of the result of applying operation to every pair of elements
+      from the two vectors.
     """
 
     if not isinstance(a, ArrayLike):
         raise TypeError(f"Expected arraylike input; got {a}")
     if not isinstance(b, ArrayLike):
         raise TypeError(f"Expected arraylike input; got {b}")
+
+    # NOTE: this likely goes against the principles of JIT.
+    # Although it feels logical in my head, the operation being used would
+    # be recompiled on each use of this function; it would be much better to
+    # directly vectorise the function using a line akin to the one below.
 
     vec_op = jax.vmap(jax.vmap(op, in_axes=(None, 0)), in_axes=(0, None))
 
@@ -105,6 +146,7 @@ def outer_op(a: ArrayLike, b: ArrayLike, op: Callable = lambda x, y: x * y) -> A
 
 @jax.jit
 def bisquare(s: ArrayLike, params: ArrayLike) -> ArrayLike:
+    """Generic bisquare function"""
     squarenorm = jnp.array([jnp.sum((s - params[0:2]) ** 2)])
     w2 = params[2] ** 2
     return (jnp.where(squarenorm < w2, (1 - squarenorm / w2) ** 2, 0))[0]
@@ -117,19 +159,32 @@ def place_basis(
     min_knot_num=3,
     basis_fun=bisquare,
 ):
-    """Distributes knots (centroids) and scales for basis functions over a number of resolutions,similar to auto_basis from the R package FRK.  This function must be run outside of a jit loop, since it involves varying the length of arrays.
+    """
+    Distributes knots (centroids) and scales for basis functions over a
+    number of resolutions,similar to auto_basis from the R package FRK.
+    This function must be run outside of a jit loop, since it involves
+    varying the length of arrays.
 
     Parameters
     ----------
-      data: Arraylike[ArrayLike[Double]]; array of 2D points defining the space on which to put the basis functions
-      nres: Int; The number of resolutions at which to place basis functions
-      aperture: Double; Scaling factor for the scale parameter (scale parameter will be w=aperture * d, where d is the minimum distance between any two of the knots)
-      min_knot_num: Int; The number of basis functions to place in each dimension at the coursest resolution
-      basis_fun: (ArrayLike[Double], ArrayLike[Double]) -> Double; the basis functions being used. The basis function's second argument must be an array with three doubles; the first coordinate for the centre, the second coordinate for the centre, and the scale/aperture of the function.
-
-    Returns
-    ----------
-    A Basis object (NamedTuple) with the vector and matrix functions, and the parameters associated to the basis functions.
+    data: Arraylike (ndim, npoints)
+      Array of 2D points defining the space on which to put the basis functions
+    nres: Int
+      The number of resolutions at which to place basis functions
+    aperture: Double
+      Scaling factor for the scale parameter (scale parameter will be
+      w=aperture * d, where d is the minimum distance between any two of the
+      knots)
+    min_knot_num: Int
+      The number of basis functions to place in each dimension at the coursest
+      resolution
+    basis_fun: ArrayLike (ndim,), ArrayLike (nparams) -> Double
+      The basis functions being used. The basis function's second argument must
+      be an array with three doubles; the first coordinate for the centre, the
+      second coordinate for the centre, and the scale/aperture of the function.
+    Returns: Basis
+      A Basis object (NamedTuple) with the vector and matrix functions, and the
+      parameters associated to the basis functions.
     """
 
     xmin = jnp.min(data[:, 0])
@@ -164,15 +219,16 @@ def place_basis(
 
     @jax.jit
     def eval_basis(s_array):
-        return jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)), in_axes=(0, None))(
+        return jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)),
+                        in_axes=(0, None))(
             s_array, params
         )
 
     return Basis(basis_vfun, eval_basis, params, nbasis)
-    # return {"vfun": basis_vfun, "mfun": eval_basis, "r": nbasis, "pars": params}
 
 
 def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
+    """Not currently fully implemented."""
 
     # Note that the (N**2/2 + N/2)th coefficient must be real
 
@@ -183,7 +239,8 @@ def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
 
     @jax.jit
     def phi(k, s):
-        return jnp.sqrt(1 / (2 * N)) * jnp.exp(2 * jnp.pi * 1.0j * (jnp.dot(k, s)))
+        return (jnp.sqrt(1 / (2 * N))
+                * jnp.exp(2 * jnp.pi * 1.0j * (jnp.dot(k, s))))
 
     x, y = jnp.meshgrid(jnp.arange(N + 1) - N / 2, jnp.arange(N + 1) - N / 2)
     pairs = jnp.stack([x.flatten(), y.flatten()], axis=-1)
@@ -203,6 +260,9 @@ def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
 
 
 def plot_kernel(kernel, output_file="kernel.png"):
+
+    """Will be replaced with the show_plt method in the kernel class."""
+
     grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([10, 10])).coords
 
     def offset(s):
@@ -230,10 +290,12 @@ def plot_kernel(kernel, output_file="kernel.png"):
     plt.close()
 
 
+# Both of the following calsses will be removed.
+
 class ST_Data_Wide(NamedTuple):
-    x: ArrayLike  # x coordinates
-    y: ArrayLike  # y coordinates
-    z: ArrayLike  # matrix of the process, each row corresponds to a spatial location and each column is a time
+    x: ArrayLike
+    y: ArrayLike
+    z: ArrayLike
 
 
 class ST_Data_Long(NamedTuple):
@@ -246,6 +308,12 @@ class ST_Data_Long(NamedTuple):
 
 
 class st_data:
+
+    """
+    For storing spatio=temporal data and appropriate methods for plotting such
+    data, and converting between long and wide formats.
+    """
+
     def __init__(self, x: ArrayLike, y: ArrayLike, t: ArrayLike, z: ArrayLike):
         self.x = x
         self.y = y
@@ -254,6 +322,8 @@ class st_data:
 
         self.fig, self.ax = plt.subplots()
 
+        times = jnp.unique(t)
+        T = len(times)
         nrows = int(jnp.ceil(T / 3))
 
         # Create a figure and axes for the subplots
@@ -262,6 +332,18 @@ class st_data:
         self.plot_on_axes()
 
     def as_wide(self):
+        """
+        Gives the data in wide format. Any missing data will be represented in
+        the returned matris as NaN.
+
+        Parameters
+        ----------
+
+        Returns: dict
+          A dictionary containing the x coordinates and y coordinates as JAX
+          arrays, and a matrix corresponding to the value of the process at
+          each time point (columns) and spatial point (rows).
+        """
         data_array = jnp.column_stack((self.x, self.y, self.t, self.z))
 
         times = jnp.unique(data_array[:, 2])
@@ -278,16 +360,21 @@ class st_data:
         def getval(xy, t):
             xyt = jnp.hstack((xy, t))
             mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
-            masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
+            masked = jnp.where(
+                mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
             return jl.cond(
-                jnp.all(jnp.isnan(masked)), lambda x: jnp.nan, lambda x: extract(masked), 0
+                jnp.all(jnp.isnan(masked)), lambda x: jnp.nan,
+                lambda x: extract(masked), 0
             )
 
-        return {'x':xycoords[:, 0], 'y':xycoords[:, 1], 'z':outer_op(xycoords, times, getval)}
+        return {'x': xycoords[:, 0], 'y': xycoords[:, 1],
+                'z': outer_op(xycoords, times, getval)}
 
     def plot_on_axes(self):
-        
-        data_array = jnp.column_stack([self.x,self.y,self.t,self.z])
+
+        """Plots the spatio-temporal data on its own axes."""
+
+        data_array = jnp.column_stack([self.x, self.y, self.t, self.z])
 
         T = int(jnp.max(self.t) - jnp.min(self.t)) + 1
 
@@ -349,7 +436,8 @@ def ST_towide(data: ST_Data_Long):
         mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
         masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
         return jl.cond(
-            jnp.all(jnp.isnan(masked)), lambda x: jnp.nan, lambda x: extract(masked), 0
+            jnp.all(jnp.isnan(masked)), lambda x: jnp.nan, lambda x: extract(
+                masked), 0
         )
 
     return ST_Data_Wide(
@@ -358,7 +446,6 @@ def ST_towide(data: ST_Data_Long):
 
 
 def plot_st_long(data: ST_Data_Long):
-    # in the future, you should be able to directly pass in figsize and nrows/cols.
 
     # column_stack doesn't care about named tuples
     data_array = jnp.column_stack(data)
@@ -403,8 +490,8 @@ def plot_st_long(data: ST_Data_Long):
     plt.tight_layout()
 
 
-def gif_st_grid(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=100):
-    # in the future, you should be able to directly pass in figsize and nrows/cols.
+def gif_st_grid(data: ST_Data_Long, output_file="spatio_temporal.gif",
+                interval=100):
 
     data_array = jnp.column_stack(data)
     vmin = jnp.min(data.z)
@@ -444,12 +531,14 @@ def gif_st_grid(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=
         frames.append(Image.open(buf))
 
     frames[0].save(
-        output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
+        output_file, save_all=True,
+        append_images=frames[1:], duration=interval, loop=0
     )
 
 
-def gif_st_pts(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=100):
-    # in the future, you should be able to directly pass in figsize and nrows/cols.
+def gif_st_pts(data: ST_Data_Long,
+               output_file="spatio_temporal.gif",
+               interval=100):
 
     data_array = jnp.column_stack(data)
     vmin = jnp.min(data.z)
@@ -504,7 +593,8 @@ def gif_st_pts(data: ST_Data_Long, output_file="spatio_temporal.gif", interval=1
         frames.append(Image.open(buf))
 
     frames[0].save(
-        output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
+        output_file, save_all=True, append_images=frames[1:],
+        duration=interval, loop=0
     )
 
 

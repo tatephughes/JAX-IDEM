@@ -123,17 +123,14 @@ def information_filter(
     sigma2_eta: tuple,
     sigma2_eps: float,
     beta: ArrayLike,
-    obs_data: ST_Data_Long,
+    z: tuple,
     X_obs: tuple,
 ) -> tuple:
-
-    unique_times = jnp.unique(obs_data.t)
-    time_inds = tuple(jnp.arange(unique_times.shape[0]))
 
     sigma2_eps_inv = 1 / sigma2_eps
 
     mapping_elts = jax.tree.map(
-        lambda t: (obs_data.z[obs_data.t == t], PHI_obs_tuple[t]), time_inds
+        lambda t: (z[t], PHI_obs_tuple[t]), tuple(range(len(z)))
     )
 
     nbasis = nu_0.shape[0]
@@ -184,5 +181,71 @@ def information_filter(
         (nu_0, Q_0),
         scan_elts,
     )
+
+    return result
+
+@jax.jit
+def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
+    # not implemented
+    nbasis = ms[0].shape[0]
+
+    @jax.jit
+    def step(carry, y):
+        m_tmtm = y[0]
+        P_tmtm = y[1]
+        m_ttm = y[2]
+        P_ttm = y[3]
+
+        m_tT = carry[0]
+        P_tT = carry[1]
+
+        J_tm = P_tmtm @ M.T @ solve(P_ttm, jnp.eye(nbasis))
+
+        m_tmT = m_tmtm - J_tm @ (m_tT - m_ttm)
+        P_tmT = P_tmtm - J_tm @ (P_tT - P_ttm) @ J_tm.T
+
+        return (m_tmT, P_tmT, J_tm), (m_tmT, P_tmT, J_tm)
+
+    ys = (
+        jnp.flip(ms[0:-1], axis=1),
+        jnp.flip(Ps[0:-1], axis=1),
+        jnp.flip(mpreds, axis=1),
+        jnp.flip(Ppreds, axis=1),
+    )
+    init = (ms[-1], Ps[-1], jnp.zeros((nbasis, nbasis)))
+
+    result = jl.scan(step, init, ys)
+
+    return result
+
+
+@jax.jit
+def lag1_smoother(Ps, Js, K_T, PHI_obs: ArrayLike, M: ArrayLike):
+    nbasis = Ps[0].shape[0]
+    P_TTmT = (jnp.eye(nbasis) - K_T @ PHI_obs) @ M @ Ps[-2]
+
+    @jax.jit
+    def step(carry, y):
+        P_tt = y[0]
+        P_tmtm = y[1]
+        J_t = y[2]
+        J_tm = y[3]
+
+        P_tptT = carry
+
+        P_ttmT = P_tt @ J_tm.T + J_t @ (P_tptT - M @ P_tmtm) @ J_tm.T
+
+        return P_ttmT, P_ttmT
+
+    ys = (
+        jnp.flip(Ps[1:-1], axis=1),
+        jnp.flip(Ps[0:-2], axis=1),
+        jnp.flip(Js[1:], axis=1),
+        jnp.flip(Js[0:-1], axis=1),
+    )
+
+    init = P_TTmT
+
+    result = jl.scan(step, init, ys)
 
     return result
