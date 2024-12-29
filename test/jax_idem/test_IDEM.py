@@ -11,12 +11,11 @@ import IDEM
 import utilities
 
 
-class testSimIDEM:
+class TestSimIDEM:
     @pytest.fixture(autouse=True)
     def setup(self):
         # this key gives non-explosive kernel
-        key = jax.random.PRNGKey(3)
-        self.keys = rand.split(key, 3)
+        self.key = jax.random.PRNGKey(3)
 
         # make a super simple example model
         self.model = IDEM.gen_example_idem(
@@ -52,6 +51,9 @@ class testSimIDEM:
         self.times = jnp.unique(obs_locs[:, 0])
 
     def test_shape(self):
+
+        keys = rand.split(self.key, 3)
+        
         obs_locs_tree = jax.tree.map(
             lambda t: self.obs_locs[jnp.where(self.obs_locs[:, 0] == t)][:, 1:],
             list(self.times),

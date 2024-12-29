@@ -83,7 +83,7 @@ class TestInformationFilter:
             self.model.sigma2_eta,
             self.model.sigma2_eps,
             self.model.beta,
-            self.obs_data,
+            self.obs_data.z,
             X_obs,
         )
 
