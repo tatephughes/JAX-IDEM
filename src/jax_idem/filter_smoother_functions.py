@@ -26,7 +26,8 @@ def kalman_filter(
     """
     Applies the Kalman Filter to a wide-format matrix of data.
     For jit-ability, this only allows full (no missing) data in a wide format.
-    I hypothesise that, with a temporally parallelised filter, this will both be quicker and have this limitation removed.
+    I hypothesise that, with a temporally parallelised filter, this will both
+    be quicker and have this limitation removed.
 
     Parameters
     ----------
@@ -128,6 +129,7 @@ def information_filter(
 ) -> tuple:
 
     sigma2_eps_inv = 1 / sigma2_eps
+    print(len(z))
 
     mapping_elts = jax.tree.map(
         lambda t: (z[t], PHI_obs_tuple[t]), tuple(range(len(z)))
@@ -199,7 +201,7 @@ def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
         m_tT = carry[0]
         P_tT = carry[1]
 
-        J_tm = P_tmtm @ M.T @ solve(P_ttm, jnp.eye(nbasis))
+        J_tm = P_tmtm @ M.T @ jnp.linalg.solve(P_ttm, jnp.eye(nbasis))
 
         m_tmT = m_tmtm - J_tm @ (m_tT - m_ttm)
         P_tmT = P_tmtm - J_tm @ (P_tT - P_ttm) @ J_tm.T

@@ -320,8 +320,6 @@ class st_data:
         self.t = t
         self.z = z
 
-        self.fig, self.ax = plt.subplots()
-
         times = jnp.unique(t)
         T = len(times)
         nrows = int(jnp.ceil(T / 3))
@@ -490,10 +488,10 @@ def plot_st_long(data: ST_Data_Long):
     plt.tight_layout()
 
 
-def gif_st_grid(data: ST_Data_Long, output_file="spatio_temporal.gif",
+def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
                 interval=100):
 
-    data_array = jnp.column_stack(data)
+    data_array = jnp.column_stack([data.x,data.y,data.t,data.z])
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
 
@@ -536,11 +534,11 @@ def gif_st_grid(data: ST_Data_Long, output_file="spatio_temporal.gif",
     )
 
 
-def gif_st_pts(data: ST_Data_Long,
+def gif_st_pts(data: st_data,
                output_file="spatio_temporal.gif",
                interval=100):
 
-    data_array = jnp.column_stack(data)
+    data_array = jnp.column_stack([data.x,data.y,data.t,data.z])
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
 

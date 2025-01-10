@@ -35,6 +35,7 @@ from utilities import (
 from filter_smoother_functions import (
     kalman_filter,
     information_filter,
+    kalman_smoother
 )
 
 ngrids = jnp.array([41, 41])
@@ -381,8 +382,9 @@ class IDEM_Model:
 
         obs_locs = jnp.column_stack(
             jnp.column_stack((obs_data.x, obs_data.y))).T
-        obs_locs_tuple = [obs_locs[obs_locs[:, 0] == t][:, 1:]
+        obs_locs_tuple = [obs_locs[obs_data.t == t][:, 1:]
                           for t in unique_times]
+        
         # X_obs = jnp.column_stack(
         #    [jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
         X_obs_tuple = jax.tree.map(lambda locs:
@@ -1068,10 +1070,14 @@ def gen_example_idem(
     )
 
 
-def basis_params_to_st_data(alphas, process_basis, process_grid):
+def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     PHI_proc = process_basis.mfun(process_grid.coords)
 
     T = alphas.shape[0]
+    if times is None:
+        times=jnp.arange(T)
+
+    assert T == len(times)
 
     @jax.jit
     def get_process(alpha):
@@ -1083,7 +1089,7 @@ def basis_params_to_st_data(alphas, process_basis, process_grid):
     t_locs = jnp.vstack(
         jl.map(
             lambda i: jnp.column_stack(
-                [jnp.tile(i, grids[i].shape[0]), grids[i]]),
+                [jnp.tile(times[i], grids[i].shape[0]), grids[i]]),
             jnp.arange(T),
         )
     )

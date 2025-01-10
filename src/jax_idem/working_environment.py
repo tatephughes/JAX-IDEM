@@ -39,7 +39,7 @@ init_ob = IDEM.basis_params_to_st_data(jnp.array([m_0]),
 # Simulation
 T = 9
 
-nobs = jax.random.randint(keys[1], (T,), 100, 151)
+nobs = jax.random.randint(keys[1], (T,), 50, 90)
 
 locs_keys = jax.random.split(keys[2], T)
 
@@ -80,7 +80,8 @@ X_obs_tuple = jax.tree.map(lambda locs:
                                              locs)), obs_locs_tuple)
 
 nu_0 = jnp.zeros(nbasis)
-Q_0 = jnp.zeros((nbasis, nbasis))
+#Q_0 = jnp.zeros((nbasis, nbasis))
+Q_0 = 0.001*jnp.eye(nbasis)
 
 z = [obs_data.z[obs_data.t == t] for t in unique_times]
 
@@ -97,15 +98,51 @@ carry, seq = filter_smoother_functions.information_filter(
 
 nus, Qs = seq
 
+# DEPRECIATION WARNING
 ms = jnp.linalg.solve(Qs, nus)
 
-m_0_lse = jnp.linalg.solve(PHI_obs_tuple[0].T@PHI_obs_tuple[0],
+# not invertible!
+m_1_lse = jnp.linalg.solve(PHI_obs_tuple[0].T @ PHI_obs_tuple[0],
                            PHI_obs_tuple[0].T) @ z[0]
 
 
-PHI_obs_new = model.process_basis.mfun(obs_locs_tuple[0])
-print(jnp.linalg.det(PHI_obs_new.T @ PHI_obs_new))
+print(jnp.linalg.det(PHI_obs_tuple[0].T @ PHI_obs_tuple[0]))
 
 filt_data = IDEM.basis_params_to_st_data(ms,
                                          model.process_basis,
-                                         model.process_grid)
+                                         model.process_grid,
+                                         times=unique_times)
+
+
+
+
+# some svd testing
+
+u, s, vh = jnp.linalg.svd(Qs)
+u = tuple(u)
+s = tuple(s)
+vh = tuple(vh)
+
+mapping_elts = jax.tree.map(
+        lambda t: (u[t], s[t], vh[t], nus[t]), tuple(range(len(s)))
+    )
+
+def is_leaf(node):
+    return jax.tree.structure(node).num_leaves == 4
+
+def psinv(tup):
+    u = tup[0]
+    s = tup[1]
+    vh = tup[2]
+    nu = tup[3]
+
+    mu = vh.T @ jnp.diag(1/s) @ u.T @ nu
+
+    return mu
+
+ms2 = jnp.array(jax.tree.map(psinv, mapping_elts, is_leaf=is_leaf))
+
+filt_data_2 = IDEM.basis_params_to_st_data(ms2,
+                                         model.process_basis,
+                                         model.process_grid,
+                                         times=unique_times)
