@@ -1054,8 +1054,6 @@ def gen_example_idem(
         )
         kernel = param_exp_kernel(K_basis, k)
 
-    print(kernel.params)
-
     beta = jnp.array([0.0, 0.0, 0.0])
 
     return IDEM_Model(
@@ -1177,9 +1175,6 @@ if __name__ == "__main__":
     nobs = 50
 
     process_data, obs_data = model.simulate(key, nobs=nobs)
-
-    # plot the object
-    plot_st_long(process_data)
-    plt.show()
-    plot_st_long(obs_data)
+    # Show all the plots generated
+    # Plots are stored in the process_data, obs_data and model.kernel objects.
     plt.show()
