@@ -1,9 +1,22 @@
 ---
 title: "Integro-Difference Equation Models in JAX"
+author: "Evan Tate Paterson Hughes"
 format:
+  pdf:
+    includes:
+      in-header: header.tex
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+         \DefineVerbatimEnvironment{OutputCode}{Verbatim}{breaklines,commandchars=\\\{\}}
   html:
     code-fold: true
+    toc: true
+    mathjax: 
+      extensions: ["breqn", "bm", "ams"]
 jupyter: python3
+bibliography: Bibliography.bib
 ---
 
 ```{python}

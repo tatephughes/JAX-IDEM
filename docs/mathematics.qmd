@@ -5,7 +5,11 @@ format:
   pdf:
     includes:
       in-header: header.tex
-    number-sections: true
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+         \DefineVerbatimEnvironment{OutputCode}{Verbatim}{breaklines,commandchars=\\\{\}}
   html:
     code-fold: true
     toc: true
