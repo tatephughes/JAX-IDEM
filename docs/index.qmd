@@ -1,0 +1,95 @@
+---
+title: "Integro-Difference Equation Models in JAX"
+author: "Evan Tate Paterson Hughes"
+format:
+  pdf:
+    includes:
+      in-header: header.tex
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+         \DefineVerbatimEnvironment{OutputCode}{Verbatim}{breaklines,commandchars=\\\{\}}
+  html:
+    code-fold: true
+    toc: true
+    mathjax: 
+      extensions: ["breqn", "bm", "ams"]
+jupyter: python3
+bibliography: Bibliography.bib
+---
+
+```{python}
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jax_idem'))
+
+import jax
+import importlib
+import utilities
+import IDEM
+
+importlib.reload(utilities)
+importlib.reload(IDEM)
+
+from utilities import *
+from IDEM import *
+import warnings
+
+
+seed = 2
+key = jax.random.PRNGKey(seed)
+keys = rand.split(key, 2)
+
+model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([50, 50]))
+
+# Simulation
+T = 100
+process_data, obs_data = model.simulate(key, T=T, nobs=100)
+
+# plot the objects
+gif_st_grid(process_data, "process.gif")
+gif_st_pts(obs_data, "obs.gif")
+plot_kernel(model.kernel, "kernel.png")
+ 
+
+from PIL import Image, ImageSequence
+
+gif1 = Image.open('process.gif')
+gif2 = Image.open('tardis.gif')
+frames = []
+num_frames_gif1 = len(list(ImageSequence.Iterator(gif1)))
+num_frames_gif2 = len(list(ImageSequence.Iterator(gif2)))
+max_frames = max(num_frames_gif1, num_frames_gif2)
+
+for i in range(max_frames):
+    frame1 = ImageSequence.Iterator(gif1)[i % num_frames_gif1].convert("RGBA")
+    frame2 = ImageSequence.Iterator(gif2)[i % num_frames_gif2].convert("RGBA")
+    combined = Image.alpha_composite(frame1, frame2)
+    frames.append(combined)
+
+
+frames[0].save('process.gif', save_all=True, append_images=frames[1:], duration=gif1.info['duration'], loop=0)
+
+```
+
+
+::: {#fig-example layout-ncol=3}
+
+![Process](process.gif)
+
+![Observations](obs.gif)
+
+![Kernel](kernel.png)
+
+An example IDEM simulation, with the underlying process (left), noisy observations randomly placed at each time interval (center), and the direction of 'flow' dictated by the kernel (right).
+
+:::
+
+## The Mathematics
+
+For a rundown of the mathematics underpinning this model and implementation, see [here](mathematics.html).
+
+## Documentation
+
+Documentation for the package is available [here](../reference/index.html)
