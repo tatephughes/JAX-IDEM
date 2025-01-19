@@ -59,42 +59,39 @@ class Kernel:
         self.params = params
         self.function = function
         self.form = form
-
-        if form == "expansion":
-            self.fig, self.axes = plt.subplots(figsize=(6, 5))
-            self.plot_on_axes()
-
-    def plot_on_axes(self,
-                     bounds=jnp.array([[0, 1], [0, 1]])):
-
-        grid = create_grid(bounds, jnp.array([10, 10])).coords
-
-        def offset(s):
-            return -jnp.array(
-                [
-                    self.params[2] @ self.basis[2].vfun(s),
-                    self.params[3] @ self.basis[3].vfun(s),
-                ]
-            )
-
-        vecoffset = jax.vmap(offset)
-
-        offsets = vecoffset(grid)
-
-        self.axes.quiver(grid[:, 0], grid[:, 1], offsets[:, 0], offsets[:, 1])
-        # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
-
-        self.axes.set_xticks([])
-        self.axes.set_yticks([])
-
-        self.axes.set_title("Kernel Direction")
-
+        
     def show_plot(self):
         if self.form != "expansion":
             raise Exception("""Kernel graphs only available for kernels formed
                               with knot-based basis functions""")
         else:
-            self.fig.show()
+            with plt.style.context('seaborn-v0_8-dark-palette'):
+                fig, axes = plt.subplots(figsize=(6, 5))
+                bounds=jnp.array([[0, 1], [0, 1]])
+                grid = create_grid(bounds, jnp.array([10, 10])).coords
+
+                def offset(s):
+                    return -jnp.array(
+                        [
+                            self.params[2] @ self.basis[2].vfun(s),
+                            self.params[3] @ self.basis[3].vfun(s),
+                        ]
+                    )
+
+                vecoffset = jax.vmap(offset)
+
+                offsets = vecoffset(grid)
+
+                axes.quiver(grid[:, 0], grid[:, 1],
+                                 offsets[:, 0], offsets[:, 1])
+                # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
+
+                axes.set_xticks([])
+                axes.set_yticks([])
+
+                axes.set_title("Kernel Direction")
+
+                fig.show()
 
 
 def param_exp_kernel(K_basis: tuple, k: tuple):
@@ -384,7 +381,7 @@ class IDEM_Model:
             jnp.column_stack((obs_data.x, obs_data.y))).T
         obs_locs_tuple = [obs_locs[obs_data.t == t][:, 1:]
                           for t in unique_times]
-        
+
         # X_obs = jnp.column_stack(
         #    [jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
         X_obs_tuple = jax.tree.map(lambda locs:
@@ -1073,7 +1070,7 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
 
     T = alphas.shape[0]
     if times is None:
-        times=jnp.arange(T)
+        times = jnp.arange(T)
 
     assert T == len(times)
 

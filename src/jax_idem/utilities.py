@@ -321,13 +321,7 @@ class st_data:
         self.z = z
 
         times = jnp.unique(t)
-        T = len(times)
-        nrows = int(jnp.ceil(T / 3))
-
-        # Create a figure and axes for the subplots
-        self.fig, self.axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
-        self.axes = self.axes.flatten()
-        self.plot_on_axes()
+        self.T = len(times)
 
     def as_wide(self):
         """
@@ -368,47 +362,52 @@ class st_data:
         return {'x': xycoords[:, 0], 'y': xycoords[:, 1],
                 'z': outer_op(xycoords, times, getval)}
 
-    def plot_on_axes(self):
-
-        """Plots the spatio-temporal data on its own axes."""
-
-        data_array = jnp.column_stack([self.x, self.y, self.t, self.z])
-
-        T = int(jnp.max(self.t) - jnp.min(self.t)) + 1
-
-        vmin = jnp.min(self.z)
-        vmax = jnp.max(self.z)
-
-        # Loop through each time point and create a scatter plot
-        for t in range(T):
-            # fairly sure this should use jnp.where or similar
-            time_data = data_array[data_array[:, 2] == t + 1]
-            x = time_data[:, 0]
-            y = time_data[:, 1]
-            values = time_data[:, 3]
-
-            scatter = self.axes[t].scatter(
-                x,
-                y,
-                c=values,
-                cmap="viridis",
-                vmin=vmin,
-                vmax=vmax,
-            )
-            self.axes[t].set_title(f"Time = {t+1}", fontsize=11)
-            # axes[t].set_xlabel("x", fontsize=9)
-            # axes[t].set_ylabel("y", fontsize=9)
-            self.axes[t].tick_params(
-                axis="both", which="major", labelsize=5
-            )  # Set tick labels font size
-
-            # Add color bar
-            self.fig.colorbar(scatter, ax=self.axes[t])
-
-        self.fig.tight_layout()
-
     def show_plot(self):
-        self.fig.show()
+
+        nrows = int(jnp.ceil(self.T / 3))
+        
+        # Create a figure and axes for the subplots
+        with plt.style.context('seaborn-v0_8-dark-palette'):
+            fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
+            axes = axes.flatten()
+
+            data_array = jnp.column_stack([self.x, self.y, self.t, self.z])
+
+            T = int(jnp.max(self.t) - jnp.min(self.t)) + 1
+
+            vmin = jnp.min(self.z)
+            vmax = jnp.max(self.z)
+            
+            # Loop through each time point and create a scatter plot
+            for t in range(T):
+                # fairly sure this should use jnp.where or similar
+                time_data = data_array[data_array[:, 2] == t + 1]
+                x = time_data[:, 0]
+                y = time_data[:, 1]
+                values = time_data[:, 3]
+
+                scatter = axes[t].scatter(
+                    x,
+                    y,
+                    c=values,
+                    cmap="viridis",
+                    vmin=vmin,
+                    vmax=vmax,
+                )
+                axes[t].set_title(f"Time = {t+1}", fontsize=11)
+                # axes[t].set_xlabel("x", fontsize=9)
+                # axes[t].set_ylabel("y", fontsize=9)
+                axes[t].tick_params(
+                    axis="both", which="major", labelsize=5
+                )  # Set tick labels font size
+
+                # Add color bar
+                fig.colorbar(scatter, ax=axes[t])
+
+            fig.tight_layout()
+            fig.show()
+
+        
 
 
 def ST_tolong(data: ST_Data_Wide):
@@ -563,7 +562,6 @@ def gif_st_pts(data: st_data,
             c=values,
             size=values,
             sizes=(20, 200),
-            palette="viridis",
             norm=Normalize(vmin=vmin, vmax=vmax),
             legend=False,
             ax=ax,
