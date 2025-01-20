@@ -60,13 +60,15 @@ class Kernel:
         self.function = function
         self.form = form
         
-    def show_plot(self):
+    def show_plot(self,
+                  width=5,
+                  height=4):
         if self.form != "expansion":
             raise Exception("""Kernel graphs only available for kernels formed
                               with knot-based basis functions""")
         else:
             with plt.style.context('seaborn-v0_8-dark-palette'):
-                fig, axes = plt.subplots(figsize=(6, 5))
+                fig, axes = plt.subplots(figsize=(width, height))
                 bounds=jnp.array([[0, 1], [0, 1]])
                 grid = create_grid(bounds, jnp.array([10, 10])).coords
 
@@ -92,6 +94,43 @@ class Kernel:
                 axes.set_title("Kernel Direction")
 
                 fig.show()
+
+    def save_fig(self,
+                 name="kernel.png",
+                 width=5,
+                 height=4,
+                 dpi=300):
+
+        with plt.style.context('seaborn-v0_8-dark-palette'):
+            fig, axes = plt.subplots(figsize=(width, height))
+            bounds=jnp.array([[0, 1], [0, 1]])
+            grid = create_grid(bounds, jnp.array([10, 10])).coords
+
+            def offset(s):
+                return -jnp.array(
+                    [
+                        self.params[2] @ self.basis[2].vfun(s),
+                        self.params[3] @ self.basis[3].vfun(s),
+                    ]
+                )
+
+            vecoffset = jax.vmap(offset)
+
+            offsets = vecoffset(grid)
+
+            axes.quiver(grid[:, 0], grid[:, 1],
+                             offsets[:, 0], offsets[:, 1])
+            # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
+
+            axes.set_xticks([])
+            axes.set_yticks([])
+
+            axes.set_title("Kernel Direction")
+
+            fig.savefig(name, dpi=dpi)
+
+                
+            
 
 
 def param_exp_kernel(K_basis: tuple, k: tuple):
@@ -152,28 +191,6 @@ class IDEM_Model:
         if self.sigma2_0 is None:
             self.sigma2_0 = 1000
 
-    def get_sim_params(self, int_grid: Grid = create_grid(bounds, ngrids)):
-        """Helper function to grab the relevant parameters for simulation"""
-
-        # This is likely to be removed in the future.
-
-        M = self.M
-        PHI_proc = self.PHI_proc
-        beta = self.beta
-        sigma2_eta = self.sigma2_eta
-        sigma2_eps = self.sigma2_eps
-        process_grid = self.process_grid
-
-        return (
-            M,
-            PHI_proc,
-            beta,
-            sigma2_eta,
-            sigma2_eps,
-            process_grid,
-            int_grid,
-        )
-
     def simulate(
         self,
         key,
@@ -189,31 +206,30 @@ class IDEM_Model:
         Parameters
         ----------
         key: ArrayLike
-          PRNG key
+            PRNG key
         obs_locs: ArrayLike
-          the observation locations in long format. This should be a
-          (3, *) array where the first column corresponds to time, and
-          the last two to spatial coordinates. If this is not
-          provided, 50 random points per time are chosen in the domain
-          of interest.d
+            the observation locations in long format. This should be a
+            (3, *) array where the first column corresponds to time, and
+            the last two to spatial coordinates. If this is not
+            provided, 50 random points per time are chosen in the domain
+            of interest.d
         int_grid: ArrayLike
-          The grid over which to compute the Riemann integral.
+            The grid over which to compute the Riemann integral.
 
         Returns
         ----------
-        A tuple containing the Process data and the Observed data, both
-        in long format in the ST_Data_Long type (see
-        [utilities](/.env.example))
+        tuple
+            A tuple containing the Process data and the Observed data, both
+            in long format in the ST_Data_Long type (see
+            [utilities](/.env.example))
         """
-        (
-            M,
-            PHI_proc,
-            beta,
-            sigma2_eta,
-            sigma2_eps,
-            process_grid,
-            int_grid,
-        ) = self.get_sim_params()
+        
+        M = self.M
+        PHI_proc = self.PHI_proc
+        beta = self.beta
+        sigma2_eta = self.sigma2_eta
+        sigma2_eps = self.sigma2_eps
+        process_grid = self.process_grid
 
         m_0 = self.m_0
         P_0 = self.sigma2_0 * jnp.eye(m_0.shape[0])
@@ -979,8 +995,8 @@ def gen_example_idem(
     m_0: ArrayLike = None,
     sigma2_0: ArrayLike = None,
     process_basis: Basis = None,
-    sigma2_eta=0.05**2,
-    sigma2_eps=0.01**2,
+    sigma2_eta=0.2**2,
+    sigma2_eps=0.1**2,
 ):
     """Creates an example IDE model, with randomly generated kernel on the
       domain [0,1]x[0,1]. Intial value of the process is simply some of the

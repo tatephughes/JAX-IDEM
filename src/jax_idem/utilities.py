@@ -488,7 +488,10 @@ def plot_st_long(data: ST_Data_Long):
 
 
 def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
-                interval=100):
+                interval=100,
+                width=5,
+                height=4,
+                dpi=300):
 
     data_array = jnp.column_stack([data.x,data.y,data.t,data.z])
     vmin = jnp.min(data.z)
@@ -505,7 +508,7 @@ def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
         values = time_data[:, 3]
         valmat = jnp.flipud(values.reshape(grid, grid))
 
-        plt.figure(figsize=(6, 5))
+        plt.figure(figsize=(width, height))
 
         sns.heatmap(
             valmat,
@@ -522,7 +525,10 @@ def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
         # plt.set_xlabel(data.x)
         # plt.set_ylabel(data.y)
 
-        plt.savefig(buf, format="png")
+        
+        plt.savefig(buf,
+                    format="png",
+                    dpi=dpi)
         plt.close()
 
         frames.append(Image.open(buf))
@@ -535,7 +541,10 @@ def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
 
 def gif_st_pts(data: st_data,
                output_file="spatio_temporal.gif",
-               interval=100):
+               interval=100,
+               width=5,
+               height=4,
+               dpi=300):
 
     data_array = jnp.column_stack([data.x,data.y,data.t,data.z])
     vmin = jnp.min(data.z)
@@ -551,7 +560,7 @@ def gif_st_pts(data: st_data,
         y = time_data[:, 1]
         values = time_data[:, 3]
 
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(width, height))
 
         # plt.scatter(x, y, c=values, vmin=vmin, vmax=vmax, cmap="viridis")
 
@@ -583,7 +592,9 @@ def gif_st_pts(data: st_data,
         sm.set_array([])
         fig.colorbar(sm, ax=ax)
 
-        plt.savefig(buf, format="png")
+        plt.savefig(buf,
+                    format="png",
+                    dpi=dpi)
         plt.close()
 
         frames.append(Image.open(buf))

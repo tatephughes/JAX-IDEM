@@ -5,9 +5,10 @@ import jax.numpy as jnp
 import jax.lax as jl
 from jax.typing import ArrayLike
 
+from functools import partial
 
 # ONLY SUPPORTS FIXED OBSERVATION LOCATIONS
-@jax.jit
+@partial(jax.jit, static_argnames=["full_likelihood"])
 def kalman_filter(
     m_0: ArrayLike,
     P_0: ArrayLike,
@@ -16,6 +17,7 @@ def kalman_filter(
     Sigma_eta: ArrayLike,
     Sigma_eps: ArrayLike,
     ztildes: ArrayLike,  # data matrix, with time across columns
+    full_likelihood: bool = False
 ) -> tuple:
     """
     Applies the Kalman Filter to a wide-format matrix of data.
@@ -87,8 +89,13 @@ def kalman_filter(
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
         z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t)
-        ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))
-                              ) - 0.5 * jnp.dot(z, z)
+
+        if full_likelihood:
+            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
+        else:
+            ll_new = ll - \
+                jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
 
         return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
             m_up,
