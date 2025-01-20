@@ -995,7 +995,7 @@ def gen_example_idem(
     m_0: ArrayLike = None,
     sigma2_0: ArrayLike = None,
     process_basis: Basis = None,
-    sigma2_eta=0.2**2,
+    sigma2_eta=0.5**2,
     sigma2_eps=0.1**2,
 ):
     """Creates an example IDE model, with randomly generated kernel on the
@@ -1036,7 +1036,7 @@ def gen_example_idem(
     if m_0 is None:
         m_0 = jnp.zeros(nbasis)
     if sigma2_0 is None:
-        sigma2_0 = 0.1
+        sigma2_0 = 0.01
 
     if k_spat_inv:
         K_basis = (

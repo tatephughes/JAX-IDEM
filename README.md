@@ -1,8 +1,8 @@
 # The Model
 
-| Process                 | Observations        | Kernel                 |
-|:-----------------------:|:-------------------:|:----------------------:|
-| ![](./docs/process.gif) | ![](./docs/obs.gif) | ![](./docs/kernel.png) |
+| Process                                                       | Observations        | Kernel                 |
+|:-------------------------------------------------------------:|:-------------------:|:----------------------:|
+| ![Time and Relative Dimensions in Space!](./docs/process.gif) | ![](./docs/obs.gif) | ![](./docs/kernel.png) |
 
 The Integro-Difference Equation model, sometimes abbreviated to IDE or, to avoid confusion with integrated development environments, IDEM, is a hierarchical dynamic spatio-temporal model, which can be written
 
