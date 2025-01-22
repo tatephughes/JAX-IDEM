@@ -24,10 +24,8 @@ def kalman_filter(
     """
     Applies the Kalman Filter to a wide-format matrix of data.
     For jit-ability, this only allows full (no missing) data in a wide format.
-    I hypothesise that, with a temporally parallelised filter, this will both
-    be quicker and have this limitation removed.
-
-    See also [the version for independant errors](kalman_filter_indep.qmd)
+    For changing data locations or changing data dimension, see
+    information_filter_indep.
 
     Parameters
     ----------
@@ -129,11 +127,11 @@ def kalman_filter_indep(
     full_likelihood: bool = False
 ) -> tuple:
     """
-    Applies the Kalman Filter to a wide-format matrix of data, with some
-    added efficiency for independant errors.
+    Applies the Kalman Filter to a wide-format matrix of data.
+    Includes some optimisation for uncorrelated errors.
     For jit-ability, this only allows full (no missing) data in a wide format.
-    I hypothesise that, with a temporally parallelised filter, this will both
-    be quicker and have this limitation removed.
+    For changing data locations or changing data dimension, see
+    information_filter_indep.
 
     Parameters
     ----------
@@ -145,9 +143,9 @@ def kalman_filter_indep(
         The transition matrix of the process
     PHI_obs: ArrayLike (r,n)
         The process-to-data matrix
-    sigma2_eta: floats
+    sigma2_eta: float
         The Covariance matrix of the process noise
-    sigma2_eps: floats
+    sigma2_eps: float
         The Covariance matrix of the observation noise
     ztildes: ArrayLike
         The observed data to be filtered, in matrix format
@@ -240,6 +238,36 @@ def information_filter(
     ztildes: tuple,
     full_likelihood: bool = False
 ) -> tuple:
+    """
+    Applies the Information Filter to a PyTree of data.
+    
+    Parameters
+    ----------
+    nu_0: ArrayLike (r,)
+        The initial information of the process vector
+    Q_0: ArrayLike (r,r)
+        The initial information matrix of the process vector
+    M: ArrayLike (r,r)
+        The transition matrix of the process
+    PHI_obs_tuple: Pytree[ArrayLike (r,n)]
+        The process-to-data matrix
+    Sigma_eta: ArrayLike (r,r)
+        The Covariance matrix of the process noise
+    sigma2_eps_tuple: Pytree[ArrayLike (n_t,n_t)]
+        The Covariance matrix of the observation noise
+    ztildes: ArrayLike
+        The observed data to be filtered, in matrix format
+    full_likelihood: bool
+        Whether to include constant terms in the likelihood computation
+    Returns
+    ----------
+    A tuple containing:
+        ll: The log (data) likelihood of the data
+        nus: (T,r) The posterior information vectors $\nu_{t \mid t}$ of the
+    process given the data 1:t
+        Qs: (T,r,r) The posterior information matrices $Q_{t \mid t}$ of
+    the process given the data 1:t
+    """
 
     mapping_elts = jax.tree.map(
         lambda t: (ztildes[t], PHI_obs_tuple[t],
@@ -321,6 +349,37 @@ def information_filter_indep(
     ztildes: tuple,
     full_likelihood: bool = True
 ) -> tuple:
+    """
+    Applies the Information Filter to a PyTree of data.
+    Includes some optimisation for uncorrelated errors.
+    
+    Parameters
+    ----------
+    nu_0: ArrayLike (r,)
+        The initial information of the process vector
+    Q_0: ArrayLike (r,r)
+        The initial information matrix of the process vector
+    M: ArrayLike (r,r)
+        The transition matrix of the process
+    PHI_obs_tuple: Pytree[ArrayLike (r,n)]
+        The process-to-data matrix
+    sigma2_eta: float
+        The variance of the process noise
+    sigma2_eps: float
+        The variance of the observation noise
+    ztildes: ArrayLike
+        The observed data to be filtered, in matrix format
+    full_likelihood: bool
+        Whether to include constant terms in the likelihood computation
+    Returns
+    ----------
+    A tuple containing:
+        ll: The log (data) likelihood of the data
+        nus: (T,r) The posterior information vectors $\nu_{t \mid t}$ of the
+    process given the data 1:t
+        Qs: (T,r,r) The posterior information matrices $Q_{t \mid t}$ of
+    the process given the data 1:t
+    """
 
     mapping_elts = jax.tree.map(
         lambda t: (ztildes[t], PHI_obs_tuple[t],
@@ -397,7 +456,7 @@ def information_filter_indep(
 
 @jax.jit
 def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
-    # not implemented
+    """NOT FULLY IMPLEMENTED"""
     nbasis = ms[0].shape[0]
 
     @jax.jit
@@ -432,6 +491,8 @@ def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
 
 @jax.jit
 def lag1_smoother(Ps, Js, K_T, PHI_obs: ArrayLike, M: ArrayLike):
+    """CURRENTLY OUT-OF-DATE AND UNTESTED"""
+    
     nbasis = Ps[0].shape[0]
     P_TTmT = (jnp.eye(nbasis) - K_T @ PHI_obs) @ M @ Ps[-2]
 

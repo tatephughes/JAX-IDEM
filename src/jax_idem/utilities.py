@@ -44,17 +44,17 @@ class Basis(NamedTuple):
     Attributes
     ----------
     vfun: ArrayLike (ndim,) -> ArrayLike (nbasis,)
-      Applying to a single spatial location, evaluates all the basis functions
-      on the single location and returns the result as a vector.
+        Applying to a single spatial location, evaluates all the basis functions
+        on the single location and returns the result as a vector.
     mfun: ArrayLike (ndim, n) -> ArrayLike (nbasis, n)
-      Applying to a array of spatial points, evaluates all the basis functions
-      on each point and returns the results in a matrix.
+        Applying to a array of spatial points, evaluates all the basis functions
+        on each point and returns the results in a matrix.
     params: ArrayLike(nparams, nbasis)
-      The parameters defining each basis function. For example, for bisquare
-      basis functions, the parameters are the locations of the centers of each
-      function, and the function's scale.
+        The parameters defining each basis function. For example, for bisquare
+        basis functions, the parameters are the locations of the centers of each
+        function, and the function's scale.
     nbasis: int
-      The number of basis functions in the expansion.
+        The number of basis functions in the expansion.
     """
     vfun: Callable
     mfun: Callable
@@ -69,13 +69,13 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
     Parameters
     ----------
     bounds: ArrayLike (2, n)
-      The bounds for each dimension
+        The bounds for each dimension
     ngrid: ArrayLike (n, )
-      The number of columns/rows/hyper-column in each dimension
+        The number of columns/rows/hyper-column in each dimension
 
     Returns: Grid
-      Grid Object (NamedTuple) containing the coordinates, deltas, grid
-      numbers, areas, etc. See the Grid class.
+        Grid Object (NamedTuple) containing the coordinates, deltas, grid
+        numbers, areas, etc. See the Grid class.
     """
 
     dimension = jnp.size(bounds, axis=0)
@@ -117,16 +117,18 @@ def outer_op(a: ArrayLike,
     Parameters
     ----------
     a: ArrayLike[A] (n, )
-      Array of the first vector
+        Array of the first vector
     b: ArrayLike[B] (m, )
-      Array of the second vector
+        Array of the second vector
     op: A, B -> C
-      A jit-function acting on an element of vec1 and an element of vec2.
-      By default, this is the outer product.
+        A jit-function acting on an element of vec1 and an element of vec2.
+        By default, this is the outer product.
 
-    Returns: ArrayLike[C] (n, m)
-      The matrix of the result of applying operation to every pair of elements
-      from the two vectors.
+    Returns
+    ----------
+    ArrayLike[C] (n, m):
+        The matrix of the result of applying operation to every pair of elements
+        from the two vectors.
     """
 
     if not isinstance(a, ArrayLike):
@@ -168,23 +170,24 @@ def place_basis(
     Parameters
     ----------
     data: Arraylike (ndim, npoints)
-      Array of 2D points defining the space on which to put the basis functions
+        Array of 2D points defining the space on which to put the basis functions
     nres: Int
-      The number of resolutions at which to place basis functions
+        The number of resolutions at which to place basis functions
     aperture: Double
-      Scaling factor for the scale parameter (scale parameter will be
-      w=aperture * d, where d is the minimum distance between any two of the
-      knots)
+        Scaling factor for the scale parameter (scale parameter will be
+        w=aperture * d, where d is the minimum distance between any two of the
+        knots)
     min_knot_num: Int
-      The number of basis functions to place in each dimension at the coursest
-      resolution
+        The number of basis functions to place in each dimension at the coursest
+        resolution
     basis_fun: ArrayLike (ndim,), ArrayLike (nparams) -> Double
-      The basis functions being used. The basis function's second argument must
-      be an array with three doubles; the first coordinate for the centre, the
-      second coordinate for the centre, and the scale/aperture of the function.
-    Returns: Basis
-      A Basis object (NamedTuple) with the vector and matrix functions, and the
-      parameters associated to the basis functions.
+        The basis functions being used. The basis function's second argument must
+        be an array with three doubles; the first coordinate for the centre, the
+        second coordinate for the centre, and the scale/aperture of the function.
+    Returns
+    ----------
+    A Basis object (NamedTuple) with the vector and matrix functions, and the
+    parameters associated to the basis functions.
     """
 
     xmin = jnp.min(data[:, 0])
@@ -290,27 +293,10 @@ def plot_kernel(kernel, output_file="kernel.png"):
     plt.close()
 
 
-# Both of the following calsses will be removed.
-
-class ST_Data_Wide(NamedTuple):
-    x: ArrayLike
-    y: ArrayLike
-    z: ArrayLike
-
-
-class ST_Data_Long(NamedTuple):
-    """This could be a full class with plotting methods!"""
-
-    x: ArrayLike
-    y: ArrayLike
-    t: ArrayLike
-    z: ArrayLike
-
-
 class st_data:
 
     """
-    For storing spatio=temporal data and appropriate methods for plotting such
+    For storing spatio-temporal data and appropriate methods for plotting such
     data, and converting between long and wide formats.
     """
 
@@ -332,9 +318,9 @@ class st_data:
         ----------
 
         Returns: dict
-          A dictionary containing the x coordinates and y coordinates as JAX
-          arrays, and a matrix corresponding to the value of the process at
-          each time point (columns) and spatial point (rows).
+            A dictionary containing the x coordinates and y coordinates as JAX
+            arrays, and a matrix corresponding to the value of the process at
+            each time point (columns) and spatial point (rows).
         """
         data_array = jnp.column_stack((self.x, self.y, self.t, self.z))
 
@@ -406,86 +392,6 @@ class st_data:
 
             fig.tight_layout()
             fig.show()
-
-        
-
-
-def ST_tolong(data: ST_Data_Wide):
-    return "not implemented"
-
-
-def ST_towide(data: ST_Data_Long):
-    data_array = jnp.column_stack((data.x, data.y, data.t, data.z))
-
-    times = jnp.unique(data_array[:, 2])
-    xycoords = jnp.unique(data_array[:, 0:2], axis=0)
-    nlocs = data_array.shape[0]
-
-    @jax.jit
-    def extract(array):  # (from a generative model, dont trust!)
-        array_no_nan = jax.numpy.nan_to_num(array, nan=0.0)
-        float_value = jnp.sum(array_no_nan)
-        return float_value
-
-    @jax.jit
-    def getval(xy, t):
-        xyt = jnp.hstack((xy, t))
-        mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
-        masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
-        return jl.cond(
-            jnp.all(jnp.isnan(masked)), lambda x: jnp.nan, lambda x: extract(
-                masked), 0
-        )
-
-    return ST_Data_Wide(
-        x=xycoords[:, 0], y=xycoords[:, 1], z=outer_op(xycoords, times, getval)
-    )
-
-
-def plot_st_long(data: ST_Data_Long):
-
-    # column_stack doesn't care about named tuples
-    data_array = jnp.column_stack(data)
-
-    T = int(jnp.max(data.t) - jnp.min(data.t)) + 1
-
-    vmin = jnp.min(data.z)
-    vmax = jnp.max(data.z)
-
-    nrows = int(jnp.ceil(T / 3))
-
-    # Create a figure and axes for the subplots
-    fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
-    axes = axes.flatten()
-
-    # Loop through each time point and create a scatter plot
-    for t in range(T):
-        # fairly sure this should use jnp.where or similar
-        time_data = data_array[data_array[:, 2] == t + 1]
-        x = time_data[:, 0]
-        y = time_data[:, 1]
-        values = time_data[:, 3]
-
-        scatter = axes[t].scatter(
-            x,
-            y,
-            c=values,
-            cmap="viridis",
-            vmin=vmin,
-            vmax=vmax,
-        )
-        axes[t].set_title(f"Time = {t+1}", fontsize=11)
-        # axes[t].set_xlabel("x", fontsize=9)
-        # axes[t].set_ylabel("y", fontsize=9)
-        axes[t].tick_params(
-            axis="both", which="major", labelsize=5
-        )  # Set tick labels font size
-
-        # Add color bar
-        fig.colorbar(scatter, ax=axes[t])
-
-    plt.tight_layout()
-
 
 def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
                 interval=100,
@@ -603,33 +509,3 @@ def gif_st_pts(data: st_data,
         output_file, save_all=True, append_images=frames[1:],
         duration=interval, loop=0
     )
-
-
-def plot_st_wide(data: ST_Data_Wide):
-    print("WARNING plot_st_wide is not fully implemented")
-    vmin = jnp.min(data.z)
-    vmax = jnp.max(data.z)
-
-    T = data.z.shape[0]
-
-    fig, axes = plt.subplots(3, int(jnp.ceil(T / 3)), figsize=(8, 5))
-
-    for i in range(T):
-        ax = axes[i // 3, i % (int(jnp.ceil(T / 3)))]
-        scatter = ax.scatter(
-            data.x,
-            data.y,
-            c=data.z[i],
-            cmap="viridis",
-            marker="s",
-            vmin=vmin,
-            vmax=vmax,
-        )
-        ax.set_title(f"T = {i+1}")
-        ax.set_title(f"T = {i+1}", fontsize=11)  # Set title font size
-        ax.tick_params(
-            axis="both", which="major", labelsize=9
-        )  # Set tick labels font size
-        fig.colorbar(scatter, ax=ax)
-
-    plt.tight_layout()

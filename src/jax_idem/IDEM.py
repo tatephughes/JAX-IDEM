@@ -27,7 +27,6 @@ from utilities import (
     outer_op,
     Basis,
     Grid,
-    plot_st_long,
     ST_towide,
     st_data
 )
@@ -35,8 +34,10 @@ from utilities import (
 from filter_smoother_functions import (
     kalman_filter,
     information_filter,
-    kalman_smoother
+    kalman_smoother,
 )
+
+import filter_smoother_functions as fsf
 
 ngrids = jnp.array([41, 41])
 bounds = jnp.array([[0, 1], [0, 1]])
@@ -63,6 +64,8 @@ class Kernel:
     def show_plot(self,
                   width=5,
                   height=4):
+        """Shows a plot of the direction of the kernel."""
+        
         if self.form != "expansion":
             raise Exception("""Kernel graphs only available for kernels formed
                               with knot-based basis functions""")
@@ -100,6 +103,7 @@ class Kernel:
                  width=5,
                  height=4,
                  dpi=300):
+        """Saves a plot of the direction of the kernel."""
 
         with plt.style.context('seaborn-v0_8-dark-palette'):
             fig, axes = plt.subplots(figsize=(width, height))
@@ -207,13 +211,13 @@ class IDEM_Model:
         ----------
         key: ArrayLike
             PRNG key
-        obs_locs: ArrayLike
+        obs_locs: ArrayLike (3, n)
             the observation locations in long format. This should be a
-            (3, *) array where the first column corresponds to time, and
+            (3, n) array where the first column corresponds to time, and
             the last two to spatial coordinates. If this is not
             provided, 50 random points per time are chosen in the domain
             of interest.d
-        int_grid: ArrayLike
+        int_grid: ArrayLike (3, nint)
             The grid over which to compute the Riemann integral.
 
         Returns
@@ -314,9 +318,11 @@ class IDEM_Model:
             obs_locs=obs_locs,
             process_grid=process_grid,
             int_grid=int_grid,
+            sigma2_eps=sigma2_eps,
+            sigma2_eta=sigma2_eta
         )
 
-        # Create ST_Data_Long object
+        # Create st_data object
         process_grids = jnp.tile(process_grid.coords, (T, 1, 1))
 
         t_process_locs = jnp.vstack(
@@ -342,6 +348,9 @@ class IDEM_Model:
         return (process_data, obs_data)
 
     def filter(self, obs_data_wide: st_data, X_obs):
+        """
+        Runs the Kalman filter on the inputted data.
+        """
         obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
 
         m_0 = self.m_0
@@ -383,6 +392,7 @@ class IDEM_Model:
         nu_0=None,
         Q_0=None,
     ):
+        """NOT IMPLEMENTED"""
 
         nbasis = self.process_basis.nbasis
 
@@ -431,6 +441,7 @@ class IDEM_Model:
         return (nus, Qs)
 
     def smooth(self, ms, Ps, mpreds, Ppreds):
+        """Runs the Kalman smoother on the """
         M = self.M
         nbasis = ms[-1].shape[0]
 
@@ -446,10 +457,11 @@ class IDEM_Model:
         )
 
     def lag1smooth(self, Ps, Js, K_T, PHI_obs):
+        """NOT FULLY IMPLEMENTED OR TESTED"""
         M = self.M
         nbasis = Ps[0].shape[0]
 
-        carry, seq = lag1_smoother(Ps, Js, K_T, PHI_obs, M)
+        carry, seq = fsf.lag1_smoother(Ps, Js, K_T, PHI_obs, M)
 
         P_TTmT = (jnp.eye(nbasis) - K_T @ PHI_obs) @ M @ Ps[-2]
 
@@ -459,6 +471,19 @@ class IDEM_Model:
 
     @partial(jax.jit, static_argnames=["self"])
     def con_M(self, ks):
+        """
+        Creates the propegation matrix, M, with a given set of kernel parameters.
+
+        Params
+        ----------
+        ks: PyTree(ArrayLike)
+            The kernel parameters used to construct the matrix (must match the
+            structure of self.kernel.params).
+        Returns
+        ----------
+        M: ArrayLike (r, r)
+            The propegation matrix M.
+        """
         def kernel(s, r):
             theta = (
                 ks[0] @ self.kernel.basis[0].vfun(s),
@@ -490,6 +515,7 @@ class IDEM_Model:
         optimizer=optax.adam(1e-3),
         nits: int = 10,
     ):
+        """MAY BE OUT OF DATE"""
         obs_data_wide = ST_towide(obs_data)
         obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
         PHI_obs = self.process_basis.mfun(obs_locs)
@@ -676,6 +702,7 @@ class IDEM_Model:
         optimizer=optax.adam(1e-3),
         nits: int = 10,
     ):
+        """NOT FULLY IMPLEMENTED"""
         obs_data_wide = ST_towide(obs_data)
         obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
         PHI_obs = self.process_basis.mfun(obs_locs)
@@ -870,35 +897,35 @@ def simIDEM(
     Parameters
     ----------
     key: ArrayLike (2,)
-      PRNG key
+        PRNG key
     T: int
-      The number of time points to simulate
+        The number of time points to simulate
     M: ArrayLike (r,r)
-      The transition matrix of the proces
+        The transition matrix of the proces
     PHI_proc: ArrayLike (ngrid,r)
-      The process basis coefficient matrix of the points on the process grid
+        The process basis coefficient matrix of the points on the process grid
     PHI_obs: ArrayLike (n*T,r*T)
-      The process basis coefficient matrices of the observation points, in
-      block-diagonal form
+        The process basis coefficient matrices of the observation points, in
+        block-diagonal form
     beta: ArrayLike (p,)
-      The covariate coefficients for the data
+        The covariate coefficients for the data
     sigma2_eta: float
-      The variance of the process noise (currently iid, will be a covariance
-      matrix in the future)
+        The variance of the process noise (currently iid, will be a covariance
+        matrix in the future)
     sigma2_eps: float
-      The variance of the observation noise
+        The variance of the observation noise
     alpha0: ArrayLike (r,)
-      The initial value for the process basis coefficients
+        The initial value for the process basis coefficients
     process_grid: Grid
-      The grid at which to expand the process basis coefficients to the
-      process function
+        The grid at which to expand the process basis coefficients to the
+        process function
     int_grid: Grid
-      The grid to compute the Riemann integrals over (will be replaced with a
-      better method soon)
+        The grid to compute the Riemann integrals over (will be replaced with a
+        better method soon)
     Returns
     ----------
     A tuple containing the values of the process and the values of the
-      observation.
+    observation.
     """
 
     # key setup
@@ -998,26 +1025,27 @@ def gen_example_idem(
     sigma2_eta=0.5**2,
     sigma2_eps=0.1**2,
 ):
-    """Creates an example IDE model, with randomly generated kernel on the
-      domain [0,1]x[0,1]. Intial value of the process is simply some of the
-      coefficients for the process basis are set to 1. The kernel has a
-      Gaussian shape, with parameters defined as basis expansions in order to
-      allow for spatial variance.
+    """
+    Creates an example IDE model, with randomly generated kernel on the
+    domain [0,1]x[0,1]. Intial value of the process is simply some of the
+    coefficients for the process basis are set to 1. The kernel has a
+    Gaussian shape, with parameters defined as basis expansions in order to
+    allow for spatial variance.
 
     Parameters
     ----------
     key: ArrayLike
-      PRNG key
+        PRNG key
     k_spat_inv: Bool
-      Whether or not the generated kernel should be spatially invariant.
+        Whether or not the generated kernel should be spatially invariant.
     ngrid: ArrayLike
-      The resolution of the grid at which the process is computed.
-      Should have shape (2,).
+        The resolution of the grid at which the process is computed.
+        Should have shape (2,).
     nints: ArrayLike
-      The resolution of the grid at which Riemann integrals are computed.
-      Should have shape (2,)
+        The resolution of the grid at which Riemann integrals are computed.
+        Should have shape (2,)
     nobs: int
-      The number of observations per time interval.
+        The number of observations per time interval.
 
     Returns
     ----------
@@ -1082,6 +1110,22 @@ def gen_example_idem(
 
 
 def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
+    """
+    Converts the process expansion coefficients back into the original process
+    $Y_t(s)$ on the inputted process grid.
+
+    Params
+    ----------
+    alphas: ArrayLike (T, r)
+      The basis coefficients of the process
+    process_basis: Basis
+      The basis to use in the expansion
+    process_grid: Grid
+      The grid points on which to evaluate $Y$
+    times: ArrayLike (T,)
+      (optional) The array of times which the processes correspond to
+    """
+    
     PHI_proc = process_basis.mfun(process_grid.coords)
 
     T = alphas.shape[0]
@@ -1108,72 +1152,6 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     data = st_data(x=pdata[:, 1], y=pdata[:, 2],
                    t=pdata[:, 0], z=pdata[:, 3])
     return data
-
-
-def param_wrap(params: tuple):
-    m_0 = params[0]
-    sigma2_0 = jnp.array([params[1]])
-    sigma2_eps = jnp.array([params[2]])
-    sigma2_eta = jnp.array([params[3]])
-    k1 = params[4][0]
-    k2 = params[4][1]
-    k3 = params[4][2]
-    k4 = params[4][3]
-
-    nbasis = m_0.shape[0]
-    kbasis1 = k1.shape[0]
-    kbasis2 = k2.shape[0]
-    kbasis3 = k3.shape[0]
-    kbasis4 = k4.shape[0]
-
-    param_wrapped = jnp.concatenate(
-        (m_0, sigma2_0, sigma2_eps, sigma2_eta, k1, k2, k3, k4)
-    )
-
-    return (param_wrapped, (nbasis, kbasis1, kbasis2, kbasis3, kbasis4))
-
-
-@partial(jax.jit, static_argnames=["dims"])
-def param_unwrap(params_wrapped: ArrayLike, dims: tuple):
-    nbasis = dims[0]
-    kbasis1 = dims[1]
-    kbasis2 = dims[2]
-    kbasis3 = dims[3]
-    kbasis4 = dims[4]
-
-    m_0 = params_wrapped[:nbasis]
-    sigma2_0 = params_wrapped[nbasis]
-    sigma2_eps = params_wrapped[nbasis + 1]
-    sigma2_eta = params_wrapped[nbasis + 2]
-    k = (
-        params_wrapped[nbasis + 3: nbasis + 3 + kbasis1],
-        params_wrapped[nbasis + 3 + kbasis1: nbasis + 3 + kbasis1 + kbasis2],
-        params_wrapped[
-            nbasis
-            + 3
-            + kbasis1
-            + kbasis2: nbasis
-            + 3
-            + kbasis1
-            + kbasis2
-            + kbasis3
-        ],
-        params_wrapped[
-            nbasis
-            + 3
-            + kbasis1
-            + kbasis2
-            + kbasis3: nbasis
-            + 3
-            + kbasis1
-            + kbasis2
-            + kbasis3
-            + kbasis4
-        ],
-    )
-
-    return (m_0, sigma2_0, sigma2_eps, sigma2_eta, k)
-
 
 if __name__ == "__main__":
     print("IDEM loaded as main. Simulating a simple example.")
