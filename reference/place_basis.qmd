@@ -1,0 +1,33 @@
+# place_basis { #jax_idem.utilities.place_basis }
+
+```python
+utilities.place_basis(
+    data=jnp.array([[0, 0], [1, 1]]),
+    nres=2,
+    aperture=1.25,
+    min_knot_num=3,
+    basis_fun=bisquare,
+)
+```
+
+Distributes knots (centroids) and scales for basis functions over a
+number of resolutions,similar to auto_basis from the R package FRK.
+This function must be run outside of a jit loop, since it involves
+varying the length of arrays.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name         | Type   | Description                                                                                                                                                                                                                  | Default                       |
+|--------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| data         |        | Array of 2D points defining the space on which to put the basis functions                                                                                                                                                    | `jnp.array([[0, 0], [1, 1]])` |
+| nres         |        | The number of resolutions at which to place basis functions                                                                                                                                                                  | `2`                           |
+| aperture     |        | Scaling factor for the scale parameter (scale parameter will be w=aperture * d, where d is the minimum distance between any two of the knots)                                                                                | `1.25`                        |
+| min_knot_num |        | The number of basis functions to place in each dimension at the coursest resolution                                                                                                                                          | `3`                           |
+| basis_fun    |        | The basis functions being used. The basis function's second argument must be an array with three doubles; the first coordinate for the centre, the second coordinate for the centre, and the scale/aperture of the function. | `bisquare`                    |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                      | Description   |
+|--------|---------------------------------------------------------------------------|---------------|
+|        | A Basis object (NamedTuple) with the vector and matrix functions, and the |               |
+|        | parameters associated to the basis functions.                             |               |

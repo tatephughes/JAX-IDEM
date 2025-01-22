@@ -70,12 +70,13 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
     ----------
     bounds: ArrayLike (2, n)
         The bounds for each dimension
-    ngrid: ArrayLike (n, )
+    ngrids: ArrayLike (n, )
         The number of columns/rows/hyper-column in each dimension
 
-    Returns: Grid
-        Grid Object (NamedTuple) containing the coordinates, deltas, grid
-        numbers, areas, etc. See the Grid class.
+    Returns
+    ----------
+    Grid Object (NamedTuple) containing the coordinates, deltas, grid
+    numbers, areas, etc. See the Grid class.
     """
 
     dimension = jnp.size(bounds, axis=0)
@@ -313,14 +314,12 @@ class st_data:
         """
         Gives the data in wide format. Any missing data will be represented in
         the returned matris as NaN.
-
-        Parameters
+          
+        Returns
         ----------
-
-        Returns: dict
-            A dictionary containing the x coordinates and y coordinates as JAX
-            arrays, and a matrix corresponding to the value of the process at
-            each time point (columns) and spatial point (rows).
+        A dictionary containing the x coordinates and y coordinates as JAX
+        arrays, and a matrix corresponding to the value of the process at
+        each time point (columns) and spatial point (rows).
         """
         data_array = jnp.column_stack((self.x, self.y, self.t, self.z))
 

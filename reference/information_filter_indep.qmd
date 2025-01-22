@@ -1,0 +1,46 @@
+# information_filter_indep { #jax_idem.filter_smoother_functions.information_filter_indep }
+
+```python
+filter_smoother_functions.information_filter_indep(
+    nu_0,
+    Q_0,
+    M,
+    PHI_obs_tuple,
+    sigma2_eta,
+    sigma2_eps,
+    ztildes,
+    full_likelihood=True,
+)
+```
+
+    Applies the Information Filter to a PyTree of data.
+    Includes some optimisation for uncorrelated errors.
+
+##     Parameters {.doc-section .doc-section-----parameters}
+
+    nu_0: ArrayLike (r,)
+        The initial information of the process vector
+    Q_0: ArrayLike (r,r)
+        The initial information matrix of the process vector
+    M: ArrayLike (r,r)
+        The transition matrix of the process
+    PHI_obs_tuple: Pytree[ArrayLike (r,n)]
+        The process-to-data matrix
+    sigma2_eta: float
+        The variance of the process noise
+    sigma2_eps: float
+        The variance of the observation noise
+    ztildes: ArrayLike
+        The observed data to be filtered, in matrix format
+    full_likelihood: bool
+        Whether to include constant terms in the likelihood computation
+
+##     Returns {.doc-section .doc-section-----returns}
+
+    A tuple containing:
+        ll: The log (data) likelihood of the data
+        nus: (T,r) The posterior information vectors $
+u_{t \mid t}$ of the
+    process given the data 1:t
+        Qs: (T,r,r) The posterior information matrices $Q_{t \mid t}$ of
+    the process given the data 1:t

@@ -1,0 +1,144 @@
+# IDEM_Model { #jax_idem.IDEM.IDEM_Model }
+
+```python
+IDEM.IDEM_Model(
+    self,
+    process_basis,
+    kernel,
+    process_grid,
+    sigma2_eta,
+    sigma2_eps,
+    beta,
+    int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
+    m_0=None,
+    sigma2_0=None,
+)
+```
+
+The Integro-differential Equation Model.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [con_M](#jax_idem.IDEM.IDEM_Model.con_M) | Creates the propegation matrix, M, with a given set of kernel parameters. |
+| [data_mle_fit](#jax_idem.IDEM.IDEM_Model.data_mle_fit) | MAY BE OUT OF DATE |
+| [filter](#jax_idem.IDEM.IDEM_Model.filter) | Runs the Kalman filter on the inputted data. |
+| [filter_information](#jax_idem.IDEM.IDEM_Model.filter_information) | NOT IMPLEMENTED |
+| [fit_information_filter](#jax_idem.IDEM.IDEM_Model.fit_information_filter) | NOT FULLY IMPLEMENTED |
+| [lag1smooth](#jax_idem.IDEM.IDEM_Model.lag1smooth) | NOT FULLY IMPLEMENTED OR TESTED |
+| [simulate](#jax_idem.IDEM.IDEM_Model.simulate) | Simulates from the model, using the jit-able function simIDEM. |
+| [smooth](#jax_idem.IDEM.IDEM_Model.smooth) | Runs the Kalman smoother on the |
+
+### con_M { #jax_idem.IDEM.IDEM_Model.con_M }
+
+```python
+IDEM.IDEM_Model.con_M(ks)
+```
+
+Creates the propegation matrix, M, with a given set of kernel parameters.
+
+#### Params {.doc-section .doc-section-params}
+
+ks: PyTree(ArrayLike)
+    The kernel parameters used to construct the matrix (must match the
+    structure of self.kernel.params).
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type            | Description               |
+|--------|-----------------|---------------------------|
+| M      | ArrayLike(r, r) | The propegation matrix M. |
+
+### data_mle_fit { #jax_idem.IDEM.IDEM_Model.data_mle_fit }
+
+```python
+IDEM.IDEM_Model.data_mle_fit(
+    obs_data,
+    X_obs,
+    fixed_ind=[],
+    lower=None,
+    upper=None,
+    optimizer=optax.adam(0.001),
+    nits=10,
+)
+```
+
+MAY BE OUT OF DATE
+
+### filter { #jax_idem.IDEM.IDEM_Model.filter }
+
+```python
+IDEM.IDEM_Model.filter(obs_data_wide, X_obs)
+```
+
+Runs the Kalman filter on the inputted data.
+
+### filter_information { #jax_idem.IDEM.IDEM_Model.filter_information }
+
+```python
+IDEM.IDEM_Model.filter_information(obs_data, X_obs, nu_0=None, Q_0=None)
+```
+
+NOT IMPLEMENTED
+
+### fit_information_filter { #jax_idem.IDEM.IDEM_Model.fit_information_filter }
+
+```python
+IDEM.IDEM_Model.fit_information_filter(
+    obs_data,
+    X_obs,
+    fixed_ind=[],
+    lower=None,
+    upper=None,
+    optimizer=optax.adam(0.001),
+    nits=10,
+)
+```
+
+NOT FULLY IMPLEMENTED
+
+### lag1smooth { #jax_idem.IDEM.IDEM_Model.lag1smooth }
+
+```python
+IDEM.IDEM_Model.lag1smooth(Ps, Js, K_T, PHI_obs)
+```
+
+NOT FULLY IMPLEMENTED OR TESTED
+
+### simulate { #jax_idem.IDEM.IDEM_Model.simulate }
+
+```python
+IDEM.IDEM_Model.simulate(
+    key,
+    obs_locs=None,
+    fixed_data=True,
+    nobs=100,
+    T=9,
+    int_grid=create_grid(bounds, ngrids),
+)
+```
+
+Simulates from the model, using the jit-able function simIDEM.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name     | Type   | Description                                                                                                                                                                                                                                            | Default                       |
+|----------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| key      |        | PRNG key                                                                                                                                                                                                                                               | _required_                    |
+| obs_locs |        | the observation locations in long format. This should be a (3, n) array where the first column corresponds to time, and the last two to spatial coordinates. If this is not provided, 50 random points per time are chosen in the domain of interest.d | `None`                        |
+| int_grid | Grid   | The grid over which to compute the Riemann integral.                                                                                                                                                                                                   | `create_grid(bounds, ngrids)` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                                                                                                              |
+|--------|--------|------------------------------------------------------------------------------------------------------------------------------------------|
+|        | tuple  | A tuple containing the Process data and the Observed data, both in long format in the ST_Data_Long type (see [utilities](/.env.example)) |
+
+### smooth { #jax_idem.IDEM.IDEM_Model.smooth }
+
+```python
+IDEM.IDEM_Model.smooth(ms, Ps, mpreds, Ppreds)
+```
+
+Runs the Kalman smoother on the

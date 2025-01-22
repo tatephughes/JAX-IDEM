@@ -1,0 +1,7 @@
+# param_exp_kernel { #jax_idem.IDEM.param_exp_kernel }
+
+```python
+IDEM.param_exp_kernel(K_basis, k)
+```
+
+Creates a kernel in the style of AZM's R-IDE package

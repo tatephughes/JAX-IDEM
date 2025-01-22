@@ -1,0 +1,7 @@
+# bisquare { #jax_idem.utilities.bisquare }
+
+```python
+utilities.bisquare(s, params)
+```
+
+Generic bisquare function

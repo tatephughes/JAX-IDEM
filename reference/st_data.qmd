@@ -1,0 +1,31 @@
+# st_data { #jax_idem.utilities.st_data }
+
+```python
+utilities.st_data(self, x, y, t, z)
+```
+
+For storing spatio-temporal data and appropriate methods for plotting such
+data, and converting between long and wide formats.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [as_wide](#jax_idem.utilities.st_data.as_wide) | Gives the data in wide format. Any missing data will be represented in |
+
+### as_wide { #jax_idem.utilities.st_data.as_wide }
+
+```python
+utilities.st_data.as_wide()
+```
+
+Gives the data in wide format. Any missing data will be represented in
+the returned matris as NaN.
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                               | Description   |
+|--------|--------------------------------------------------------------------|---------------|
+|        | A dictionary containing the x coordinates and y coordinates as JAX |               |
+|        | arrays, and a matrix corresponding to the value of the process at  |               |
+|        | each time point (columns) and spatial point (rows).                |               |

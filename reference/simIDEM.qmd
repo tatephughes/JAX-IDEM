@@ -1,0 +1,45 @@
+# simIDEM { #jax_idem.IDEM.simIDEM }
+
+```python
+IDEM.simIDEM(
+    key,
+    T,
+    M,
+    PHI_proc,
+    PHI_obs,
+    obs_locs,
+    beta,
+    alpha0,
+    sigma2_eta=0.01 ** 2,
+    sigma2_eps=0.01 ** 2,
+    process_grid=create_grid(bounds, ngrids),
+    int_grid=create_grid(bounds, ngrids),
+)
+```
+
+Simulates from a IDE model.
+For jit-ability, this only takes in certain parameters. For ease of use,
+use IDEM.simulate.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name         | Type      | Description                                                                                  | Default                       |
+|--------------|-----------|----------------------------------------------------------------------------------------------|-------------------------------|
+| key          | ArrayLike | PRNG key                                                                                     | _required_                    |
+| T            | int       | The number of time points to simulate                                                        | _required_                    |
+| M            | ArrayLike | The transition matrix of the proces                                                          | _required_                    |
+| PHI_proc     | ArrayLike | The process basis coefficient matrix of the points on the process grid                       | _required_                    |
+| PHI_obs      | ArrayLike | The process basis coefficient matrices of the observation points, in block-diagonal form     | _required_                    |
+| beta         | ArrayLike | The covariate coefficients for the data                                                      | _required_                    |
+| sigma2_eta   | float     | The variance of the process noise (currently iid, will be a covariance matrix in the future) | `0.01 ** 2`                   |
+| sigma2_eps   | float     | The variance of the observation noise                                                        | `0.01 ** 2`                   |
+| alpha0       | ArrayLike | The initial value for the process basis coefficients                                         | _required_                    |
+| process_grid | Grid      | The grid at which to expand the process basis coefficients to the process function           | `create_grid(bounds, ngrids)` |
+| int_grid     | Grid      | The grid to compute the Riemann integrals over (will be replaced with a better method soon)  | `create_grid(bounds, ngrids)` |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                               | Description   |
+|--------|--------------------------------------------------------------------|---------------|
+|        | A tuple containing the values of the process and the values of the |               |
+|        | observation.                                                       |               |

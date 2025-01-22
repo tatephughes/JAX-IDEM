@@ -2,19 +2,17 @@
 title: "Integro-Difference Equation Models in JAX"
 author: "Evan Tate Paterson Hughes"
 format:
-  pdf:
-    includes:
-      in-header: header.tex
-    include-in-header: 
-       text: |
-         \usepackage{fvextra}
-         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
-         \DefineVerbatimEnvironment{OutputCode}{Verbatim}{breaklines,commandchars=\\\{\}}
   html:
     code-fold: true
     toc: true
+    code-link: true
     mathjax: 
       extensions: ["breqn", "bm", "ams"]
+    code-links:
+      - text: Github
+        icon: file-code
+        repo: https://github.com/tatephughes/JAX-IDEM
+        href: https://github.com/tatephughes/JAX-IDEM
 jupyter: python3
 bibliography: Bibliography.bib
 ---
@@ -37,20 +35,24 @@ from utilities import *
 from IDEM import *
 import warnings
 
+import matplotlib.pyplot as plt
 
 seed = 4
 key = jax.random.PRNGKey(seed)
 keys = rand.split(key, 2)
 
-model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([50, 50]))
+model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]))
 
 # Simulation
 T = 35
-process_data, obs_data = model.simulate(key, T=T, nobs=100)
+process_data, obs_data = model.simulate(key, T=T, nobs=50)
 
 dpi = 80
 width = 576 / dpi
 height = 480 / dpi
+
+plt.rcParams['figure.facecolor'] = '#222222'
+plt.rcParams['axes.facecolor'] = 'whitesmoke'
 
 # plot the objects
 gif_st_grid(process_data, "process.gif", width=width, height=height)
@@ -96,7 +98,7 @@ An example IDEM simulation, with the underlying process (left), noisy observatio
 
 :::
 
-## The Mathematics
+## The Technicalities
 
 For a rundown of the mathematics underpinning this model and implementation, see [here](mathematics.html).
 

@@ -1,0 +1,22 @@
+# outer_op { #jax_idem.utilities.outer_op }
+
+```python
+utilities.outer_op(a, b, op=lambda x, y: x * y)
+```
+
+Computes the outer operation of two vectors, a generalisation of the outer
+product.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type      | Description                                                                                                | Default              |
+|--------|-----------|------------------------------------------------------------------------------------------------------------|----------------------|
+| a      | ArrayLike | Array of the first vector                                                                                  | _required_           |
+| b      | ArrayLike | Array of the second vector                                                                                 | _required_           |
+| op     | Callable  | A jit-function acting on an element of vec1 and an element of vec2. By default, this is the outer product. | `lambda x, y: x * y` |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                   | Description                                                                                    |
+|--------|------------------------|------------------------------------------------------------------------------------------------|
+|        | ArrayLike\[C\] (n, m): | The matrix of the result of applying operation to every pair of elements from the two vectors. |

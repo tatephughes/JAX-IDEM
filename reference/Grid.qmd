@@ -1,0 +1,14 @@
+# Grid { #jax_idem.utilities.Grid }
+
+```python
+utilities.Grid()
+```
+
+"
+A simple grid class to store (currently exclusively regular) grids, along
+with some key quantities such as the lenth between grid points, the
+number of grid points and the area/volume of each grid square/cube.
+Supports arbitrarily high dimension.
+Ideally, in the future, this will support non-regular grids with any
+necessary quantities to do, for example, integration over the points on the
+grid.

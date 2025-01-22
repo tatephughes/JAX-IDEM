@@ -1,0 +1,21 @@
+# create_grid { #jax_idem.utilities.create_grid }
+
+```python
+utilities.create_grid(bounds, ngrids)
+```
+
+Creates an n-dimensional grid based on the given bounds and deltas.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type      | Description                                               | Default    |
+|--------|-----------|-----------------------------------------------------------|------------|
+| bounds | ArrayLike | The bounds for each dimension                             | _required_ |
+| ngrids | ArrayLike | The number of columns/rows/hyper-column in each dimension | _required_ |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                              | Description   |
+|--------|-------------------------------------------------------------------|---------------|
+|        | Grid Object (NamedTuple) containing the coordinates, deltas, grid |               |
+|        | numbers, areas, etc. See the Grid class.                          |               |

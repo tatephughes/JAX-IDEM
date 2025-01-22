@@ -27,7 +27,6 @@ from utilities import (
     outer_op,
     Basis,
     Grid,
-    ST_towide,
     st_data
 )
 

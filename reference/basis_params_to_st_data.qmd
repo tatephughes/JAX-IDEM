@@ -1,0 +1,19 @@
+# basis_params_to_st_data { #jax_idem.IDEM.basis_params_to_st_data }
+
+```python
+IDEM.basis_params_to_st_data(alphas, process_basis, process_grid, times=None)
+```
+
+Converts the process expansion coefficients back into the original process
+$Y_t(s)$ on the inputted process grid.
+
+## Params {.doc-section .doc-section-params}
+
+alphas: ArrayLike (T, r)
+  The basis coefficients of the process
+process_basis: Basis
+  The basis to use in the expansion
+process_grid: Grid
+  The grid points on which to evaluate $Y$
+times: ArrayLike (T,)
+  (optional) The array of times which the processes correspond to

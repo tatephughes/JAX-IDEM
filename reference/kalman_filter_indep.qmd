@@ -1,0 +1,42 @@
+# kalman_filter_indep { #jax_idem.filter_smoother_functions.kalman_filter_indep }
+
+```python
+filter_smoother_functions.kalman_filter_indep(
+    m_0,
+    P_0,
+    M,
+    PHI_obs,
+    sigma2_eta,
+    sigma2_eps,
+    ztildes,
+    full_likelihood=False,
+)
+```
+
+Applies the Kalman Filter to a wide-format matrix of data.
+Includes some optimisation for uncorrelated errors.
+For jit-ability, this only allows full (no missing) data in a wide format.
+For changing data locations or changing data dimension, see
+information_filter_indep.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type      | Description                                         | Default    |
+|------------|-----------|-----------------------------------------------------|------------|
+| m_0        | ArrayLike | The initial means of the process vector             | _required_ |
+| P_0        | ArrayLike | The initial Covariance matrix of the process vector | _required_ |
+| M          | ArrayLike | The transition matrix of the process                | _required_ |
+| PHI_obs    | ArrayLike | The process-to-data matrix                          | _required_ |
+| sigma2_eta | float     | The Covariance matrix of the process noise          | _required_ |
+| sigma2_eps | float     | The Covariance matrix of the observation noise      | _required_ |
+| ztildes    | ArrayLike | The observed data to be filtered, in matrix format  | _required_ |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                 | Description                                                                                                 |
+|--------|------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+|        | A tuple containing:                                  | ll: The log (data) likelihood of the data ms: (T,r) The posterior means $m_{t \mid t}$ of the process given |
+|        | the data 1:t                                         | Ps: (T,r,r) The posterior covariance matrices $P_{t \mid t}$ of                                             |
+|        | the process given the data 1:t                       | mpreds: (T-1,r) The predicted next-step means $m_{t \mid t-1}$                                              |
+|        | of the process given the data 1:t-1                  | Ppreds: (T-1,r,r) The predicted next-step covariances                                                       |
+|        | $P_{t \mid t-1}$ of the process given the data 1:t-1 | Ks: (n,r) The Kalman Gains at each time step                                                                |

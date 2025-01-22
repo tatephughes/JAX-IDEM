@@ -1,0 +1,38 @@
+# gen_example_idem { #jax_idem.IDEM.gen_example_idem }
+
+```python
+IDEM.gen_example_idem(
+    key,
+    k_spat_inv=True,
+    ngrid=jnp.array([41, 41]),
+    nints=jnp.array([100, 100]),
+    nobs=50,
+    m_0=None,
+    sigma2_0=None,
+    process_basis=None,
+    sigma2_eta=0.5 ** 2,
+    sigma2_eps=0.1 ** 2,
+)
+```
+
+Creates an example IDE model, with randomly generated kernel on the
+domain [0,1]x[0,1]. Intial value of the process is simply some of the
+coefficients for the process basis are set to 1. The kernel has a
+Gaussian shape, with parameters defined as basis expansions in order to
+allow for spatial variance.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type      | Description                                                                                | Default                 |
+|------------|-----------|--------------------------------------------------------------------------------------------|-------------------------|
+| key        | ArrayLike | PRNG key                                                                                   | _required_              |
+| k_spat_inv | bool      | Whether or not the generated kernel should be spatially invariant.                         | `True`                  |
+| ngrid      | ArrayLike | The resolution of the grid at which the process is computed. Should have shape (2,).       | `jnp.array([41, 41])`   |
+| nints      | ArrayLike | The resolution of the grid at which Riemann integrals are computed. Should have shape (2,) | `jnp.array([100, 100])` |
+| nobs       | int       | The number of observations per time interval.                                              | `50`                    |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                  | Description   |
+|--------|-----------------------|---------------|
+|        | A model of type IDEM. |               |

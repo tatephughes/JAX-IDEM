@@ -7,9 +7,6 @@ from jax.typing import ArrayLike
 
 from functools import partial
 
-# ONLY SUPPORTS FIXED OBSERVATION LOCATIONS
-
-
 @partial(jax.jit, static_argnames=["full_likelihood"])
 def kalman_filter(
     m_0: ArrayLike,
@@ -20,7 +17,7 @@ def kalman_filter(
     Sigma_eps: ArrayLike,
     ztildes: ArrayLike,  # data matrix, with time across columns
     full_likelihood: bool = False
-) -> tuple:
+    ) -> tuple:
     """
     Applies the Kalman Filter to a wide-format matrix of data.
     For jit-ability, this only allows full (no missing) data in a wide format.

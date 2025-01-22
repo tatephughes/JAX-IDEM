@@ -1,0 +1,7 @@
+# kalman_smoother { #jax_idem.filter_smoother_functions.kalman_smoother }
+
+```python
+filter_smoother_functions.kalman_smoother(ms, Ps, mpreds, Ppreds, M)
+```
+
+NOT FULLY IMPLEMENTED

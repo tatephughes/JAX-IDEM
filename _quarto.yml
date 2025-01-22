@@ -1,6 +1,58 @@
 project:
   title: "JAX-IDEM"
+  type: website
 
+website:
+  title: "Integro-Difference Equation Models in Python-JAX"
+  sidebar:
+    left:
+      - index.qmd
+      - mathematics.qmd
+      - ../reference/index.qmd
+
+lightbox: true
+
+format:
+  html:
+    theme: darkly
+      
 toc: true
 number-sections: true
 bibliography: docs/Bibliography.bib
+
+
+quartodoc:
+  # the name used to import the package you want to create reference docs for
+  package: jax_idem
+
+  sections:
+    - title: Filtering and Smoothing Functions
+      package: jax_idem.filter_smoother_functions
+      desc: Functions to apply Kalman/information filters, smoothers and so on.
+      contents:
+        - kalman_filter
+        - kalman_filter_indep
+        - information_filter
+        - information_filter_indep
+        - kalman_smoother
+    - title: Integro-Difference Models in JAX
+      package: jax_idem.IDEM
+      desc: Classes and functions to perform simulation, fitting, filtering and prediction on IDEMs.
+      contents:
+        - Kernel
+        - IDEM_Model
+        - param_exp_kernel
+        - simIDEM
+        - gen_example_idem
+        - basis_params_to_st_data
+    - title: Utilties
+      package: jax_idem.utilities
+      desc: General classes and functions used to supplement the main package
+      contents:
+        - Grid
+        - Basis
+        - create_grid
+        - outer_op
+        - bisquare
+        - place_basis
+        - st_data

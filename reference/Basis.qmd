@@ -1,0 +1,16 @@
+# Basis { #jax_idem.utilities.Basis }
+
+```python
+utilities.Basis()
+```
+
+A simple class for spatial basis expansions.
+
+## Attributes {.doc-section .doc-section-attributes}
+
+| Name   | Type                                         | Description                                                                                                                                                                         |
+|--------|----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| vfun   | ArrayLike (ndim,) -> ArrayLike (nbasis,)     | Applying to a single spatial location, evaluates all the basis functions on the single location and returns the result as a vector.                                                 |
+| mfun   | ArrayLike (ndim, n) -> ArrayLike (nbasis, n) | Applying to a array of spatial points, evaluates all the basis functions on each point and returns the results in a matrix.                                                         |
+| params | ArrayLike(nparams, nbasis)                   | The parameters defining each basis function. For example, for bisquare basis functions, the parameters are the locations of the centers of each function, and the function's scale. |
+| nbasis | int                                          | The number of basis functions in the expansion.                                                                                                                                     |
