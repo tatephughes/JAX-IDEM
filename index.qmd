@@ -81,7 +81,7 @@ for i in range(max_frames):
     frames.append(combined)
 
 
-frames[0].save('process.gif', save_all=True, append_images=frames[1:], duration=gif1.info['duration'], loop=0)
+frames[0].save('site/process.gif', save_all=True, append_images=frames[1:], duration=gif1.info['duration'], loop=0)
 
 ```
 
