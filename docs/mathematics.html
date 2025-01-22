@@ -348,7 +348,7 @@ K_{t+1} = P_{t+1\mid t}\Phi_{t+1}^\intercal [\Phi_{t+1} P_{t+1\mid t} \Phi_{t+1}
 <p>Assuming Gaussian all random variables here are Guassian, this is the optimal mean-square estimators for these quantities, but even outside of the Gaussian case, these are optimal for the class of <em>linear</em> operators.</p>
 <p>We can compute the marginal data likelihood alongside the kalman fiter using the prediciton errors <span class="math inline">\(\boldsymbol{\mathbf{e}}_t\)</span>. These, under the assumptions we have made about <span class="math inline">\(\eta\)</span> and <span class="math inline">\(\epsilon\)</span> being normal, are also normal with zero mean and variance</p>
 <p><span class="math display">\[\begin{split}
-\mathbb V\mathrm{ar}[\boldsymbol{\mathbf{e}}_t]=\Sigma_t= \Phi_{t} P_{t+1\mid t} \Phi_{t}^\intercal + \Sigma_\epsilon.
+\mathbb V\mathrm{ar}[\boldsymbol{\mathbf{e}}_t]=\Sigma_t= \Phi_{t} P_{t\mid t-1} \Phi_{t}^\intercal + \Sigma_\epsilon.
 \end{split}
 \]</span></p>
 <p>Therefore, the log-likelihood at each time is</p>
@@ -358,7 +358,7 @@ K_{t+1} = P_{t+1\mid t}\Phi_{t+1}^\intercal [\Phi_{t+1} P_{t+1\mid t} \Phi_{t+1}
 \]</span></p>
 <p>Summing these across time, we get the log likelihood for all the data.</p>
 <p>A simplified example of the kalman filter function, written to be jax compatible, used in the package is this;</p>
-<div id="80a50a92" class="cell" data-execution_count="1">
+<div id="e8073775" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">: Replace this with a simpler 'naive' implementation</span></span>
@@ -462,6 +462,25 @@ Q_{t+1\mid t} &amp;= (I-J_t) S_{t}
 <p>We can see that the information form of the observations (<a href="#eq-obsinfo" class="quarto-xref">Equation&nbsp;11</a>) will always have the same dimension (that being the process dimension, previously labelled <span class="math inline">\(r\)</span>, the number of basis functions used in the expansion). For our purposes, this means that <code>jax.lax.scan</code> will work after we ‘informationify’ the data, which can be done using <code>jax.tree.map</code>. This is implemented in the functions <code>information_filter</code> and <code>information_filter_indep</code> (for uncorrelated errors).</p>
 <p>There are other often cited advantages to filtering in this form. It can be quicker that the traditional form in certain cases, especially when the observation dimension is bigger than the state dimension (since you solve a smaller system of equations with <span class="math inline">\([S_t + \Sigma_\eta]^{-1}\)</span> in the process dimesnion instead of <span class="math inline">\([\Phi_t P_{t+1\mid t} \Phi_t^\intercal + \Sigma_\epsilon]^{-1}\)</span> in the observation dimension) <span class="citation" data-cites="assimakis2012information">(<a href="#ref-assimakis2012information" role="doc-biblioref">Assimakis, Adam, and Douladiris 2012</a>)</span>.</p>
 <p>The other often mentioned advantage is the ability to use a truly vague prior for <span class="math inline">\(\alpha_0\)</span>; that is, we can set <span class="math inline">\(Q_0\)</span> as the zero matrix, without worriying about an infinite variance matrix. While this is indeed true, it is actually possible to do the same with the Kalman filter by doing the first step analytically, see (<a href="#sec-vagueprior" class="quarto-xref">Section&nbsp;6.3</a>).</p>
+<p>As with the kalman filter, it is also possible to get the data likelihood in-line as well. Again, we would like to stick with things in the state dimension, so working direclty with the prediction errors <span class="math inline">\(\boldsymbol{\mathbf{e}}_t\)</span> should be avoided. Luckily, by multipliying the errors by <span class="math inline">\(\Phi_t^\intercal \Sigma_\epsilon^{-1}\)</span>, we can define the ‘information errors’ <span class="math inline">\(\boldsymbol{\mathbf{\iota}}_t\)</span>;</p>
+<p><span class="math display">\[\begin{split}
+  \boldsymbol{\mathbf{\iota}}_t &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1} \boldsymbol{\mathbf{e}}_t = \Phi_t^\intercal \Sigma_\epsilon^{-1} \tilde{\boldsymbol{\mathbf{z}}}_t -\Phi_t^\intercal \Sigma_\epsilon^{-1}\Phi_t m_{t\mid t-1}\\
+  &amp;= i_t - I_tQ_{t\mid t-1}^{-1}\boldsymbol{\mathbf{\nu}}_{t\mid t-1}.
+\end{split}
+\]</span></p>
+<p>The variance of this quantity is also easy to find;</p>
+<p><span class="math display">\[\begin{split}
+  \mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{\iota}}_t] &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1}\mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{e}}_t]\Sigma_\epsilon^{-1}\Phi_t\\
+  &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1} [\Phi_{t} P_{t\mid t-1} \Phi_{t}^\intercal + \Sigma_\epsilon] \Sigma_\epsilon^{-1}\Phi_t\\
+  &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1}\Phi_{t} Q_{t\mid t-1}^{-1} \Phi_{t}^\intercal \Sigma_\epsilon^{-1}\Phi_t \Phi_t^\intercal \Sigma_\epsilon^{-1} \Phi_t\\
+  &amp;= I_t Q_{t\mid t-1}^{-1} I_t^\intercal + I_t =: \Sigma_{\iota, t}.
+\end{split}
+\]</span></p>
+<p>Noting that <span class="math inline">\(\boldsymbol{\mathbf{\iota}}\)</span> clearly still has mean zero, this allows us once again to compute the log likelihood, this time through <span class="math inline">\(\boldsymbol{\mathbf{\iota}}\)</span></p>
+<p><span class="math display">\[\begin{split}
+\mathcal L(z_t\mid\boldsymbol{\mathbf{\theta}}) = -\frac12\sum \log\det(\Sigma_{\iota, t}(\boldsymbol{\mathbf{\theta}})) - \frac12 \sum\boldsymbol{\mathbf{\iota}}_t(\boldsymbol{\mathbf{\theta}})^\intercal\Sigma_{\iota, t}(\boldsymbol{\mathbf{\theta}})^{-1} \boldsymbol{\mathbf{\iota}}_t(\boldsymbol{\mathbf{\theta}}) - \frac{r}{2}\log(2*\pi).
+\end{split}
+\]</span></p>
 </section>
 <section id="kalman-smoothers" class="level2" data-number="3.3">
 <h2 data-number="3.3" class="anchored" data-anchor-id="kalman-smoothers"><span class="header-section-number">3.3</span> Kalman Smoothers</h2>

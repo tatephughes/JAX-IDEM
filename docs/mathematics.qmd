@@ -310,7 +310,7 @@ We can compute the marginal data likelihood alongside the kalman fiter using the
 These, under the assumptions we have made about $\eta$ and $\epsilon$ being normal, are also normal with zero mean and variance
 
 $$\begin{split}
-\mathbb V\mathrm{ar}[\vec e_t]=\Sigma_t= \Phi_{t} P_{t+1\mid t} \Phi_{t}^\intercal + \Sigma_\epsilon. 
+\mathbb V\mathrm{ar}[\vec e_t]=\Sigma_t= \Phi_{t} P_{t\mid t-1} \Phi_{t}^\intercal + \Sigma_\epsilon. 
 \end{split}
 $$
 
@@ -459,6 +459,33 @@ It can be quicker that the traditional form in certain cases, especially when th
 The other often mentioned advantage is the ability to use a truly vague prior for $\alpha_0$; that is, we can set $Q_0$ as the zero matrix, without worriying about an infinite variance matrix.
 While this is indeed true, it is actually possible to do the same with the Kalman filter by doing the first step analytically, see (@sec-vagueprior).
 
+As with the kalman filter, it is also possible to get the data likelihood in-line as well.
+Again, we would like to stick with things in the state dimension, so working direclty with the prediction errors $\vec e_t$ should be avoided.
+Luckily, by multipliying the errors by $\Phi_t^\intercal \Sigma_\epsilon^{-1}$, we can define the 'information errors' $\vec \iota_t$;
+
+$$\begin{split}
+  \vec \iota_t &= \Phi_t^\intercal \Sigma_\epsilon^{-1} \vec e_t = \Phi_t^\intercal \Sigma_\epsilon^{-1} \tilde{\vec z}_t -\Phi_t^\intercal \Sigma_\epsilon^{-1}\Phi_t m_{t\mid t-1}\\
+  &= i_t - I_tQ_{t\mid t-1}^{-1}\vec \nu_{t\mid t-1}.
+\end{split}
+$$
+
+The variance of this quantity is also easy to find;
+
+$$\begin{split}
+  \var[\vec \iota_t] &= \Phi_t^\intercal \Sigma_\epsilon^{-1}\var[\vec e_t]\Sigma_\epsilon^{-1}\Phi_t\\
+  &= \Phi_t^\intercal \Sigma_\epsilon^{-1} [\Phi_{t} P_{t\mid t-1} \Phi_{t}^\intercal + \Sigma_\epsilon] \Sigma_\epsilon^{-1}\Phi_t\\
+  &= \Phi_t^\intercal \Sigma_\epsilon^{-1}\Phi_{t} Q_{t\mid t-1}^{-1} \Phi_{t}^\intercal \Sigma_\epsilon^{-1}\Phi_t \Phi_t^\intercal \Sigma_\epsilon^{-1} \Phi_t\\
+  &= I_t Q_{t\mid t-1}^{-1} I_t^\intercal + I_t =: \Sigma_{\iota, t}.
+\end{split}
+$$
+
+Noting that $\vec \iota$ clearly still has mean zero, this allows us once again to compute the log likelihood, this time through $\vec\iota$
+
+
+$$\begin{split}
+\mathcal L(z_t\mid\vec\theta) = -\frac12\sum \log\det(\Sigma_{\iota, t}(\vec\theta)) - \frac12 \sum\vec \iota_t(\vec\theta)^\intercal\Sigma_{\iota, t}(\vec\theta)^{-1} \vec \iota_t(\vec\theta) - \frac{r}{2}\log(2*\pi).
+\end{split}
+$$
 
 ## Kalman Smoothers
 
