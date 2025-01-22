@@ -286,18 +286,18 @@ def information_filter(
         nu_up = nu_pred + i_tp
         Q_up = Q_pred + I_tp
 
-        chol_Sigma_t = jnp.linalg.cholesky(
+        chol_Sigma_iota = jnp.linalg.cholesky(
             I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
         iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
 
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, iota, lower=True)
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
 
         if full_likelihood:
-            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
                 0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
         else:
             ll_new = ll - \
-                jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
+                jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
 
         return (nu_up, Q_up, ll_new), (nu_up, Q_up, ll_new)
 
@@ -372,18 +372,18 @@ def information_filter_indep(
         nu_up = nu_pred + i_tp
         Q_up = Q_pred + I_tp
 
-        chol_Sigma_t = jnp.linalg.cholesky(
+        chol_Sigma_iota = jnp.linalg.cholesky(
             I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
         iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
 
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, iota, lower=True)
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
 
         if full_likelihood:
-            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
                 0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
         else:
             ll_new = ll - \
-                jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
+                jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
         return (nu_up, Q_up, ll_new), (nu_up, Q_up, ll_new)
 
     carry, seq = jl.scan(
