@@ -100,8 +100,8 @@ An example IDEM simulation, with the underlying process (left), noisy observatio
 
 ## The Technicalities
 
-For a rundown of the mathematics underpinning this model and implementation, see [here](mathematics.html).
+For a rundown of the mathematics underpinning this model and implementation, see [here](site/mathematics.html).
 
 ## Documentation
 
-Documentation for the package is available [here](../reference/index.html)
+Documentation for the package is available [here](reference/index.html)
