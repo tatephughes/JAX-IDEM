@@ -8,6 +8,8 @@ from jax.typing import ArrayLike
 from functools import partial
 
 # ONLY SUPPORTS FIXED OBSERVATION LOCATIONS
+
+
 @partial(jax.jit, static_argnames=["full_likelihood"])
 def kalman_filter(
     m_0: ArrayLike,
@@ -88,7 +90,7 @@ def kalman_filter(
 
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t)
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t, lower=True)
 
         if full_likelihood:
             ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
@@ -112,10 +114,10 @@ def kalman_filter(
         ztildes.T,
     )
 
-    return (carry[4], seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:])
+    return (carry[4], seq[0], seq[1], seq[2][:], seq[3][:], seq[5][:])
 
 
-@jax.jit
+@partial(jax.jit, static_argnames=["full_likelihood"])
 def kalman_filter_indep(
     m_0: ArrayLike,
     P_0: ArrayLike,
@@ -124,6 +126,7 @@ def kalman_filter_indep(
     sigma2_eta: float,
     sigma2_eps: float,
     ztildes: ArrayLike,  # data matrix, with time across columns
+    full_likelihood: bool = False
 ) -> tuple:
     """
     Applies the Kalman Filter to a wide-format matrix of data, with some
@@ -200,9 +203,13 @@ def kalman_filter_indep(
 
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t)
-        ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))
-                              ) - 0.5 * jnp.dot(z, z)
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t, lower=True)
+        if full_likelihood:
+            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
+        else:
+            ll_new = ll - \
+                jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
 
         return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
             m_up,
@@ -222,7 +229,7 @@ def kalman_filter_indep(
     return (carry[4], seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:])
 
 
-@jax.jit
+@partial(jax.jit, static_argnames=["full_likelihood"])
 def information_filter(
     nu_0: ArrayLike,  # initial information vector
     Q_0: ArrayLike,  # initial information matrix
@@ -231,6 +238,7 @@ def information_filter(
     Sigma_eta: ArrayLike,
     Sigma_eps_tuple: tuple,
     ztildes: tuple,
+    full_likelihood: bool = False
 ) -> tuple:
 
     mapping_elts = jax.tree.map(
@@ -264,7 +272,7 @@ def information_filter(
     Sigma_eta_inv = jnp.linalg.solve(Sigma_eta, jnp.eye(r))
 
     def step(carry, scan_elt):
-        nu_tt, Q_tt, ll_t = carry
+        nu_tt, Q_tt, ll = carry
 
         i_tp = scan_elt[0, :]
         I_tp = scan_elt[1:, :]
@@ -282,8 +290,14 @@ def information_filter(
             I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
         iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
 
-        ll_new = ll_t - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))
-                                ) - 0.5 * jnp.dot(iota, iota)
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, iota, lower=True)
+
+        if full_likelihood:
+            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
+        else:
+            ll_new = ll - \
+                jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
 
         return (nu_up, Q_up, ll_new), (nu_up, Q_up, ll_new)
 
@@ -296,7 +310,7 @@ def information_filter(
     return carry[2], seq[0], seq[1]
 
 
-@jax.jit
+@partial(jax.jit, static_argnames=["full_likelihood"])
 def information_filter_indep(
     nu_0: ArrayLike,  # initial information vector
     Q_0: ArrayLike,  # initial information matrix
@@ -305,6 +319,7 @@ def information_filter_indep(
     sigma2_eta: float,
     sigma2_eps: float,
     ztildes: tuple,
+    full_likelihood: bool = True
 ) -> tuple:
 
     mapping_elts = jax.tree.map(
@@ -338,7 +353,7 @@ def information_filter_indep(
     sigma2_eta_inv = 1/sigma2_eta
 
     def step(carry, scan_elt):
-        nu_tt, Q_tt, ll_t = carry
+        nu_tt, Q_tt, ll = carry
 
         i_tp = scan_elt[0, :]
         I_tp = scan_elt[1:, :]
@@ -357,13 +372,18 @@ def information_filter_indep(
         nu_up = nu_pred + i_tp
         Q_up = Q_pred + I_tp
 
-        chol_P_iota_t = jnp.linalg.cholesky(
+        chol_Sigma_t = jnp.linalg.cholesky(
             I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
         iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
 
-        ll_new = ll_t - jnp.sum(jnp.log(jnp.diag(chol_P_iota_t))
-                                ) - 0.5 * jnp.dot(iota, iota)
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, iota, lower=True)
 
+        if full_likelihood:
+            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
+        else:
+            ll_new = ll - \
+                jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
         return (nu_up, Q_up, ll_new), (nu_up, Q_up, ll_new)
 
     carry, seq = jl.scan(

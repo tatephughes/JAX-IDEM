@@ -176,7 +176,9 @@ ll, ms, Ps, _, _, _ = fsf.kalman_filter_indep(m_0,
                                               PHI,
                                               sigma2_eta,
                                               sigma2_eps,
-                                              zs.T,)
+                                              zs.T,
+                                              full_likelihood=True
+    )
 
 #print(ms)
     
@@ -196,7 +198,7 @@ fig3.show()
 # Information Filter
 
 Similarily, we can apply the information filter.
-Since the information filter function has support for time variying observation shapes, there is a little more work to do.
+Since the information filter function has support for time varying observation shapes, there is a little more work to do.
 
 ```{python}
 #| label: fig-information
@@ -215,7 +217,9 @@ ll2, nus, Qs = fsf.information_filter_indep(nu_0,
                                             PHI_tuple,
                                             sigma2_eta,
                                             sigma2_eps,
-                                            zs_tuple)
+                                            zs_tuple,
+                                            full_likelihood=True
+    )
 
 ms2 = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
 
@@ -346,7 +350,8 @@ def objective_info(params):
                                       PHI_tuple,
                                       Sigma_eta,
                                       Sigma_eps_tuple,
-                                      zs_tuple,)
+                                      zs_tuple,
+                                      full_likelihood=True,)
     return -ll
 
 obj_grad = jax.grad(objective_info)
