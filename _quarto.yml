@@ -1,0 +1,6 @@
+project:
+  title: "JAX-IDEM"
+
+toc: true
+number-sections: true
+bibliography: docs/Bibliography.bib
