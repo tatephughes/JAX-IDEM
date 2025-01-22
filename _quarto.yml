@@ -2,13 +2,17 @@ project:
   title: "JAX-IDEM"
   type: website
 
+
+bibliography: site/Bibliography.bib
+
+
 website:
   title: "Integro-Difference Equation Models in Python-JAX"
   sidebar:
     left:
       - index.qmd
-      - mathematics.qmd
-      - ../reference/index.qmd
+      - /site/mathematics.qmd
+      - /reference/index.qmd
 
 lightbox: true
 
@@ -18,8 +22,6 @@ format:
       
 toc: true
 number-sections: true
-bibliography: docs/Bibliography.bib
-
 
 quartodoc:
   # the name used to import the package you want to create reference docs for
