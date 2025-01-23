@@ -6,20 +6,31 @@ project:
 bibliography: site/Bibliography.bib
 
 
+format:
+  html:
+    theme: spacelab
+
 website:
   title: "Integro-Difference Equation Models in Python-JAX"
-  sidebar:
+  navbar:
     left:
-      - index.qmd
-      - /site/mathematics.qmd
-      - /reference/index.qmd
+      - text: "Home"
+        href: ./index.qmd
+      - text: "The Maths"
+        href: ./site/mathematics.qmd
+      - text: "Docs"
+        href: ./reference/index.qmd
+    tools:
+      - icon: github
+        menu:
+          - text: "Source"
+            href: https://github.com/tatephughes/JAX-IDEM
+          - text: "Issues"
+            href: https://github.com/tatephughes/JAX-IDEM/issues
+
 
 lightbox: true
 
-format:
-  html:
-    theme: darkly
-      
 toc: true
 number-sections: true
 

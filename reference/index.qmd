@@ -31,7 +31,7 @@ General classes and functions used to supplement the main package
 
 | | |
 | --- | --- |
-| [Grid](Grid.qmd#jax_idem.utilities.Grid) | " |
+| [Grid](Grid.qmd#jax_idem.utilities.Grid) | A simple grid class to store (currently exclusively regular) grids, along |
 | [Basis](Basis.qmd#jax_idem.utilities.Basis) | A simple class for spatial basis expansions. |
 | [create_grid](create_grid.qmd#jax_idem.utilities.create_grid) | Creates an n-dimensional grid based on the given bounds and deltas. |
 | [outer_op](outer_op.qmd#jax_idem.utilities.outer_op) | Computes the outer operation of two vectors, a generalisation of the outer |

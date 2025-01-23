@@ -19,7 +19,7 @@ import io
 
 class Grid(NamedTuple):
 
-    """"
+    """
     A simple grid class to store (currently exclusively regular) grids, along
     with some key quantities such as the lenth between grid points, the
     number of grid points and the area/volume of each grid square/cube.

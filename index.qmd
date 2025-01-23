@@ -47,12 +47,9 @@ model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]))
 T = 35
 process_data, obs_data = model.simulate(key, T=T, nobs=50)
 
-dpi = 80
+dpi = 200
 width = 576 / dpi
 height = 480 / dpi
-
-plt.rcParams['figure.facecolor'] = '#222222'
-plt.rcParams['axes.facecolor'] = 'whitesmoke'
 
 # plot the objects
 gif_st_grid(process_data, "site/process.gif", width=width, height=height)
