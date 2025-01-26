@@ -64,6 +64,8 @@ def information_filter_naive(nu_0, Q_0, M, PHI_obs_tuple, Sigma_eta, Sigma_eps_t
 
     nus = [nu_0]
     Qs = [Q_0]
+    nupreds = []
+    Qpreds = []
 
     Minv = jnp.linalg.solve(M, jnp.eye(r))
     Sigma_eta_inv = jnp.linalg.solve(Sigma_eta, jnp.eye(r))
@@ -83,18 +85,18 @@ def information_filter_naive(nu_0, Q_0, M, PHI_obs_tuple, Sigma_eta, Sigma_eps_t
         nu_up = nu_pred + i_t
         Q_up = Q_pred + I_t
 
-        iota = i_t - I_t @ jnp.linalg.solve(Q_pred, nu_pred)
-
-        Sigma_iota = I_t @ jnp.linalg.solve(Q_pred, I_t.T) + I_t
-
-        ll = ll - 0.5 * r * jnp.log(2*jnp.pi) - \
-            0.5 * jnp.log(jnp.linalg.det(Sigma_iota)) -\
-            0.5 * iota.T @ jnp.linalg.solve(Sigma_iota, iota)
+        #iota = i_t - I_t @ jnp.linalg.solve(Q_pred, nu_pred)
+        #Sigma_iota = I_t @ jnp.linalg.solve(Q_pred, I_t.T) + I_t
+        #ll = ll - 0.5 * r * jnp.log(2*jnp.pi) - \
+        #    0.5 * jnp.log(jnp.linalg.det(Sigma_iota)) -\
+        #    0.5 * iota.T @ jnp.linalg.solve(Sigma_iota, iota)
 
         nus.append(nu_up)
         Qs.append(Q_up)
+        nupreds.append(nu_pred)
+        Qpreds.append(Q_pred)
 
     nus = jnp.array(nus)
     Qs = jnp.array(Qs)
 
-    return (ll, nus[1:], Qs[1:])
+    return (nus[1:], Qs[1:], nupreds, Qpreds)

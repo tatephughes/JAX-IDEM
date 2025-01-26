@@ -11,6 +11,7 @@ format:
     theme: spacelab
 
 website:
+  reader-mode: true
   title: "Integro-Difference Equation Models in Python-JAX"
   navbar:
     left:

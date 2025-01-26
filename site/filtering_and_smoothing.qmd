@@ -100,10 +100,10 @@ zs = []
 T = 50
 keys = rand.split(key, T*2)
 
-sigma2_eta = 0.03
+sigma2_eta = 0.001
 Sigma_eta = sigma2_eta*jnp.eye(2)
 chol_s_eta = jax.scipy.linalg.cholesky(Sigma_eta, lower=True)
-sigma2_eps = 0.02
+sigma2_eps = 0.01
 Sigma_eps = sigma2_eps*jnp.eye(3)
 chol_s_eps = jax.scipy.linalg.cholesky(Sigma_eps, lower=True)
 PHI = jnp.array([[1, 0], [0.6, 0.4], [0.4, 0.6]])
@@ -203,14 +203,14 @@ nu_0 = jnp.zeros(2)
 PHI_tuple = tuple([PHI for _ in range(T)])
 zs_tuple = tuple(zs)
 
-ll2, nus, Qs = fsf.information_filter_indep(nu_0,
+nus, Qs,_ ,_  = fsf.information_filter_indep(nu_0,
                                             Q_0,
                                             M,
                                             PHI_tuple,
                                             sigma2_eta,
                                             sigma2_eps,
                                             zs_tuple,
-                                            full_likelihood=True
+                                            full_likelihood=False
     )
 
 ms2 = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
@@ -235,7 +235,6 @@ We still need to look at the log-likelihoods that were outputted;
 
 ```{python}
 print(ll)
-print(ll2)
 ```
 
 These values are very different _but that might be ok_. 
@@ -281,16 +280,14 @@ start_learning_rate = 1e-2
 optimizer = optax.adam(start_learning_rate)
 param_ad = param0
 opt_state = optimizer.init(param_ad)
-
 import time
 start_time = time.time()
                                    
-for i in range(100):
+for i in range(50):
     grad = obj_grad(param_ad)
     updates, opt_state = optimizer.update(grad, opt_state)
     param_ad = optax.apply_updates(param_ad, updates)
     nll = objective_kalman(param_ad)
-
 
 ll, ms3, Ps, _, _, _ = fsf.kalman_filter(m_0,
                                          P_0,
@@ -322,6 +319,7 @@ These results are great.
 Lets confirm that the information filter is also working, using the same method
 
 ```{python}
+#| eval: false
 #| label: fig-information-fitted
 #| fig-caption: "The (information) fitted and filtered means"
 
@@ -343,7 +341,7 @@ def objective_info(params):
                                       Sigma_eta,
                                       Sigma_eps_tuple,
                                       zs_tuple,
-                                      full_likelihood=True,)
+                                      full_likelihood=False,)
     return -ll
 
 obj_grad = jax.grad(objective_info)
@@ -359,7 +357,7 @@ opt_state = optimizer.init(param_ad)
 
 start_time = time.time()
                                    
-for i in range(100):
+for i in range(50):
     grad = obj_grad(param_ad)
     updates, opt_state = optimizer.update(grad, opt_state)
     param_ad = optax.apply_updates(param_ad, updates)

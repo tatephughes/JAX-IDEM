@@ -101,4 +101,4 @@ For a rundown of the mathematics underpinning this model and implementation, see
 
 ## Documentation
 
-Documentation for the package is available [here](reference/index.html)
+Documentation for the package is available [here](reference/index.html).

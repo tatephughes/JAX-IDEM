@@ -1,5 +1,25 @@
-\usepackage{amsmath}
+\usepackage{unicode-math}
 \DeclareMathOperator{\var}{\mathbb{V}\mathrm{ar}}
 \DeclareMathOperator{\cov}{\mathbb{C}\mathrm{ov}}
-\renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
 \newcommand\eqc{\stackrel{c}{=}}
+\newcommand{\bv}[1]{\symbfit{#1}}
+\setmainfont{XITS}
+\setmathfont{XITS Math}
+
+
+\usepackage{tcolorbox}
+\tcbuselibrary{most}
+
+
+% Define styles for theorem, lemma, proof, etc.
+\newtcolorbox{mytheorem}[1][]{colback=blue!5!white, colframe=blue!75!black,
+fonttitle=\bfseries, title=Theorem, #1}
+
+\newtcolorbox{mylemma}[1][]{colback=green!5!white, colframe=green!75!black,
+fonttitle=\bfseries, title=Lemma, #1}
+
+\newtcolorbox{myproof}[1][]{colback=red!5!white, colframe=red!75!black,
+fonttitle=\bfseries, title=Proof, #1}
+
+\newtcolorbox{myexample}[1][]{colback=yellow!5!white, colframe=yellow!75!black,
+fonttitle=\bfseries, title=Example, #1}

@@ -109,7 +109,7 @@ def kalman_filter(
         ztildes.T,
     )
 
-    return (carry[4], seq[0], seq[1], seq[2][:], seq[3][:], seq[5][:])
+    return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
 
 
 @partial(jax.jit, static_argnames=["full_likelihood"])
@@ -221,7 +221,7 @@ def kalman_filter_indep(
         ztildes.T,
     )
 
-    return (carry[4], seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:])
+    return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
 
 
 @partial(jax.jit, static_argnames=["full_likelihood"])
@@ -297,7 +297,7 @@ def information_filter(
     Sigma_eta_inv = jnp.linalg.solve(Sigma_eta, jnp.eye(r))
 
     def step(carry, scan_elt):
-        nu_tt, Q_tt, ll = carry
+        nu_tt, Q_tt, _, _ = carry
 
         i_tp = scan_elt[0, :]
         I_tp = scan_elt[1:, :]
@@ -311,28 +311,27 @@ def information_filter(
         nu_up = nu_pred + i_tp
         Q_up = Q_pred + I_tp
 
-        chol_Sigma_iota = jnp.linalg.cholesky(
-            I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
-        iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
+        #chol_Sigma_iota = jnp.linalg.cholesky(
+        #    I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
+        #iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
+        #z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
 
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
+        #if full_likelihood:
+        #    ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
+        #        0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
+        #else:
+        #    ll_new = ll - \
+        #        jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
 
-        if full_likelihood:
-            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
-                0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
-        else:
-            ll_new = ll - \
-                jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
-
-        return (nu_up, Q_up, ll_new), (nu_up, Q_up, ll_new)
+        return (nu_up, Q_up, nu_pred, Q_pred), (nu_up, Q_up, nu_pred, Q_pred)
 
     carry, seq = jl.scan(
         step,
-        (nu_0, Q_0, 0),
+        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
         scan_elts,
     )
 
-    return carry[2], seq[0], seq[1]
+    return seq[0], seq[1], seq[2], seq[3]
 
 
 @partial(jax.jit, static_argnames=["full_likelihood"])
@@ -409,7 +408,7 @@ def information_filter_indep(
     sigma2_eta_inv = 1/sigma2_eta
 
     def step(carry, scan_elt):
-        nu_tt, Q_tt, ll = carry
+        nu_tt, Q_tt, _, _ = carry
 
         i_tp = scan_elt[0, :]
         I_tp = scan_elt[1:, :]
@@ -428,27 +427,25 @@ def information_filter_indep(
         nu_up = nu_pred + i_tp
         Q_up = Q_pred + I_tp
 
-        chol_Sigma_iota = jnp.linalg.cholesky(
-            I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
-        iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
-
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
-
-        if full_likelihood:
-            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
-                0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
-        else:
-            ll_new = ll - \
-                jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
-        return (nu_up, Q_up, ll_new), (nu_up, Q_up, ll_new)
+        #chol_Sigma_iota = jnp.linalg.cholesky(
+        #    I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
+        #iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
+        #z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
+        #if full_likelihood:
+        #    ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
+        #        0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
+        #else:
+        #    ll_new = ll - \
+        #        jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
+        return (nu_up, Q_up, nu_pred, Q_pred), (nu_up, Q_up, nu_pred, Q_pred)
 
     carry, seq = jl.scan(
         step,
-        (nu_0, Q_0, 0),
+        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
         scan_elts,
     )
 
-    return carry[2], seq[0], seq[1]
+    return seq[0], seq[1], seq[2], seq[3]
 
 
 @jax.jit

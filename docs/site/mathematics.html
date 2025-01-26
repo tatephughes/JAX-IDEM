@@ -90,10 +90,10 @@ div.csl-indent {
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-8ea72dc5fed832574809a9c94082fbbb.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-549806ee2085284f45b00abea8c6df48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-2a7528f117d075273fca3a0b09f3bef2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-9f447091f8b1454dcd9b1558d5056ce7.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -201,6 +201,11 @@ window.Quarto = {
           </li>
       </ul>
     </div>
+  <a href="" class="quarto-reader-toggle quarto-navigation-tool px-1" onclick="window.quartoToggleReader(); return false;" title="Toggle reader mode">
+  <div class="quarto-reader-toggle-btn">
+  <i class="bi"></i>
+  </div>
+</a>
 </div>
       </div> <!-- /container-fluid -->
     </nav>
@@ -231,7 +236,7 @@ window.Quarto = {
   <li><a href="#algorithm-for-maximum-complete-data-likelihood-estimation" id="toc-algorithm-for-maximum-complete-data-likelihood-estimation" class="nav-link" data-scroll-target="#algorithm-for-maximum-complete-data-likelihood-estimation"><span class="header-section-number">5</span> Algorithm for Maximum Complete-data Likelihood estimation</a></li>
   
   </ul>
-</nav>
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="mathematics.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
@@ -261,123 +266,122 @@ window.Quarto = {
 </header>
 
 
-<p><a href="../index.html">Index</a></p>
 <section id="integro-difference-based-dynamics" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Integro-difference Based Dynamics</h1>
 <p>As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty. Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.</p>
 <p>Traditionally, the problem has been tackled by the moments (usually the means and covariances) of the process in order to make inference (<span class="citation" data-cites="wikle2019spatio">Wikle, Zammit-Mangion, and Cressie (<a href="#ref-wikle2019spatio" role="doc-biblioref">2019</a>)</span>, for example, call this ‘descriptive’ modelling). While this method can be sufficient for many problems, there are many cases where we are underutilizing some knowledge of the underlying dynamical systems involved. For instance, in temperature models, we know that temperature has movement (convection) and spread (diffusion), and that the state at any given time will depend on its state at previous times <a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>. We call models which make use of this ‘dynamical’ models. Of focus here is the Integro-Difference Equation Model (IDEM), which models diffusion and convection in discrete time by using convolution-like integral equations to model the relation between the process and it’s previous state. We use a hierarchical model to represent this type of system;</p>
 <p><span id="eq-IDEM"><span class="math display">\[\begin{split}
-Z_t(\boldsymbol{\mathbf{s}}) &amp;= Y_t(\boldsymbol{\mathbf{s}}) + X(\boldsymbol{\mathbf{s}})^{\intercal}\boldsymbol{\mathbf{\beta }}+ \epsilon_t(\boldsymbol{\mathbf{s}})\\
-Y_{t+1}(\boldsymbol{\mathbf{s}}) &amp;= \int_{\mathcal D_s} \kappa(s,r) Y_t(r) d\boldsymbol{\mathbf{r}} + \omega_t(\boldsymbol{\mathbf{s}}).
+Z_t(\bv s) &amp;= Y_t(\bv s) + X(\bv s)^{\intercal}\bv \beta + \epsilon_t(\bv s)\\
+Y_{t+1}(\bv s) &amp;= \int_{\mathcal D_s} \kappa(s,r) Y_t(r) d\bv r + \omega_t(\bv s).
 \end{split}
 \tag{1}\]</span></span></p>
-<p>Where <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> is a small scale gaussian variation with no temporal dynamics <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a> call this a ‘spatially descriptive’ component)</span>, <span class="math inline">\(\boldsymbol{\mathbf{X}}(\boldsymbol{\mathbf{s}})\)</span> are spatially varying covariates (for example, in a large-scale climate scenario, this might simply be latitude), <span class="math inline">\(Z\)</span> is observed data, <span class="math inline">\(Y\)</span> is an unobserved dynamic process, <span class="math inline">\(\kappa\)</span> is the driving ‘kernel’ function, and <span class="math inline">\(\epsilon_t\)</span> is a gaussian white noise ‘measurement error’ term.</p>
+<p>Where <span class="math inline">\(\omega_t(\bv s)\)</span> is a small scale gaussian variation with no temporal dynamics <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a> call this a ‘spatially descriptive’ component)</span>, <span class="math inline">\(\bv X(\bv s)\)</span> are spatially varying covariates (for example, in a large-scale climate scenario, this might simply be latitude), <span class="math inline">\(Z\)</span> is observed data, <span class="math inline">\(Y\)</span> is an unobserved dynamic process, <span class="math inline">\(\kappa\)</span> is the driving ‘kernel’ function, and <span class="math inline">\(\epsilon_t\)</span> is a gaussian white noise ‘measurement error’ term.</p>
 </section>
 <section id="process-decomposition" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Process Decomposition</h1>
-<p>In order to work with the process, we likely want to consider the spectral decomposition of it. That is, choose a complete class of spatial spectral basis functions, <span class="math inline">\(\phi_i(\boldsymbol{\mathbf{s}})\)</span>, and decompose;</p>
+<p>In order to work with the process, we likely want to consider the spectral decomposition of it. That is, choose a complete class of spatial spectral basis functions, <span class="math inline">\(\phi_i(\bv s)\)</span>, and decompose;</p>
 <p><span id="eq-processdecomp"><span class="math display">\[\begin{split}
-Y_t(\boldsymbol{\mathbf{s}}) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\boldsymbol{\mathbf{s}}).
+Y_t(\bv s) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\bv s).
 \end{split}
 \tag{2}\]</span></span></p>
 <p>where we truncate the expansion at some <span class="math inline">\(r\in\mathbb N\)</span>. Notice that we can write this in vector/matrix form; considering times <span class="math inline">\(t=1,2,\dots, T\)</span>, we set</p>
 <p><span id="eq-vecmats"><span class="math display">\[\begin{split}
-\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) &amp;= (\phi_1(\boldsymbol{\mathbf{s}}), \phi_2(\boldsymbol{\mathbf{s}}), \dots, \phi_r(\boldsymbol{\mathbf{s}}))^{\intercal}\\
-\boldsymbol{\mathbf{\alpha}}_t &amp;= (\alpha_{1,t}, \alpha_{2,t}, \dots, \alpha_{r, t})^{\intercal}
+\bv \phi(\bv s) &amp;= (\phi_1(\bv s), \phi_2(\bv s), \dots, \phi_r(\bv s))^{\intercal}\\
+\bv \alpha_t &amp;= (\alpha_{1,t}, \alpha_{2,t}, \dots, \alpha_{r, t})^{\intercal}
 \end{split}
 \tag{3}\]</span></span></p>
 <p>Now, (<a href="#eq-processdecomp" class="quarto-xref">Equation&nbsp;2</a>) gives us</p>
 <p><span id="eq-pbvec"><span class="math display">\[\begin{split}
-Y(\boldsymbol{\mathbf{s}}; t) &amp;= \boldsymbol{\mathbf{\phi}}^{\intercal}(\boldsymbol{\mathbf{s}})  \alpha(t)\\
+Y(\bv s; t) &amp;= \bv \phi^{\intercal}(\bv s)  \alpha(t)\\
 \end{split}
 \tag{4}\]</span></span></p>
-<p>We now want to find the equation defining the evolution of the spectral coefficients, <span class="math inline">\(\boldsymbol{\mathbf{\alpha}}_t\)</span>.</p>
+<p>We now want to find the equation defining the evolution of the spectral coefficients, <span class="math inline">\(\bv \alpha_t\)</span>.</p>
 <div id="thm-state_form" class="theorem">
 <p><span class="theorem-title"><strong>Theorem 1 (Basis form of the state evolution)</strong></span> Define the Gram matrix;</p>
-<p><span id="eq-gram"><span class="math display">\[\Psi := \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal d\boldsymbol{\mathbf{s}}
+<p><span id="eq-gram"><span class="math display">\[\Psi := \int_{\mathcal D_s} \bv \phi(\bv s) \bv \phi(\bv s)^\intercal d\bv s
 \tag{5}\]</span></span></p>
 <p>Then, the basis coefficients evolve by the equation</p>
-<p><span class="math display">\[\boldsymbol{\mathbf{\alpha}}(t+1) = M \boldsymbol{\mathbf{\alpha}}(t) + \boldsymbol{\mathbf{\eta}}_t,
+<p><span class="math display">\[\bv \alpha(t+1) = M \bv\alpha(t) + \bv\eta_t,
 \]</span></p>
-<p>where <span class="math inline">\(M = \Psi^{-1} \int\int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}})\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}} d \boldsymbol{\mathbf{s}}\)</span> and <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t =\Psi^{-1} \int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\omega_t(s)d\boldsymbol{\mathbf{s}}\)</span>.</p>
+<p>where <span class="math inline">\(M = \Psi^{-1} \int\int \bv\phi(\bv s) \kappa(\bv s, \bv r)\bv\phi(\bv r)^\intercal d\bv r d \bv s\)</span> and <span class="math inline">\(\bv\eta_t =\Psi^{-1} \int \bv \phi(\bv s)\omega_t(s)d\bv s\)</span>.</p>
 </div>
 <div class="proof">
 <p><span class="proof-title"><em>Proof</em>. </span><span class="citation" data-cites="dewar2008data">(Adapting from <a href="#ref-dewar2008data" role="doc-biblioref">Dewar, Scerri, and Kadirkamanathan 2008</a>)</span>, write out the process equation, (<a href="#eq-IDEM" class="quarto-xref">Equation&nbsp;1</a>), using the first equation of (<a href="#eq-pbvec" class="quarto-xref">Equation&nbsp;4</a>);</p>
-<p><span class="math display">\[Y(\boldsymbol{\mathbf{s}};t+1) = \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \alpha(t+1) = \int_{\mathcal D_s} \kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^{\intercal}\boldsymbol{\mathbf{\alpha}}(t)d\boldsymbol{\mathbf{r}} + \omega_t(\boldsymbol{\mathbf{s}}),
+<p><span class="math display">\[Y(\bv s;t+1) = \bv \phi(\bv s) \alpha(t+1) = \int_{\mathcal D_s} \kappa(\bv s, \bv r) \bv\phi(\bv r)^{\intercal}\bv \alpha(t)d\bv r + \omega_t(\bv s),
 \]</span></p>
-<p>We then multiply both sides by <span class="math inline">\(\boldsymbol{\mathbf{\phi}}(s)\)</span> and integrate over <span class="math inline">\(\boldsymbol{\mathbf{s}}\)</span></p>
+<p>We then multiply both sides by <span class="math inline">\(\bv \phi(s)\)</span> and integrate over <span class="math inline">\(\bv s\)</span></p>
 <p><span class="math display">\[\begin{split}
-\int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) d\boldsymbol{\mathbf{s}} \boldsymbol{\mathbf{\alpha}}(t+1) &amp;= \int\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\int \kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}})\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}}  d \boldsymbol{\mathbf{s}}\ \boldsymbol{\mathbf{\alpha}}(t) + \int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\omega_t(s)d\boldsymbol{\mathbf{s}}\\
-\Psi \boldsymbol{\mathbf{\alpha}}(t+1) &amp;= \int\int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}} d \boldsymbol{\mathbf{s}}\ \boldsymbol{\mathbf{\alpha}}(t) + \int \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\omega_t(s)d\boldsymbol{\mathbf{s}}.
+\int_{\mathcal D_s} \bv\phi(\bv s)\bv\phi(\bv s) d\bv s \bv\alpha(t+1) &amp;= \int\bv\phi(\bv s)\int \kappa(\bv s, \bv r)\bv\phi(\bv r)^\intercal d\bv r  d \bv s\ \bv\alpha(t) + \int \bv \phi(\bv s)\omega_t(s)d\bv s\\
+\Psi \bv\alpha(t+1) &amp;= \int\int \bv\phi(\bv s)\kappa(\bv s, \bv r) \bv\phi(\bv r)^\intercal d\bv r d \bv s\ \bv\alpha(t) + \int \bv \phi(\bv s)\omega_t(s)d\bv s.
 \end{split}
 \]</span></p>
-<p>So, finally, pre-multipling by the inverse of the gram matrix, <span class="math inline">\(\Psi^{-1}\)</span> (<a href="#eq-gram" class="quarto-xref">Equation&nbsp;5</a>), we arrive at the result.</p>
+<p>So, finally, pre-multipling by the inverse of the gram matrix, <span class="math inline">\(\Psi^{-1}\)</span> (<a href="#eq-gram" class="quarto-xref">Equation&nbsp;5</a>), we arrive at the result. </p>
 </div>
 <section id="process-noise" class="level2" data-number="2.1">
 <h2 data-number="2.1" class="anchored" data-anchor-id="process-noise"><span class="header-section-number">2.1</span> Process Noise</h2>
-<p>We still have to set out what the process noise, <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span>, and it’s spectral couterpart, <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t\)</span>, are. Dewar <span class="citation" data-cites="dewar2008data">(<a href="#ref-dewar2008data" role="doc-biblioref">Dewar, Scerri, and Kadirkamanathan 2008</a>)</span> fixes the variance of <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> to be uniform and uncorrelated across space and time, with <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}}) \sim \mathcal N(0,\sigma^2)\)</span> It is then easily shown that <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t\)</span> is also normal, with <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t \sim \mathcal N(0, \sigma^2\Psi^{-1})\)</span>.</p>
-<p>However, in practice, we simulate in the spectral domain; that is, if we want to keep things simple, it would make sense to specify (and fit) the distribution of <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t\)</span>, and compute the variance of <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> if needed. This is exactly what the IDE package <span class="citation" data-cites="zammit2022IDE">(<a href="#ref-zammit2022IDE" role="doc-biblioref">Zammit-Mangion 2022</a>)</span> in R does, and, correspondingly, what this JAX project does.</p>
+<p>We still have to set out what the process noise, <span class="math inline">\(\omega_t(\bv s)\)</span>, and it’s spectral couterpart, <span class="math inline">\(\bv \eta_t\)</span>, are. Dewar <span class="citation" data-cites="dewar2008data">(<a href="#ref-dewar2008data" role="doc-biblioref">Dewar, Scerri, and Kadirkamanathan 2008</a>)</span> fixes the variance of <span class="math inline">\(\omega_t(\bv s)\)</span> to be uniform and uncorrelated across space and time, with <span class="math inline">\(\omega_t(\bv s) \sim \mathcal N(0,\sigma^2)\)</span> It is then easily shown that <span class="math inline">\(\bv\eta_t\)</span> is also normal, with <span class="math inline">\(\bv\eta_t \sim \mathcal N(0, \sigma^2\Psi^{-1})\)</span>.</p>
+<p>However, in practice, we simulate in the spectral domain; that is, if we want to keep things simple, it would make sense to specify (and fit) the distribution of <span class="math inline">\(\bv\eta_t\)</span>, and compute the variance of <span class="math inline">\(\omega_t(\bv s)\)</span> if needed. This is exactly what the IDE package <span class="citation" data-cites="zammit2022IDE">(<a href="#ref-zammit2022IDE" role="doc-biblioref">Zammit-Mangion 2022</a>)</span> in R does, and, correspondingly, what this JAX project does.</p>
 <div id="lem-omegadist" class="theorem lemma">
-<p><span class="theorem-title"><strong>Lemma 1</strong></span> Let <span class="math inline">\(\boldsymbol{\mathbf{\eta}}_t \sim \mathcal N(0, \Sigma_\eta)\)</span>, and <span class="math inline">\(\mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\boldsymbol{\mathbf{\eta}}_t, \boldsymbol{\mathbf{\eta}}_{t+\tau}] =0\)</span>, <span class="math inline">\(\forall \tau&gt;0\)</span>. Then <span class="math inline">\(\omega_t(\boldsymbol{\mathbf{s}})\)</span> has covariance</p>
-<p><span class="math display">\[\mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\omega_t(\boldsymbol{\mathbf{s}}), \omega_{t+\tau}(\boldsymbol{\mathbf{r}})] = \begin{cases}
-\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal \Sigma_\eta \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}) &amp; \text{if }\tau=0\\
+<p><span class="theorem-title"><strong>Lemma 1</strong></span> Let <span class="math inline">\(\bv\eta_t \sim \mathcal N(0, \Sigma_\eta)\)</span>, and <span class="math inline">\(\cov[\bv\eta_t, \bv \eta_{t+\tau}] =0\)</span>, <span class="math inline">\(\forall \tau&gt;0\)</span>. Then <span class="math inline">\(\omega_t(\bv s)\)</span> has covariance</p>
+<p><span class="math display">\[\cov [\omega_t(\bv s), \omega_{t+\tau}(\bv r)] = \begin{cases}
+\bv\phi(\bv s)^\intercal \Sigma_\eta \bv\phi(\bv r) &amp; \text{if }\tau=0\\
 0 &amp; \text{else}\\
 \end{cases}
 \]</span></p>
 </div>
 <div class="proof">
-<p><span class="proof-title"><em>Proof</em>. </span>Consider <span class="math inline">\(\Psi \boldsymbol{\mathbf{\eta}}_t\)</span>. It is clearly normal, with expectation zero and variance (using (<a href="#eq-gram" class="quarto-xref">Equation&nbsp;5</a>)),</p>
+<p><span class="proof-title"><em>Proof</em>. </span>Consider <span class="math inline">\(\Psi \bv\eta_t\)</span>. It is clearly normal, with expectation zero and variance (using (<a href="#eq-gram" class="quarto-xref">Equation&nbsp;5</a>)),</p>
 <p><span id="eq-var1"><span class="math display">\[\begin{split}
-\mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\Psi \boldsymbol{\mathbf{\eta}}_t] &amp;= \Psi \mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{\omega}}_t] \Psi^\intercal = \Psi\Sigma_\eta\Psi^\intercal,\\
-&amp;= \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal d\boldsymbol{\mathbf{s}} \  \Sigma_\eta \ \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}}\\
-&amp;=  \int\int_{\mathcal D_s^2} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal \  \Sigma_\eta \  \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}} d\boldsymbol{\mathbf{s}}\\
+\var[\Psi \bv\eta_t] &amp;= \Psi \var[\bv\omega_t] \Psi^\intercal = \Psi\Sigma_\eta\Psi^\intercal,\\
+&amp;= \int_{\mathcal D_s} \bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \  \Sigma_\eta \ \int_{\mathcal D_s} \bv\phi(\bv r) \bv\phi(\bv r)^\intercal d\bv r\\
+&amp;=  \int\int_{\mathcal D_s^2} \bv\phi(\bv s) \bv\phi(\bv s)^\intercal \  \Sigma_\eta \  \bv\phi(\bv r) \bv\phi(\bv r)^\intercal d\bv r d\bv s\\
 \end{split}
 \tag{6}\]</span></span></p>
 <p>Since it has zero expectation, we also have</p>
 <p><span id="eq-var2"><span class="math display">\[\begin{split}
-\mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\Psi\boldsymbol{\mathbf{\eta}}_t] &amp;= \mathbb E[(\Psi\boldsymbol{\mathbf{\eta}}_t) (\Psi\boldsymbol{\mathbf{\eta}}_t)^\intercal] = \mathbb E[\Psi\boldsymbol{\mathbf{\eta}}_t\boldsymbol{\mathbf{\eta}}_t^\intercal\Psi^\intercal]\\
-&amp;= \mathbb E \left[ \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\omega_t(\boldsymbol{\mathbf{s}})d\boldsymbol{\mathbf{s}} \int_{\mathcal D_s} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal \omega_t(\boldsymbol{\mathbf{r}}) d\boldsymbol{\mathbf{r}} \right]\\
-&amp;= \int\int_{\mathcal D_s^2} \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})\  \mathbb E[\omega_t(\boldsymbol{\mathbf{s}})\omega_t(\boldsymbol{\mathbf{r}})]\  \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{s}} d \boldsymbol{\mathbf{r}}.
+\var[\Psi\bv\eta_t] &amp;= \mathbb E[(\Psi\bv\eta_t) (\Psi\bv\eta_t)^\intercal] = \mathbb E[\Psi\bv\eta_t\bv\eta_t^\intercal\Psi^\intercal]\\
+&amp;= \mathbb E \left[ \int_{\mathcal D_s} \bv\phi(\bv s)\omega_t(\bv s)d\bv s \int_{\mathcal D_s} \bv \phi(\bv r)^\intercal \omega_t(\bv r) d\bv r \right]\\
+&amp;= \int\int_{\mathcal D_s^2} \bv\phi(\bv s)\  \mathbb E[\omega_t(\bv s)\omega_t(\bv r)]\  \bv \phi(\bv r)^\intercal d\bv s d \bv r.
 \end{split}
 \tag{7}\]</span></span></p>
 <p>We can see that, comparing (<a href="#eq-var1" class="quarto-xref">Equation&nbsp;6</a>) and (<a href="#eq-var2" class="quarto-xref">Equation&nbsp;7</a>), we have</p>
-<p><span class="math display">\[\mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\omega_t(\boldsymbol{\mathbf{s}}), \omega_t(\boldsymbol{\mathbf{r}})] = \mathbb E[\omega_t(\boldsymbol{\mathbf{s}})\omega_t(\boldsymbol{\mathbf{r}})]= \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal \Sigma_\eta \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}}).
-\]</span></p>
+<p><span class="math display">\[\cov [\omega_t(\bv s), \omega_t(\bv r)] = \mathbb E[\omega_t(\bv s)\omega_t(\bv r)]= \bv\phi(\bv s)^\intercal \Sigma_\eta \bv\phi(\bv r).
+\]</span> </p>
 </div>
 </section>
 <section id="kernel-decomposition" class="level2" data-number="2.2">
 <h2 data-number="2.2" class="anchored" data-anchor-id="kernel-decomposition"><span class="header-section-number">2.2</span> Kernel Decomposition</h2>
 <p>Next is the key part od the system, which defines the dynamics; the kernelf function, <span class="math inline">\(\kappa\)</span>. There are a few ways to handle the kernel. One of the most obvious is to expand it out into a spectral decomposition as well;</p>
-<p><span class="math display">\[\kappa \approx \sum_i \beta_i\psi(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}).
+<p><span class="math display">\[\kappa \approx \sum_i \beta_i\psi(\bv s, \bv r).
 \]</span></p>
 <p>This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on <span class="math inline">\(\mathbb R^2\times \mathbb R^2\)</span>; to get a wide enough space of possible functions, we would likely need many terms of the basis expansion.</p>
-<p>A much simpler approach would be to simply parameterise the kernel function, to <span class="math inline">\(\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}, \boldsymbol{\mathbf{\theta}}_\kappa)\)</span>. We then establish a simple shape for the kernel (e.g.&nbsp;Gaussian) and rely on very few parameters (for example, scale, shape, offsets). The example kernel used in the program is aGaussian kernel;</p>
-<p><span class="math display">\[\kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}; \boldsymbol{\mathbf{m}}, a, b) = a \exp \left( -\frac{1}{b} \Vert \boldsymbol{\mathbf{s}}- \boldsymbol{\mathbf{r}} +\boldsymbol{\mathbf{m}}\Vert^2 \right)
+<p>A much simpler approach would be to simply parameterise the kernel function, to <span class="math inline">\(\kappa(\bv s, \bv r, \bv \theta_\kappa)\)</span>. We then establish a simple shape for the kernel (e.g.&nbsp;Gaussian) and rely on very few parameters (for example, scale, shape, offsets). The example kernel used in the program is aGaussian kernel;</p>
+<p><span class="math display">\[\kappa(\bv s, \bv r; \bv m, a, b) = a \exp \left( -\frac{1}{b} \vert \bv s- \bv r +\bv m\vert^2 \right)
 \]</span></p>
-<p>Of course, this kernel lacks spatial dependance. We can add spatial variance back in in a nice way by adding dependance on <span class="math inline">\(\boldsymbol{\mathbf{s}}\)</span> to the parameters, for example, variyng the offset term as <span class="math inline">\(\boldsymbol{\mathbf{m}}(\boldsymbol{\mathbf{s}})\)</span>. Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a>)</span>. The actual parameters of such a spatially-variant kernel are then the basis coefficients for the expansion of any spatially variant parameters, as well as any constant parameters.</p>
+<p>Of course, this kernel lacks spatial dependance. We can add spatial variance back in in a nice way by adding dependance on <span class="math inline">\(\bv s\)</span> to the parameters, for example, variyng the offset term as <span class="math inline">\(\bv m(\bv s)\)</span>. Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground <span class="citation" data-cites="cressie2015statistics">(<a href="#ref-cressie2015statistics" role="doc-biblioref">Cressie and Wikle 2015</a>)</span>. The actual parameters of such a spatially-variant kernel are then the basis coefficients for the expansion of any spatially variant parameters, as well as any constant parameters.</p>
 </section>
 <section id="idem-as-a-linear-dynamical-system" class="level2" data-number="2.3">
 <h2 data-number="2.3" class="anchored" data-anchor-id="idem-as-a-linear-dynamical-system"><span class="header-section-number">2.3</span> IDEM as a linear dynamical system</h2>
 <p>To recap, we have discretized space in such a way that the Integro-difference model is of a more traditional linear dynamical system form. All that is left is to include our observations in our system.</p>
-<p>Lets assume that at each time <span class="math inline">\(t\)</span> there are <span class="math inline">\(n_t\)</span> observations at locations <span class="math inline">\(\boldsymbol{\mathbf{s}}_{1,t},\dots, \boldsymbol{\mathbf{s}}_{n_{t},t}\)</span>. We write the vector of the process at these points as <span class="math inline">\(\boldsymbol{\mathbf{Y}}(t) = (Y(s_{1,t};t), \dots, Y(s_{n_{t},t};t))^\intercal\)</span>, and, in it’s expanded form <span class="math inline">\(\boldsymbol{\mathbf{Y}}_t = \Phi_t \boldsymbol{\mathbf{\alpha}}_t\)</span>, where <span class="math inline">\(\Phi \in \mathbb R^{r\times n_{t}}\)</span> is</p>
+<p>Lets assume that at each time <span class="math inline">\(t\)</span> there are <span class="math inline">\(n_t\)</span> observations at locations <span class="math inline">\(\bv s_{1,t},\dots, \bv s_{n_{t},t}\)</span>. We write the vector of the process at these points as <span class="math inline">\(\bv Y(t) = (Y(s_{1,t};t), \dots, Y(s_{n_{t},t};t))^\intercal\)</span>, and, in it’s expanded form <span class="math inline">\(\bv Y_t = \Phi_t \bv\alpha_t\)</span>, where <span class="math inline">\(\Phi \in \mathbb R^{r\times n_{t}}\)</span> is</p>
 <p><span class="math display">\[\begin{split}
 \{\Phi_{t}\}_{i, j} = \phi_{i}(s_{j,t}).
 \end{split}
 \]</span></p>
-<p>For the covariates, we write the matrix <span class="math inline">\(X_t = (\boldsymbol{\mathbf{X}}(\boldsymbol{\mathbf{s}}_{1, t}), \dots, \boldsymbol{\mathbf{X}}(\boldsymbol{\mathbf{s}}_{1=n_{t}, t})^\intercal\)</span>. We then have</p>
+<p>For the covariates, we write the matrix <span class="math inline">\(X_t = (\bv X(\bv s_{1, t}), \dots, \bv X(\bv s_{1=n_{t}, t})^\intercal\)</span>. We then have</p>
 <p><span class="math display">\[\begin{split}
-\boldsymbol{\mathbf{Z}}_t &amp;= \Phi \alpha_t + X_{t} \boldsymbol{\mathbf{\beta }}+ \boldsymbol{\mathbf{\epsilon}}_t, \quad t=0,1,\dots, T,\\
-\boldsymbol{\mathbf{\alpha}}_{t+1} &amp;= M\boldsymbol{\mathbf{\alpha}}_t + \boldsymbol{\mathbf{\eta}}_t,\quad t = 1,2,\dots, T,\\
-M &amp;= \int_{\mathcal D_s}\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}})^\intercal d\boldsymbol{\mathbf{s}} \int_{\mathcal D_s^2}\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) \kappa(\boldsymbol{\mathbf{s}}, \boldsymbol{\mathbf{r}}; \boldsymbol{\mathbf{\theta}}_\kappa)\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{r}})^\intercal d\boldsymbol{\mathbf{r}} d \boldsymbol{\mathbf{s}},
+\bv Z_t &amp;= \Phi \alpha_t + X_{t} \bv \beta + \bv \epsilon_t, \quad t=0,1,\dots, T,\\
+\bv \alpha_{t+1} &amp;= M\bv \alpha_t + \bv\eta_t,\quad t = 1,2,\dots, T,\\
+M &amp;= \int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \int_{\mathcal D_s^2}\bv\phi(\bv s) \kappa(\bv s, \bv r; \bv\theta_\kappa)\bv\phi(\bv r)^\intercal d\bv r d \bv s,
 \end{split}
 \]</span></p>
-<p>Writing <span class="math inline">\(\tilde{\boldsymbol{\mathbf{Z}}}_t = \boldsymbol{\mathbf{Z}}_t - X_t \boldsymbol{\mathbf{\beta}}\)</span>,</p>
+<p>Writing <span class="math inline">\(\tilde{\bv{Z}}_t = \bv Z_t - X_t \bv \beta\)</span>,</p>
 <p><span id="eq-ldstm"><span class="math display">\[\begin{split}
-\tilde{\boldsymbol{\mathbf{Z}}}_t &amp;= \Phi_{t} \boldsymbol{\mathbf{\alpha}}_t + \boldsymbol{\mathbf{\epsilon}}_t,\quad &amp;t = 1,2,\dots, T,\\
-\boldsymbol{\mathbf{\alpha}}_{t+1} &amp;= M \boldsymbol{\mathbf{\alpha}}_t + \boldsymbol{\mathbf{\eta}}_t,\quad &amp;t = 0,1, \dots, T.\\
+\tilde{\bv Z}_t &amp;= \Phi_{t} \bv \alpha_t + \bv \epsilon_t,\quad &amp;t = 1,2,\dots, T,\\
+\bv \alpha_{t+1} &amp;= M \bv \alpha_t + \bv\eta_t,\quad &amp;t = 0,1, \dots, T.\\
 \end{split}
 \tag{8}\]</span></span></p>
-<p>We should also initialise <span class="math inline">\(\boldsymbol{\mathbf{\alpha}}_0 \sim \mathcal N^{r}(\boldsymbol{\mathbf{m}}_{0}, \Sigma_{0})\)</span>, and fix simple distrubtions to the noise terms,</p>
+<p>We should also initialise <span class="math inline">\(\bv \alpha_0 \sim \mathcal N^{r}(\bv m_{0}, \Sigma_{0})\)</span>, and fix simple distrubtions to the noise terms,</p>
 <p><span class="math display">\[\begin{split}
 \epsilon_{t,i} \overset{\mathrm{iid}}{\sim} \mathcal N(0,\sigma^2_\epsilon),\\
 \eta_{t,i} \overset{\mathrm{iid}}{\sim} \mathcal N(0,\sigma^2_\eta),
@@ -387,7 +391,7 @@ M &amp;= \int_{\mathcal D_s}\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) 
 <p>As in, for example, <span class="citation" data-cites="wikle1999dimension">(<a href="#ref-wikle1999dimension" role="doc-biblioref">Wikle and Cressie 1999</a>)</span>, this is now in a traditional enough form that the Kalman filter can be applied to filter and compute many necessary quantities for inference, including the marginal likelihood. We can use these quantities in either an EM algorithm or a Bayesian approach. Firstly, we cover the EM algorithm applied to this system.</p>
 <p>At most, the parameters to be estimated are</p>
 <p><span class="math display">\[\begin{split}
-\boldsymbol{\mathbf{\theta }}= \left(\boldsymbol{\mathbf{\theta}}_\kappa^\intercal, \boldsymbol{\mathbf{\beta}}^\intercal, \boldsymbol{\mathbf{m}}_0^\intercal, \sigma^{2}_{\epsilon}, \sigma^{2}_{\eta}, \mathrm{vec}[\Sigma_0]\right),
+\bv\theta = \left(\bv\theta_\kappa^\intercal, \bv\beta^\intercal, \bv m_0^\intercal, \sigma^{2}_{\epsilon}, \sigma^{2}_{\eta}, \mathrm{vec}[\Sigma_0]\right),
 \end{split}
 \]</span></p>
 <p>where the <span class="math inline">\(\mathrm{vec}[\cdot]\)</span> operator gives the elements of the matrix in a column vector. Of course, in practice, some of these may be estimated outside of the algorithm, fixed, given a much simpler form (e.g.&nbsp;<span class="math inline">\(\Sigma_\eta = \sigma_\eta^2 I_d\)</span>), etc.</p>
@@ -397,26 +401,26 @@ M &amp;= \int_{\mathcal D_s}\boldsymbol{\mathbf{\phi}}(\boldsymbol{\mathbf{s}}) 
 </section>
 <section id="filtering-forecasting-and-maximum-likelihood-estimation" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> Filtering, Forecasting and Maximum Likelihood Estimation</h1>
-<p>The Kalman filter gives us linear estimates for the distribution of <span class="math inline">\(\boldsymbol{\mathbf{\alpha}}_r\mid \{Z_t\}_{t=0,...,r}\)</span> in any dynamical system like <a href="#eq-ldstm" class="quarto-xref">Equation&nbsp;8</a>. For full discussions and proofs of the Kalman filter, see, for example, <span class="citation" data-cites="shumway2000time">(<a href="#ref-shumway2000time" role="doc-biblioref">Shumway, Stoffer, and Stoffer 2000</a>)</span>.</p>
+<p>The Kalman filter gives us linear estimates for the distribution of <span class="math inline">\(\bv\alpha_r\mid \{Z_t\}_{t=0,...,r}\)</span> in any dynamical system like <a href="#eq-ldstm" class="quarto-xref">Equation&nbsp;8</a>. For full discussions and proofs of the Kalman filter, see, for example, <span class="citation" data-cites="shumway2000time">(<a href="#ref-shumway2000time" role="doc-biblioref">Shumway, Stoffer, and Stoffer 2000</a>)</span>.</p>
 <section id="sec-kalmanfilter" class="level2" data-number="3.1">
 <h2 data-number="3.1" class="anchored" data-anchor-id="sec-kalmanfilter"><span class="header-section-number">3.1</span> The Kalman Filter</h2>
 <p>Firstly, we should establish some notation. Write</p>
 <p><span class="math display">\[\begin{split}
-m_{r \mid s} &amp;= \mathbb E[\boldsymbol{\mathbf{\alpha}}_r \mid \{Z_t\}_{t=0,\dots,s}]\\
-P_{r \mid s} &amp;= \mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{\alpha}}_r \mid \{Z_t\}_{t=0,\dots,s}]\\
-P_{r,q \mid s} &amp;= \mathop{\mathrm{\mathbb{C}\mathrm{ov}}}[\boldsymbol{\mathbf{\alpha}}_r, \boldsymbol{\mathbf{\alpha}}_q \mid \{Z_t\}_{t=0,\dots,s}].
+m_{r \mid s} &amp;= \mathbb E[\bv\alpha_r \mid \{Z_t\}_{t=0,\dots,s}]\\
+P_{r \mid s} &amp;= \var[\bv\alpha_r \mid \{Z_t\}_{t=0,\dots,s}]\\
+P_{r,q \mid s} &amp;= \cov[\bv\alpha_r, \bv\alpha_q \mid \{Z_t\}_{t=0,\dots,s}].
 \end{split}
 \]</span></p>
 <p>For the initial terms, <span class="math inline">\(m_{0\mid0}=m_0\)</span> and <span class="math inline">\(P_{0\mid0}=\Sigma_0\)</span>. For convenience and generality, we write <span class="math inline">\(\Sigma_\eta\)</span> and <span class="math inline">\(\Sigma_\epsilon\)</span> for the variance matrices of the process and observations. Note that, if the number of observations change at each time point (for example, due to missing data), then <span class="math inline">\(\Sigma_\epsilon\)</span> should be time variyng; we could either always keep it as uncorrelated so that <span class="math inline">\(\Sigma_\epsilon = \mathrm{diag} (\sigma_\epsilon^2)\)</span>, or perhaps put some kind of distance-dependant covariance function to it.</p>
 <p>To move the filter forward, that is, given <span class="math inline">\(m_{r\mid s}\)</span> and <span class="math inline">\(P_{r\mid s}\)</span>, to get <span class="math inline">\(m_{t+1\mid t+1}\)</span> and <span class="math inline">\(P_{t+1\mid t+1}\)</span>, we first <em>predict</em></p>
 <p><span id="eq-kalman-predict"><span class="math display">\[\begin{split}
-\boldsymbol{\mathbf{m}}_{t+1\mid t} &amp;= M \boldsymbol{\mathbf{m}}_{t\mid t}\\
+\bv m_{t+1\mid t} &amp;= M \bv m_{t\mid t}\\
 P_{t+1\mid t} &amp;= M P_{t\mid t} M^\intercal + \Sigma_\eta,
 \end{split}
 \tag{9}\]</span></span></p>
 <p>then we add our new information, <span class="math inline">\(z_{t}\)</span>, adjusted for the <em>Kalman gain</em>;</p>
 <p><span id="eq-kalman-update"><span class="math display">\[\begin{split}
-\boldsymbol{\mathbf{m}}_{t+1\mid t+1} &amp;= \boldsymbol{\mathbf{m}}_{t+1\mid t} + K_{t+1} \boldsymbol{\mathbf{e}}_{t+1}\\
+\bv m_{t+1\mid t+1} &amp;= \bv m_{t+1\mid t} + K_{t+1} \bv e_{t+1}\\
 P_{t+1\mid t+1} &amp;= [I- K_{t+1}\Phi_{t+1}]P_{t+1\mid t}
 \end{split}
 \tag{10}\]</span></span></p>
@@ -425,26 +429,26 @@ P_{t+1\mid t+1} &amp;= [I- K_{t+1}\Phi_{t+1}]P_{t+1\mid t}
 K_{t+1} = P_{t+1\mid t}\Phi_{t+1}^\intercal [\Phi_{t+1} P_{t+1\mid t} \Phi_{t+1}^\intercal + \Sigma_\epsilon]^{-1}, \quad t=0,\dots,T-1
 \end{split}
 \]</span></p>
-<p>and <span class="math inline">\(\boldsymbol{\mathbf{e}}_{t+1}\)</span> are the <em>prediction errors</em></p>
+<p>and <span class="math inline">\(\bv e_{t+1}\)</span> are the <em>prediction errors</em></p>
 <p><span class="math display">\[\begin{split}
-\boldsymbol{\mathbf{e}}_{t+1} = \tilde{\boldsymbol{\mathbf{z}}}_{t+1}-\Phi_{t+1} \boldsymbol{\mathbf{m}}_{t+1\mid t}, \quad t=1,\dots,T
+\bv e_{t+1} = \tilde{\bv z}_{t+1}-\Phi_{t+1} \bv m_{t+1\mid t}, \quad t=1,\dots,T
 \end{split}
 \]</span></p>
 <p>Starting with <span class="math inline">\(m_{0\mid0} = m_0\)</span> and <span class="math inline">\(P_{0\mid0} =\Sigma_0\)</span>, we can then iteratively move across the data to eventually compute <span class="math inline">\(m_{T\mid T}\)</span> and <span class="math inline">\(P_{T\mid T}\)</span>.</p>
 <p>Assuming Gaussian all random variables here are Guassian, this is the optimal mean-square estimators for these quantities, but even outside of the Gaussian case, these are optimal for the class of <em>linear</em> operators.</p>
-<p>We can compute the marginal data likelihood alongside the kalman fiter using the prediciton errors <span class="math inline">\(\boldsymbol{\mathbf{e}}_t\)</span>. These, under the assumptions we have made about <span class="math inline">\(\eta\)</span> and <span class="math inline">\(\epsilon\)</span> being normal, are also normal with zero mean and variance</p>
+<p>We can compute the marginal data likelihood alongside the kalman fiter using the prediciton errors <span class="math inline">\(\bv e_t\)</span>. These, under the assumptions we have made about <span class="math inline">\(\eta\)</span> and <span class="math inline">\(\epsilon\)</span> being normal, are also normal with zero mean and variance</p>
 <p><span class="math display">\[\begin{split}
-\mathbb V\mathrm{ar}[\boldsymbol{\mathbf{e}}_t]=\Sigma_t= \Phi_{t} P_{t\mid t-1} \Phi_{t}^\intercal + \Sigma_\epsilon.
+\mathbb V\mathrm{ar}[\bv e_t]=\Sigma_t= \Phi_{t} P_{t\mid t-1} \Phi_{t}^\intercal + \Sigma_\epsilon.
 \end{split}
 \]</span></p>
 <p>Therefore, the log-likelihood at each time is</p>
 <p><span class="math display">\[\begin{split}
-\mathcal L(Z\mid\boldsymbol{\mathbf{\theta}}) = -\frac12\sum \log\det(\Sigma_t(\boldsymbol{\mathbf{\theta}})) - \frac12 \sum\boldsymbol{\mathbf{e}}_t(\boldsymbol{\mathbf{\theta}})^\intercal\Sigma_{t}(\boldsymbol{\mathbf{\theta}})^{-1} \boldsymbol{\mathbf{e}}_t(\boldsymbol{\mathbf{\theta}}) - \frac{n_{t}}{2}\log(2*\pi).
+\mathcal L(Z\mid\bv\theta) = -\frac12\sum \log\det(\Sigma_t(\bv\theta)) - \frac12 \sum\bv e_t(\bv\theta)^\intercal\Sigma_{t}(\bv\theta)^{-1} \bv e_t(\bv\theta) - \frac{n_{t}}{2}\log(2*\pi).
 \end{split}
 \]</span></p>
 <p>Summing these across time, we get the log likelihood for all the data.</p>
 <p>A simplified example of the kalman filter function, written to be jax compatible, used in the package is this;</p>
-<div id="58e7dd48" class="cell" data-execution_count="1">
+<div id="5b1e2779" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">: Replace this with a simpler 'naive' implementation</span></span>
@@ -516,30 +520,30 @@ K_{t+1} = P_{t+1\mid t}\Phi_{t+1}^\intercal [\Phi_{t+1} P_{t+1\mid t} \Phi_{t+1}
 <h2 data-number="3.2" class="anchored" data-anchor-id="the-information-filter"><span class="header-section-number">3.2</span> The Information Filter</h2>
 <p>In some computational scenarios, it is beneficial to work with vectors of consistent dimension. In python jax, the efficient <code>scan</code> and <code>map</code> operations work only with such operations; JAX has no support for jagged arrays, and traditional for loops with have long compile times when jit-compiled. Although there are some tools in JAX to get around this problem (namely the <code>jax.tree</code> functions which allow mapping over PyTrees), scan is still a large problem; since the Kalman filter is, at it’s core, a scan-type operation, this causes a large problem when the observation dimension is changing, as is frequent with many spatio-temporal data.</p>
 <p>But it is possible to re-write the kalman filter in a way which is compatible with this kind of data. the sometimes called ‘information filter’ involves transforming the data into a kind of ‘information form’, which will always have consistent dimension.</p>
-<p>The information filter is simply the kalman filter re-written to use the Gaussian distribution’s canonical parameters, those being the information vector and the information matrix. If a Gaussian distribution has mean <span class="math inline">\(\boldsymbol{\mathbf{\mu}}\)</span> and variance matrix <span class="math inline">\(\Sigma\)</span>, then the corresponding <em>information vector</em> and <em>information matrix</em> is <span class="math inline">\(\nu = \Sigma^{-1}\mu\)</span> and <span class="math inline">\(Q = \Sigma^{-1}\)</span>, correspondingly.</p>
+<p>The information filter is simply the kalman filter re-written to use the Gaussian distribution’s canonical parameters, those being the information vector and the information matrix. If a Gaussian distribution has mean <span class="math inline">\(\bv\mu\)</span> and variance matrix <span class="math inline">\(\Sigma\)</span>, then the corresponding <em>information vector</em> and <em>information matrix</em> is <span class="math inline">\(\nu = \Sigma^{-1}\mu\)</span> and <span class="math inline">\(Q = \Sigma^{-1}\)</span>, correspondingly.</p>
 <div id="thm-information_filter" class="theorem">
 <p><span class="theorem-title"><strong>Theorem 2 (The Information Filter)</strong></span> The Kalman filter can be rewritten in information form as follows <span class="citation" data-cites="khan2005matrix">(for example, <a href="#ref-khan2005matrix" role="doc-biblioref">Khan 2005</a>)</span>. Write</p>
 <p><span class="math display">\[\begin{split}
 Q_{i\mid j} &amp;= P_{i\mid j}\\
-\boldsymbol{\mathbf{\nu}}_{i\mid j} &amp;= Q_{i\mid j} \boldsymbol{\mathbf{m}}_{i\mid j}
+\bv\nu_{i\mid j} &amp;= Q_{i\mid j} \bv m_{i\mid j}
 \end{split}
 \]</span></p>
 <p>and transform the observations into their ‘information form’, for <span class="math inline">\(t=1,\dots, T\)</span></p>
 <p><span id="eq-obsinfo"><span class="math display">\[\begin{split}
 I_{t} = \Phi_{t}^{\intercal} \Sigma_{\epsilon}^{-1}\Phi_{t},\\
-i_{t} = \Phi_{t}^{\intercal} \Sigma_{\epsilon}^{-1} \boldsymbol{\mathbf{z}}_{t}.
+i_{t} = \Phi_{t}^{\intercal} \Sigma_{\epsilon}^{-1} \bv z_{t}.
 \end{split}
 \tag{11}\]</span></span></p>
 <p>The prediction step now becomes</p>
 <p><span class="math display">\[\begin{split}
-\boldsymbol{\mathbf{\nu}}_{t+1\mid t} &amp;= (I-J_t) M^{-1}\boldsymbol{\mathbf{\nu}}_{t\mid t}\\
+\bv\nu_{t+1\mid t} &amp;= (I-J_t) M^{-1}\bv\nu_{t\mid t}\\
 Q_{t+1\mid t} &amp;= (I-J_t) S_{t}
 \end{split}
 \]</span></p>
 <p>where <span class="math inline">\(S_t = M^{-\intercal} Q_{t\mid t} M^{-1}\)</span> and <span class="math inline">\(J_t = S_t [S_{t}+\Sigma_{\eta}^{-1}]^{-1}\)</span>.</p>
 <p>Updating is now as simple as adding the information-form observations;</p>
 <p><span class="math display">\[\begin{split}
-  \boldsymbol{\mathbf{\nu}}_{t+1\mid t+1} &amp;= \boldsymbol{\mathbf{\nu}}_{t+1\mid t} + i_{t+1}\\
+  \bv\nu_{t+1\mid t+1} &amp;= \bv\nu_{t+1\mid t} + i_{t+1}\\
   Q_{t+1\mid t+1} &amp;= Q_{t+1\mid t} + I_{t+1}.
 \end{split}
 \]</span></p>
@@ -548,32 +552,32 @@ Q_{t+1\mid t} &amp;= (I-J_t) S_{t}
 <p>We can see that the information form of the observations (<a href="#eq-obsinfo" class="quarto-xref">Equation&nbsp;11</a>) will always have the same dimension (that being the process dimension, previously labelled <span class="math inline">\(r\)</span>, the number of basis functions used in the expansion). For our purposes, this means that <code>jax.lax.scan</code> will work after we ‘informationify’ the data, which can be done using <code>jax.tree.map</code>. This is implemented in the functions <code>information_filter</code> and <code>information_filter_indep</code> (for uncorrelated errors).</p>
 <p>There are other often cited advantages to filtering in this form. It can be quicker that the traditional form in certain cases, especially when the observation dimension is bigger than the state dimension (since you solve a smaller system of equations with <span class="math inline">\([S_t + \Sigma_\eta]^{-1}\)</span> in the process dimesnion instead of <span class="math inline">\([\Phi_t P_{t+1\mid t} \Phi_t^\intercal + \Sigma_\epsilon]^{-1}\)</span> in the observation dimension) <span class="citation" data-cites="assimakis2012information">(<a href="#ref-assimakis2012information" role="doc-biblioref">Assimakis, Adam, and Douladiris 2012</a>)</span>.</p>
 <p>The other often mentioned advantage is the ability to use a truly vague prior for <span class="math inline">\(\alpha_0\)</span>; that is, we can set <span class="math inline">\(Q_0\)</span> as the zero matrix, without worriying about an infinite variance matrix. While this is indeed true, it is actually possible to do the same with the Kalman filter by doing the first step analytically, see (<a href="#sec-vagueprior" class="quarto-xref">Section&nbsp;6.3</a>).</p>
-<p>As with the kalman filter, it is also possible to get the data likelihood in-line as well. Again, we would like to stick with things in the state dimension, so working direclty with the prediction errors <span class="math inline">\(\boldsymbol{\mathbf{e}}_t\)</span> should be avoided. Luckily, by multipliying the errors by <span class="math inline">\(\Phi_t^\intercal \Sigma_\epsilon^{-1}\)</span>, we can define the ‘information errors’ <span class="math inline">\(\boldsymbol{\mathbf{\iota}}_t\)</span>;</p>
+<p>As with the kalman filter, it is also possible to get the data likelihood in-line as well. Again, we would like to stick with things in the state dimension, so working direclty with the prediction errors <span class="math inline">\(\bv e_t\)</span> should be avoided. Luckily, by multipliying the errors by <span class="math inline">\(\Phi_t^\intercal \Sigma_\epsilon^{-1}\)</span>, we can define the ‘information errors’ <span class="math inline">\(\bv \iota_t\)</span>;</p>
 <p><span class="math display">\[\begin{split}
-  \boldsymbol{\mathbf{\iota}}_t &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1} \boldsymbol{\mathbf{e}}_t = \Phi_t^\intercal \Sigma_\epsilon^{-1} \tilde{\boldsymbol{\mathbf{z}}}_t -\Phi_t^\intercal \Sigma_\epsilon^{-1}\Phi_t m_{t\mid t-1}\\
-  &amp;= i_t - I_tQ_{t\mid t-1}^{-1}\boldsymbol{\mathbf{\nu}}_{t\mid t-1}.
+  \bv \iota_t &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1} \bv e_t = \Phi_t^\intercal \Sigma_\epsilon^{-1} \tilde{\bv z}_t -\Phi_t^\intercal \Sigma_\epsilon^{-1}\Phi_t m_{t\mid t-1}\\
+  &amp;= i_t - I_tQ_{t\mid t-1}^{-1}\bv \nu_{t\mid t-1}.
 \end{split}
 \]</span></p>
 <p>The variance of this quantity is also easy to find;</p>
 <p><span class="math display">\[\begin{split}
-  \mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{\iota}}_t] &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1}\mathop{\mathrm{\mathbb{V}\mathrm{ar}}}[\boldsymbol{\mathbf{e}}_t]\Sigma_\epsilon^{-1}\Phi_t\\
+  \var[\bv \iota_t] &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1}\var[\bv e_t]\Sigma_\epsilon^{-1}\Phi_t\\
   &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1} [\Phi_{t} P_{t\mid t-1} \Phi_{t}^\intercal + \Sigma_\epsilon] \Sigma_\epsilon^{-1}\Phi_t\\
   &amp;= \Phi_t^\intercal \Sigma_\epsilon^{-1}\Phi_{t} Q_{t\mid t-1}^{-1} \Phi_{t}^\intercal \Sigma_\epsilon^{-1}\Phi_t \Phi_t^\intercal \Sigma_\epsilon^{-1} \Phi_t\\
   &amp;= I_t Q_{t\mid t-1}^{-1} I_t^\intercal + I_t =: \Sigma_{\iota, t}.
 \end{split}
 \]</span></p>
-<p>Noting that <span class="math inline">\(\boldsymbol{\mathbf{\iota}}\)</span> clearly still has mean zero, this allows us once again to compute the log likelihood, this time through <span class="math inline">\(\boldsymbol{\mathbf{\iota}}\)</span></p>
+<p>Noting that <span class="math inline">\(\bv \iota\)</span> clearly still has mean zero, this allows us once again to compute the log likelihood, this time through <span class="math inline">\(\bv\iota\)</span></p>
 <p><span class="math display">\[\begin{split}
-\mathcal L(z_t\mid\boldsymbol{\mathbf{\theta}}) = -\frac12\sum \log\det(\Sigma_{\iota, t}(\boldsymbol{\mathbf{\theta}})) - \frac12 \sum\boldsymbol{\mathbf{\iota}}_t(\boldsymbol{\mathbf{\theta}})^\intercal\Sigma_{\iota, t}(\boldsymbol{\mathbf{\theta}})^{-1} \boldsymbol{\mathbf{\iota}}_t(\boldsymbol{\mathbf{\theta}}) - \frac{r}{2}\log(2*\pi).
+\mathcal L(z_t\mid\bv\theta) = -\frac12\sum \log\det(\Sigma_{\iota, t}(\bv\theta)) - \frac12 \sum\bv \iota_t(\bv\theta)^\intercal\Sigma_{\iota, t}(\bv\theta)^{-1} \bv \iota_t(\bv\theta) - \frac{r}{2}\log(2*\pi).
 \end{split}
 \]</span></p>
 </section>
 <section id="kalman-smoothers" class="level2" data-number="3.3">
 <h2 data-number="3.3" class="anchored" data-anchor-id="kalman-smoothers"><span class="header-section-number">3.3</span> Kalman Smoothers</h2>
-<p>Beyond the Kalman filters, we can also do Kalman smoothers. That is, filters estimate <span class="math inline">\(\boldsymbol{\mathbf{m}}_{T\mid T}\)</span> and <span class="math inline">\(P_{T\mid T}\)</span>, but there is use for estimating <span class="math inline">\(\boldsymbol{\mathbf{m}}_t\mid T\)</span> and <span class="math inline">\(P_{t\mid T}\)</span> for all <span class="math inline">\(t=0,\dots, T\)</span>.</p>
+<p>Beyond the Kalman filters, we can also do Kalman smoothers. That is, filters estimate <span class="math inline">\(\bv m_{T\mid T}\)</span> and <span class="math inline">\(P_{T\mid T}\)</span>, but there is use for estimating <span class="math inline">\(\bv m_t\mid T\)</span> and <span class="math inline">\(P_{t\mid T}\)</span> for all <span class="math inline">\(t=0,\dots, T\)</span>.</p>
 <p>We can then work backwards from these values using what is known as the <em>Rauch-Tung-Striebel (RTS) smoother</em>;</p>
 <p><span id="eq-kalmansmooth"><span class="math display">\[\begin{split}
-\boldsymbol{\mathbf{m}}_{t-1\mid T} &amp;= \boldsymbol{\mathbf{m}}_{t-1\mid t-1} + J_{t-1}(\boldsymbol{\mathbf{m}}_{t\mid T} - \boldsymbol{\mathbf{m}}_{t\mid t-1}),\\
+\bv m_{t-1\mid T} &amp;= \bv m_{t-1\mid t-1} + J_{t-1}(\bv m_{t\mid T} - \bv m_{t\mid t-1}),\\
 P_{t-1\mid T} &amp;= P_{t-1\mid t-1} + J_{t-1}(P_{t\mid T} - P_{t\mid t-1})J_{t-1}^\intercal,
 \end{split}
 \tag{12}\]</span></span></p>
@@ -598,22 +602,22 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
 </section>
 <section id="em-algorithm-needs-a-lot-of-work-probably-ignore-for-now" class="level1" data-number="4">
 <h1 data-number="4"><span class="header-section-number">4</span> EM Algorithm (NEEDS A LOT OF WORK, PROBABLY IGNORE FOR NOW)</h1>
-<p>Instead of the marginal data likelihood, we may instead want to work with the ‘full’ likelihood, including the unobserved process, <span class="math inline">\(l(\boldsymbol{\mathbf{z}}(1),\dots, \boldsymbol{\mathbf{z}}(T), \boldsymbol{\mathbf{Y}}(1), \dots, \boldsymbol{\mathbf{Y}}(T)\mid \boldsymbol{\mathbf{\theta}})\)</span>, or, equivalently, <span class="math inline">\(l(\boldsymbol{\mathbf{z}}(1),\dots, \boldsymbol{\mathbf{z}}(t), \boldsymbol{\mathbf{\alpha}}(1), \dots, \boldsymbol{\mathbf{\alpha}}(T)\mid \boldsymbol{\mathbf{\theta}})\)</span>. This is difficult to maximise directly, but can be done with the EM algorithm, consisting of two steps, which can be shown to always increase the full likelihood.</p>
+<p>Instead of the marginal data likelihood, we may instead want to work with the ‘full’ likelihood, including the unobserved process, <span class="math inline">\(l(\bv z(1),\dots, \bv z(T), \bv Y(1), \dots, \bv Y(T)\mid \bv\theta)\)</span>, or, equivalently, <span class="math inline">\(l(\bv z(1),\dots, \bv z(t), \bv \alpha(1), \dots, \bv\alpha(T)\mid \bv\theta)\)</span>. This is difficult to maximise directly, but can be done with the EM algorithm, consisting of two steps, which can be shown to always increase the full likelihood.</p>
 <p>Firstly, the E step is to find the function</p>
 <p><span id="eq-Qdef"><span class="math display">\[\begin{split}
-\mathcal Q(\boldsymbol{\mathbf{\theta}}; \boldsymbol{\mathbf{\theta}}') = \mathbb E_{\boldsymbol{\mathbf{Z}}(t)\sim p(Z \mid \boldsymbol{\mathbf{\alpha}}(t),\boldsymbol{\mathbf{\theta}})}[\log p_{\boldsymbol{\mathbf{\theta}}}(Z^{(T)}, A^{(T)})\mid Z^{(T)}],
+\mathcal Q(\bv \theta; \bv \theta') = \mathbb E_{\bv Z(t)\sim p(Z \mid \bv\alpha(t),\bv\theta)}[\log p_{\bv\theta}(Z^{(T)}, A^{(T)})\mid Z^{(T)}],
 \end{split}
 \tag{14}\]</span></span></p>
-<p>where <span class="math inline">\(Z^{(T)} = \{\boldsymbol{\mathbf{z}}_t\}_{t=0,\dots,T}\)</span>, <span class="math inline">\(A^{(T)} = \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T}\)</span> and <span class="math inline">\(A^{(T-1)} = \{\boldsymbol{\mathbf{\alpha}}_t\}_{t=0,\dots,T-1}\)</span>. This approximates <span class="math inline">\(\log p_\theta(Z^{(T)}, A^{(T)})\)</span>.</p>
+<p>where <span class="math inline">\(Z^{(T)} = \{\bv z_t\}_{t=0,\dots,T}\)</span>, <span class="math inline">\(A^{(T)} = \{\bv \alpha_t\}_{t=0,\dots,T}\)</span> and <span class="math inline">\(A^{(T-1)} = \{\bv \alpha_t\}_{t=0,\dots,T-1}\)</span>. This approximates <span class="math inline">\(\log p_\theta(Z^{(T)}, A^{(T)})\)</span>.</p>
 <div id="prp-EMQ" class="theorem proposition">
 <p><span class="theorem-title"><strong>Proposition 1</strong></span> We have <span style="color: red;">[NOTE: This may well be wrong in places…]</span></p>
 <p><span id="eq-Q"><span class="math display">\[\begin{split}
--2\mathcal Q(\boldsymbol{\mathbf{\theta}};\boldsymbol{\mathbf{\theta}}') &amp;= \mathbb E_{Z^{(T)}\sim p(Z \mid A^{(T)},\boldsymbol{\mathbf{\theta}}')}[\log p_{\boldsymbol{\mathbf{\theta}}}(Z^{(T)}, A^{(T)}\mid Z^{(T)} = z^{(T)})]\\
-&amp;\stackrel{c}{=}\sigma_\epsilon^2 [\sum_{t=0}^{T}\boldsymbol{\mathbf{z}}_t^{\intercal}z_t - 2\Phi_t(\sum_{t=1}^{T} \boldsymbol{\mathbf{z}}_t^\intercal \boldsymbol{\mathbf{m}}_{t\mid T}) - 2(\sum_{t=0}^{T} \boldsymbol{\mathbf{z}}_t^T)X_t\boldsymbol{\mathbf{\beta}}\\
-&amp;\quad\quad\quad +\Phi_t^\intercal(\sum_{t=0}^{T}\mathrm{tr}\{P_{t\mid T} - \boldsymbol{\mathbf{m}}_{t\mid T}\boldsymbol{\mathbf{m}}_{t\mid T}^{\intercal}\})\Phi_t + 2X_t\boldsymbol{\mathbf{\beta}}\Phi_t(\sum_{t=0}^{T}\boldsymbol{\mathbf{m}}_{t\mid T}) + (\sum_{t=1}^{T}X_t^\intercal \boldsymbol{\mathbf{\beta}}^{\intercal}\boldsymbol{\mathbf{\beta }}X_t)]\\
-&amp;\quad + \mathrm{tr}\{\Sigma_\eta^{-1}[(\sum_{t=1}^{T}P_{t\mid T} - m_{t\mid T}) - 2M(\sum_{t=1}^{T}P_{t,t-1\mid T} - \boldsymbol{\mathbf{m}}_{t-1,T}\boldsymbol{\mathbf{m}}_{t\mid T}^{\intercal})\\
-&amp;\quad\quad\quad\quad\quad + M(\sum_{t=1}^{T}P_{t-1\mid T} - \boldsymbol{\mathbf{m}}_{t-1\mid T}\boldsymbol{\mathbf{m}}_{t-1\mid T}^{\intercal})M^\intercal]\}\\
-&amp;\quad + \mathrm{tr}\{\Sigma_0^{-1}[P_{0\mid T} - m_{0\mid T}m_{0\mid T}^{\intercal} - 2\boldsymbol{\mathbf{m}}_{0\mid T}\boldsymbol{\mathbf{m}}_0 + \boldsymbol{\mathbf{m}}_0\boldsymbol{\mathbf{m}}_0^\intercal]\}\\
+-2\mathcal Q(\bv\theta;\bv\theta') &amp;= \mathbb E_{Z^{(T)}\sim p(Z \mid A^{(T)},\bv\theta')}[\log p_{\bv\theta}(Z^{(T)}, A^{(T)}\mid Z^{(T)} = z^{(T)})]\\
+&amp;\eqc \sigma_\epsilon^2 [\sum_{t=0}^{T}\bv z_t^{\intercal}z_t - 2\Phi_t(\sum_{t=1}^{T} \bv z_t^\intercal \bv m_{t\mid T}) - 2(\sum_{t=0}^{T} \bv z_t^T)X_t\bv\beta\\
+&amp;\quad\quad\quad +\Phi_t^\intercal(\sum_{t=0}^{T}\mathrm{tr}\{P_{t\mid T} - \bv m_{t\mid T}\bv m_{t\mid T}^{\intercal}\})\Phi_t + 2X_t\bv\beta\Phi_t(\sum_{t=0}^{T}\bv m_{t\mid T}) + (\sum_{t=1}^{T}X_t^\intercal \bv\beta^{\intercal}\bv\beta X_t)]\\
+&amp;\quad + \mathrm{tr}\{\Sigma_\eta^{-1}[(\sum_{t=1}^{T}P_{t\mid T} - m_{t\mid T}) - 2M(\sum_{t=1}^{T}P_{t,t-1\mid T} - \bv m_{t-1,T}\bv m_{t\mid T}^{\intercal})\\
+&amp;\quad\quad\quad\quad\quad + M(\sum_{t=1}^{T}P_{t-1\mid T} - \bv m_{t-1\mid T}\bv m_{t-1\mid T}^{\intercal})M^\intercal]\}\\
+&amp;\quad + \mathrm{tr}\{\Sigma_0^{-1}[P_{0\mid T} - m_{0\mid T}m_{0\mid T}^{\intercal} - 2\bv m_{0\mid T}\bv m_0 + \bv m_0\bv m_0^\intercal]\}\\
 &amp;\quad + \log(\det(\sigma_\epsilon^{2T}\Sigma_\eta^{T+1}\Sigma_0))
 \end{split}
 \tag{15}\]</span></span></p>
@@ -621,18 +625,18 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
 <div class="proof">
 <p><span class="proof-title"><em>Proof</em>. </span>See appendix.</p>
 </div>
-<p>In the EM algorithm, we maximise the full likelihood by changing <span class="math inline">\(\boldsymbol{\mathbf{\theta}}\)</span> in order to increase (<a href="#eq-Q" class="quarto-xref">Equation&nbsp;15</a>), which can be shown to guarantee that the Likelihood <span class="math inline">\(L(\boldsymbol{\mathbf{\theta}})\)</span> also increases. The idea is then that repeatedly alternating between adjusting <span class="math inline">\(\boldsymbol{\mathbf{\theta}}\)</span> to increase <a href="#eq-Q" class="quarto-xref">Equation&nbsp;15</a>, and then doing the filters and smoothers to obtain new values for <span class="math inline">\(\boldsymbol{\mathbf{m}}_{t\mid T}\)</span>, <span class="math inline">\(P_{t\mid T}\)</span>, and <span class="math inline">\(P_{t,t-1\mid T}\)</span>.</p>
+<p>In the EM algorithm, we maximise the full likelihood by changing <span class="math inline">\(\bv \theta\)</span> in order to increase (<a href="#eq-Q" class="quarto-xref">Equation&nbsp;15</a>), which can be shown to guarantee that the Likelihood <span class="math inline">\(L(\bv \theta)\)</span> also increases. The idea is then that repeatedly alternating between adjusting <span class="math inline">\(\bv \theta\)</span> to increase <a href="#eq-Q" class="quarto-xref">Equation&nbsp;15</a>, and then doing the filters and smoothers to obtain new values for <span class="math inline">\(\bv m_{t\mid T}\)</span>, <span class="math inline">\(P_{t\mid T}\)</span>, and <span class="math inline">\(P_{t,t-1\mid T}\)</span>.</p>
 </section>
 <section id="algorithm-for-maximum-complete-data-likelihood-estimation" class="level1" data-number="5">
 <h1 data-number="5"><span class="header-section-number">5</span> Algorithm for Maximum Complete-data Likelihood estimation</h1>
 <p>Overall, our algorithm for Maximum Likelihood estimation is:</p>
 <ol type="1">
-<li>Set <span class="math inline">\(i=0\)</span> and take an initial guess for the parameters we are considering, <span class="math inline">\(\boldsymbol{\mathbf{\theta}}_0=\boldsymbol{\mathbf{\theta}}_i\)</span></li>
-<li>Starting from <span class="math inline">\(\boldsymbol{\mathbf{m}}_{0\mid 0}=\boldsymbol{\mathbf{m}}_0, P_{0\mid0}=\Sigma_0\)</span>, run the <strong>Kalman Filter</strong> to get <span class="math inline">\(\boldsymbol{\mathbf{m}}_{t\mid t}\)</span>, <span class="math inline">\(P_{t\mid t}\)</span>, and <span class="math inline">\(K_t\)</span> for all <span class="math inline">\(t\)</span> <a href="#eq-kalman-update" class="quarto-xref">Equation&nbsp;10</a>,</li>
-<li>Starting from <span class="math inline">\(\boldsymbol{\mathbf{m}}_{T\mid T}, P_{T\mid T}\)</span>, run the <strong>Kalman Smoother</strong> to get <span class="math inline">\(\boldsymbol{\mathbf{m}}_{t\mid T}\)</span>, <span class="math inline">\(P_{t\mid T}\)</span>, and <span class="math inline">\(J_t\)</span> for all <span class="math inline">\(t\)</span> (<a href="#eq-kalmansmooth" class="quarto-xref">Equation&nbsp;12</a>),</li>
-<li>Starting from <span class="math inline">\(P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1}\)</span>, run the <strong>Lag-One Smoother</strong> to get <span class="math inline">\(\boldsymbol{\mathbf{m}}_{t,t-1\mid T}\)</span> and <span class="math inline">\(P_{t,t-1\mid T}\)</span> for all <span class="math inline">\(t\)</span> <a href="#eq-lag1smooth" class="quarto-xref">Equation&nbsp;13</a>,</li>
-<li>Use the above values to construct <span class="math inline">\(\mathcal Q(\boldsymbol{\mathbf{\theta}};\boldsymbol{\mathbf{\theta}}')\)</span> in <a href="#eq-Q" class="quarto-xref">Equation&nbsp;15</a>,</li>
-<li>Maximise the function <span class="math inline">\(\mathcal Q(\boldsymbol{\mathbf{\theta}};\boldsymbol{\mathbf{\theta}}')\)</span> to get a new guess <span class="math inline">\(\boldsymbol{\mathbf{\theta}}_{i+1}\)</span>, then return to step 2,</li>
+<li>Set <span class="math inline">\(i=0\)</span> and take an initial guess for the parameters we are considering, <span class="math inline">\(\bv\theta_0=\bv\theta_i\)</span></li>
+<li>Starting from <span class="math inline">\(\bv m_{0\mid 0}=\bv m_0, P_{0\mid0}=\Sigma_0\)</span>, run the <strong>Kalman Filter</strong> to get <span class="math inline">\(\bv m_{t\mid t}\)</span>, <span class="math inline">\(P_{t\mid t}\)</span>, and <span class="math inline">\(K_t\)</span> for all <span class="math inline">\(t\)</span> <a href="#eq-kalman-update" class="quarto-xref">Equation&nbsp;10</a>,</li>
+<li>Starting from <span class="math inline">\(\bv m_{T\mid T}, P_{T\mid T}\)</span>, run the <strong>Kalman Smoother</strong> to get <span class="math inline">\(\bv m_{t\mid T}\)</span>, <span class="math inline">\(P_{t\mid T}\)</span>, and <span class="math inline">\(J_t\)</span> for all <span class="math inline">\(t\)</span> (<a href="#eq-kalmansmooth" class="quarto-xref">Equation&nbsp;12</a>),</li>
+<li>Starting from <span class="math inline">\(P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1}\)</span>, run the <strong>Lag-One Smoother</strong> to get <span class="math inline">\(\bv m_{t,t-1\mid T}\)</span> and <span class="math inline">\(P_{t,t-1\mid T}\)</span> for all <span class="math inline">\(t\)</span> <a href="#eq-lag1smooth" class="quarto-xref">Equation&nbsp;13</a>,</li>
+<li>Use the above values to construct <span class="math inline">\(\mathcal Q(\bv\theta;\bv \theta')\)</span> in <a href="#eq-Q" class="quarto-xref">Equation&nbsp;15</a>,</li>
+<li>Maximise the function <span class="math inline">\(\mathcal Q(\bv\theta;\bv \theta')\)</span> to get a new guess <span class="math inline">\(\bv \theta_{i+1}\)</span>, then return to step 2,</li>
 <li>Stop once a certain criteria is met.</li>
 </ol>
 </section>
@@ -665,7 +669,7 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
 &amp;= A^{-1}U(C^{-1}+VA^{-1}U)
 \end{split}
 \]</span></p>
-<p>as needed.</p>
+<p>as needed. </p>
 </div>
 </section>
 <section id="sec-app1" class="level2" data-number="6.2">
@@ -679,10 +683,10 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
 \]</span></p>
 <p>where we used <span class="math inline">\(A=MQ_{t\mid t}^{-1}M^\intercal\)</span>, <span class="math inline">\(C=\Sigma_\eta\)</span> and <span class="math inline">\(U=C=I\)</span> in <a href="#eq-woodbury" class="quarto-xref">Equation&nbsp;16</a>. Thurthermore,</p>
 <p><span class="math display">\[\begin{split}
-  \boldsymbol{\mathbf{\nu}}_{t+1\mid t} &amp;= Q_{t+1\mid t} \boldsymbol{\mathbf{m}}_{t+1\mid t}\\
-  &amp;= Q_{t+1\mid t} M Q_{t\mid t}^{-1} \boldsymbol{\mathbf{\nu}}_{t\mid t} = Q_{t+1\mid t} (M Q_{t\mid t}^{-1}) \boldsymbol{\mathbf{\nu}}_{t\mid t}\\
-  &amp;= (I-J_t)M^{-\intercal}Q_{t\mid t}M^{-1} (M Q_{t\mid t}^{-1}) \boldsymbol{\mathbf{\nu}}_{t\mid t}\\
-  &amp;= (I-J_t)M^{-\intercal} \boldsymbol{\mathbf{\nu}}_{t\mid t}.
+  \bv \nu_{t+1\mid t} &amp;= Q_{t+1\mid t} \bv m_{t+1\mid t}\\
+  &amp;= Q_{t+1\mid t} M Q_{t\mid t}^{-1} \bv \nu_{t\mid t} = Q_{t+1\mid t} (M Q_{t\mid t}^{-1}) \bv \nu_{t\mid t}\\
+  &amp;= (I-J_t)M^{-\intercal}Q_{t\mid t}M^{-1} (M Q_{t\mid t}^{-1}) \bv \nu_{t\mid t}\\
+  &amp;= (I-J_t)M^{-\intercal} \bv \nu_{t\mid t}.
 \end{split}
 \]</span></p>
 <p>For the update step,</p>
@@ -693,16 +697,16 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
   &amp;= Q_{t+1\mid t} + I_{t+1}.
 \end{split}
 \]</span></p>
-<p>Then, writing <span class="math inline">\(\boldsymbol{\mathbf{m}}_{t+1\mid t+1}\)</span> in terms of <span class="math inline">\(Q_{t+1\mid t}\)</span> and <span class="math inline">\(\boldsymbol{\mathbf{\nu}}_{t+1\mid t}\)</span></p>
+<p>Then, writing <span class="math inline">\(\bv m_{t+1\mid t+1}\)</span> in terms of <span class="math inline">\(Q_{t+1\mid t}\)</span> and <span class="math inline">\(\bv \nu_{t+1\mid t}\)</span></p>
 <p><span class="math display">\[\begin{split}
-  \boldsymbol{\mathbf{m}}_{t+1\mid t+1} &amp;= Q_{t+1\mid t}^{-1} \boldsymbol{\mathbf{\nu}}_{t+1\mid t} - Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal[\Phi_{t+1}Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal +\Sigma_\epsilon]^{-1} [\tilde{\boldsymbol{\mathbf{z}}}_{t+1} - \Phi_{t+1}Q_{t+1\mid t}^{-1}\boldsymbol{\mathbf{\nu}}_{t+1\mit t}]\\
-  &amp;= (Q_{t+1\mid t}^{-1} - Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal[\Phi_{t+1}Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal +\Sigma_\epsilon]^{-1}\Phi_{t+1}Q_{t+1\mid t}^{-1})\boldsymbol{\mathbf{\nu}}_{t+1\mid t} \\
-  &amp;\quad + Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal[\Phi_{t+1}Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal +\Sigma_\epsilon]^{-1}\tilde{\boldsymbol{\mathbf{z}}}_{t+1}\\
-  &amp;= [Q_{t+1\mid t} + I_{t+1}]^{-1}\boldsymbol{\mathbf{\nu}}_{t+1\mid t}\\
-  &amp;\quad + [Q_{t+1\mid t} + I_{t+1}]^{-1}\Phi_{t+1}\Sigma_\epsilon^{-1}\tilde{\boldsymbol{\mathbf{z}}}_{t+1},
+  \bv m_{t+1\mid t+1} &amp;= Q_{t+1\mid t}^{-1} \bv \nu_{t+1\mid t} - Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal[\Phi_{t+1}Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal +\Sigma_\epsilon]^{-1} [\tilde{\bv z}_{t+1} - \Phi_{t+1}Q_{t+1\mid t}^{-1}\bv \nu_{t+1\mit t}]\\
+  &amp;= (Q_{t+1\mid t}^{-1} - Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal[\Phi_{t+1}Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal +\Sigma_\epsilon]^{-1}\Phi_{t+1}Q_{t+1\mid t}^{-1})\bv \nu_{t+1\mid t} \\
+  &amp;\quad + Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal[\Phi_{t+1}Q_{t+1\mid t}^{-1}\Phi_{t+1}^\intercal +\Sigma_\epsilon]^{-1}\tilde{\bv z}_{t+1}\\
+  &amp;= [Q_{t+1\mid t} + I_{t+1}]^{-1}\bv \nu_{t+1\mid t}\\
+  &amp;\quad + [Q_{t+1\mid t} + I_{t+1}]^{-1}\Phi_{t+1}\Sigma_\epsilon^{-1}\tilde{\bv z}_{t+1},
 \end{split}
 \]</span></p>
-<p>and now noting that <span class="math inline">\(\boldsymbol{\mathbf{\nu}}_{t+1\mid t+1} = (Q_{t+1\mid t} + I_{t+1}) \boldsymbol{\mathbf{m}}_{t+1\mid t+1}\)</span>, we complete the proof.</p>
+<p>and now noting that <span class="math inline">\(\bv\nu_{t+1\mid t+1} = (Q_{t+1\mid t} + I_{t+1}) \bv m_{t+1\mid t+1}\)</span>, we complete the proof. </p>
 </div>
 </section>
 <section id="sec-vagueprior" class="level2" data-number="6.3">
@@ -711,7 +715,7 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
 <div id="thm-vagueprior" class="theorem">
 <p><span class="theorem-title"><strong>Theorem 3</strong></span> In the Kalman Filter (<a href="#sec-kalmanfilter" class="quarto-xref">Section&nbsp;3.1</a>), if we allow <span class="math inline">\(P_{0}^{-1} = 0\)</span>, effectively setting infinite variance, and assuming the propegator matrix <span class="math inline">\(M\)</span> is invertible, we have</p>
 <p><span id="eq-kalmanvague"><span class="math display">\[\begin{split}
-  \boldsymbol{\mathbf{m}}_{1\mid1} &amp;= (\Phi_1^\intercal \Sigma_\epsilon^{-1} \Phi_1)^{-1} \Phi_1 \Sigma_\epsilon^{-1} \tilde{\boldsymbol{\mathbf{z}}}_1,\\
+  \bv m_{1\mid1} &amp;= (\Phi_1^\intercal \Sigma_\epsilon^{-1} \Phi_1)^{-1} \Phi_1 \Sigma_\epsilon^{-1} \tilde{\bv z}_1,\\
   P_{1\mid1} &amp;= (\Phi_1^\intercal \Sigma_\epsilon^{-1} \Phi_1)^{-1}.
 \end{split}
 \tag{18}\]</span></span></p>
@@ -722,7 +726,7 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
 <p><span class="proof-title"><em>Proof</em>. </span>Unsuprisingly, the proof is effectively equivalent to proving the information filter and setting <span class="math inline">\(Q_0 = P_0^{-1}=0\)</span>.</p>
 <p>For the first predict step (<a href="#eq-kalman-predict" class="quarto-xref">Equation&nbsp;9</a>),</p>
 <p><span class="math display">\[\begin{split}
-  \boldsymbol{\mathbf{m}}_{1\mid0} &amp;= M \boldsymbol{\mathbf{m}}_0,\\
+  \bv m_{1\mid0} &amp;= M \bv m_0,\\
   P_{1\mid0} &amp;= M P_0 M^\intercal + \Sigma_\eta.
 \end{split}
 \]</span></p>
@@ -735,14 +739,14 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
 \]</span></p>
 <p>So, moving to the update step (<a href="#eq-kalman-update" class="quarto-xref">Equation&nbsp;10</a>),</p>
 <p><span class="math display">\[\begin{split}
-  \boldsymbol{\mathbf{m}}_{1\mid1} = M \boldsymbol{\mathbf{m}}_0 + P_{1\mid0}\Phi_1 [\Phi_1 P_{1\mid0} \Phi_1^\intercal + \Sigma_\epsilon]^{-1}(\tilde{\boldsymbol{\mathbf{z}}}_1 - \Phi M \boldsymbol{\mathbf{m}}_0).\\
+  \bv m_{1\mid1} = M \bv m_0 + P_{1\mid0}\Phi_1 [\Phi_1 P_{1\mid0} \Phi_1^\intercal + \Sigma_\epsilon]^{-1}(\tilde{\bv{z}}_1 - \Phi M \bv m_0).\\
 \end{split}
 \]</span></p>
 <p>Applying (<a href="#eq-woodbury2" class="quarto-xref">Equation&nbsp;17</a>) with <span class="math inline">\(A = P_{1\mid0}^{-1}, U=\Phi_1, V=\Phi_1^\intercal, C=\Sigma_\epsilon^{-1}\)</span>,</p>
 <p><span class="math display">\[\begin{split}
-  \boldsymbol{\mathbf{m}}_{1\mid1} &amp;= M \boldsymbol{\mathbf{m}}_0 + (P_{1\mid0}^{-1} + \Phi_1^\intercal\Sigma_\epsilon^{-1} \Phi_1)^{-1}\Phi_1^\intercal \Sigma_\epsilon^{-1}(\tilde{\boldsymbol{\mathbf{z}}}_1 - \Phi_1 M\boldsymbol{\mathbf{m}}_0)\\
-  &amp;= M \boldsymbol{\mathbf{m}}_0 + (\Phi_1^\intercal\Sigma_\epsilon^{-1}\Phi_1)^{-1}\Phi_1^\intercal\Sigma_\epsilon^{-1} \tilde{\boldsymbol{\mathbf{z}}}_1 - (\Phi_1^\intercal\Sigma_\epsilon^{-1}\Phi_1)^{-1}\Phi_1^\intercal\Sigma_\epsilon^{-1}\Phi_1M\boldsymbol{\mathbf{m}}_0\\
-  &amp;= (\Phi_1^\intercal\Sigma_\epsilon^{-1}\Phi_1)^{-1}\Phi_1^\intercal\Sigma_\epsilon^{-1} \tilde{\boldsymbol{\mathbf{z}}}_1.
+  \bv m_{1\mid1} &amp;= M \bv m_0 + (P_{1\mid0}^{-1} + \Phi_1^\intercal\Sigma_\epsilon^{-1} \Phi_1)^{-1}\Phi_1^\intercal \Sigma_\epsilon^{-1}(\tilde{\bv{z}}_1 - \Phi_1 M\bv m_0)\\
+  &amp;= M \bv m_0 + (\Phi_1^\intercal\Sigma_\epsilon^{-1}\Phi_1)^{-1}\Phi_1^\intercal\Sigma_\epsilon^{-1} \tilde{\bv{z}}_1 - (\Phi_1^\intercal\Sigma_\epsilon^{-1}\Phi_1)^{-1}\Phi_1^\intercal\Sigma_\epsilon^{-1}\Phi_1M\bv m_0\\
+  &amp;= (\Phi_1^\intercal\Sigma_\epsilon^{-1}\Phi_1)^{-1}\Phi_1^\intercal\Sigma_\epsilon^{-1} \tilde{\bv{z}}_1.
 \end{split}
 \]</span></p>
 <p>For the variance, we apply the (<a href="#eq-woodbury" class="quarto-xref">Equation&nbsp;16</a>) with <span class="math inline">\(A = P_{1\mid0}^{-1}, U=\Phi_1^\intercal, V=\Phi_1, C=\Sigma_\epsilon^{-1}\)</span>,</p>
@@ -752,9 +756,9 @@ P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-
   &amp;= (\Phi_1^\intercal \Sigma_\epsilon^{-1}\Phi_1)^{-1},
 \end{split}
 \]</span></p>
-<p>as needed.</p>
+<p>as needed. </p>
 </div>
-<p>It is worth noting that (<a href="#eq-kalmanvague" class="quarto-xref">Equation&nbsp;18</a>) seems to make a lot of sense; namely, we expect the estimate for <span class="math inline">\(\boldsymbol{\mathbf{m}}_0\)</span> to look like a correlated least squares-type estimator like this.</p>
+<p>It is worth noting that (<a href="#eq-kalmanvague" class="quarto-xref">Equation&nbsp;18</a>) seems to make a lot of sense; namely, we expect the estimate for <span class="math inline">\(\bv m_0\)</span> to look like a correlated least squares-type estimator like this.</p>
 
 
 
