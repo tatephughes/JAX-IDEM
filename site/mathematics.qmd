@@ -44,6 +44,19 @@ bibliography: Bibliography.bib
    
 \ifdefined\Shaded\renewenvironment{Shaded}{\begin{tcolorbox}[leftrule=3mm, colback={codebgcolor}, enhanced, breakable, width=0.9\textwidth, center]}{\end{tcolorbox}}\fi
 
+
+::: {.content-visible unless-format="pdf"}
+
+[Index](../index.html)
+
+\usepackage{amsmath}
+\DeclareMathOperator{\var}{\mathbb{V}\mathrm{ar}}
+\DeclareMathOperator{\cov}{\mathbb{C}\mathrm{ov}}
+\renewcommand*{\bv}[1]{\boldsymbol{\mathbf{#1}}}
+\newcommand\eqc{\stackrel{c}{=}}
+:::
+
+
 # Integro-difference Based Dynamics
 
 As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty. Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.
