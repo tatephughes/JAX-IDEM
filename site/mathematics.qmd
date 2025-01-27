@@ -5,6 +5,7 @@ format:
   html:
     code-fold: true
     toc: true
+    include-in-header: header.html
     mathjax: 
       extensions: ["breqn", "bm", "ams"]
   pdf:
@@ -46,14 +47,7 @@ bibliography: Bibliography.bib
 
 
 ::: {.content-visible unless-format="pdf"}
-
 [Index](../index.html)
-
-\usepackage{amsmath}
-\DeclareMathOperator{\var}{\mathbb{V}\mathrm{ar}}
-\DeclareMathOperator{\cov}{\mathbb{C}\mathrm{ov}}
-\renewcommand*{\bv}[1]{\boldsymbol{\mathbf{#1}}}
-\newcommand\eqc{\stackrel{c}{=}}
 :::
 
 

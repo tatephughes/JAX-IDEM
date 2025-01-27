@@ -7,7 +7,8 @@ from jax.typing import ArrayLike
 
 from functools import partial
 
-@partial(jax.jit, static_argnames=["full_likelihood"])
+
+@partial(jax.jit, static_argnames=["likelihood"])
 def kalman_filter(
     m_0: ArrayLike,
     P_0: ArrayLike,
@@ -16,8 +17,8 @@ def kalman_filter(
     Sigma_eta: ArrayLike,
     Sigma_eps: ArrayLike,
     ztildes: ArrayLike,  # data matrix, with time across columns
-    full_likelihood: bool = False
-    ) -> tuple:
+    likelihood: str = 'partial'
+) -> tuple:
     """
     Applies the Kalman Filter to a wide-format matrix of data.
     For jit-ability, this only allows full (no missing) data in a wide format.
@@ -44,14 +45,14 @@ def kalman_filter(
     ----------
     A tuple containing:
         ll: The log (data) likelihood of the data
-        ms: (T,r) The posterior means $m_{t \mid t}$ of the process given
+        ms: (T,r) The posterior means $m_{t \\mid t}$ of the process given
     the data 1:t
-        Ps: (T,r,r) The posterior covariance matrices $P_{t \mid t}$ of
+        Ps: (T,r,r) The posterior covariance matrices $P_{t \\mid t}$ of
     the process given the data 1:t
-        mpreds: (T-1,r) The predicted next-step means $m_{t \mid t-1}$
+        mpreds: (T-1,r) The predicted next-step means $m_{t \\mid t-1}$
     of the process given the data 1:t-1
         Ppreds: (T-1,r,r) The predicted next-step covariances
-    $P_{t \mid t-1}$ of the process given the data 1:t-1
+    $P_{t \\mid t-1}$ of the process given the data 1:t-1
         Ks: (n,r) The Kalman Gains at each time step
     """
 
@@ -87,12 +88,16 @@ def kalman_filter(
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
         z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t, lower=True)
 
-        if full_likelihood:
+        if likelihood == 'full':
             ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
                 0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
-        else:
+        elif likelihood == 'partial':
             ll_new = ll - \
                 jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
+        elif likelihood == 'none':
+            ll_new = jnp.nan
+        else:
+            raise ValueError("Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
 
         return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
             m_up,
@@ -112,7 +117,7 @@ def kalman_filter(
     return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
 
 
-@partial(jax.jit, static_argnames=["full_likelihood"])
+@partial(jax.jit, static_argnames=["likelihood"])
 def kalman_filter_indep(
     m_0: ArrayLike,
     P_0: ArrayLike,
@@ -121,7 +126,7 @@ def kalman_filter_indep(
     sigma2_eta: float,
     sigma2_eps: float,
     ztildes: ArrayLike,  # data matrix, with time across columns
-    full_likelihood: bool = False
+    likelihood: str = 'partial'
 ) -> tuple:
     """
     Applies the Kalman Filter to a wide-format matrix of data.
@@ -150,14 +155,14 @@ def kalman_filter_indep(
     ----------
     A tuple containing:
         ll: The log (data) likelihood of the data
-        ms: (T,r) The posterior means $m_{t \mid t}$ of the process given
+        ms: (T,r) The posterior means $m_{t \\mid t}$ of the process given
     the data 1:t
-        Ps: (T,r,r) The posterior covariance matrices $P_{t \mid t}$ of
+        Ps: (T,r,r) The posterior covariance matrices $P_{t \\mid t}$ of
     the process given the data 1:t
-        mpreds: (T-1,r) The predicted next-step means $m_{t \mid t-1}$
+        mpreds: (T-1,r) The predicted next-step means $m_{t \\mid t-1}$
     of the process given the data 1:t-1
         Ppreds: (T-1,r,r) The predicted next-step covariances
-    $P_{t \mid t-1}$ of the process given the data 1:t-1
+    $P_{t \\mid t-1}$ of the process given the data 1:t-1
         Ks: (n,r) The Kalman Gains at each time step
     """
 
@@ -199,12 +204,16 @@ def kalman_filter_indep(
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
         z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t, lower=True)
-        if full_likelihood:
+        if likelihood=='full':
             ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
                 0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
-        else:
+        elif likelihood == 'partial':
             ll_new = ll - \
                 jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
+        elif likelihood == 'none':
+            ll_new=jnp.nan
+        else:
+            raise ValueError("Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
 
         return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
             m_up,
@@ -237,7 +246,7 @@ def information_filter(
 ) -> tuple:
     """
     Applies the Information Filter to a PyTree of data.
-    
+
     Parameters
     ----------
     nu_0: ArrayLike (r,)
@@ -260,9 +269,9 @@ def information_filter(
     ----------
     A tuple containing:
         ll: The log (data) likelihood of the data
-        nus: (T,r) The posterior information vectors $\nu_{t \mid t}$ of the
+        nus: (T,r) The posterior information vectors $\nu_{t \\mid t}$ of the
     process given the data 1:t
-        Qs: (T,r,r) The posterior information matrices $Q_{t \mid t}$ of
+        Qs: (T,r,r) The posterior information matrices $Q_{t \\mid t}$ of
     the process given the data 1:t
     """
 
@@ -311,15 +320,15 @@ def information_filter(
         nu_up = nu_pred + i_tp
         Q_up = Q_pred + I_tp
 
-        #chol_Sigma_iota = jnp.linalg.cholesky(
+        # chol_Sigma_iota = jnp.linalg.cholesky(
         #    I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
-        #iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
-        #z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
+        # iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
+        # z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
 
-        #if full_likelihood:
+        # if full_likelihood:
         #    ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
         #        0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
-        #else:
+        # else:
         #    ll_new = ll - \
         #        jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
 
@@ -348,7 +357,7 @@ def information_filter_indep(
     """
     Applies the Information Filter to a PyTree of data.
     Includes some optimisation for uncorrelated errors.
-    
+
     Parameters
     ----------
     nu_0: ArrayLike (r,)
@@ -371,9 +380,9 @@ def information_filter_indep(
     ----------
     A tuple containing:
         ll: The log (data) likelihood of the data
-        nus: (T,r) The posterior information vectors $\nu_{t \mid t}$ of the
+        nus: (T,r) The posterior information vectors $\nu_{t \\mid t}$ of the
     process given the data 1:t
-        Qs: (T,r,r) The posterior information matrices $Q_{t \mid t}$ of
+        Qs: (T,r,r) The posterior information matrices $Q_{t \\mid t}$ of
     the process given the data 1:t
     """
 
@@ -427,14 +436,14 @@ def information_filter_indep(
         nu_up = nu_pred + i_tp
         Q_up = Q_pred + I_tp
 
-        #chol_Sigma_iota = jnp.linalg.cholesky(
+        # chol_Sigma_iota = jnp.linalg.cholesky(
         #    I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
-        #iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
-        #z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
-        #if full_likelihood:
+        # iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
+        # z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
+        # if full_likelihood:
         #    ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
         #        0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
-        #else:
+        # else:
         #    ll_new = ll - \
         #        jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
         return (nu_up, Q_up, nu_pred, Q_pred), (nu_up, Q_up, nu_pred, Q_pred)
@@ -486,7 +495,7 @@ def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
 @jax.jit
 def lag1_smoother(Ps, Js, K_T, PHI_obs: ArrayLike, M: ArrayLike):
     """CURRENTLY OUT-OF-DATE AND UNTESTED"""
-    
+
     nbasis = Ps[0].shape[0]
     P_TTmT = (jnp.eye(nbasis) - K_T @ PHI_obs) @ M @ Ps[-2]
 

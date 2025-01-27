@@ -5,6 +5,7 @@ format:
   html:
     code-fold: true
     toc: true
+    inclue-in-header: header.html
     mathjax: 
       extensions: ["breqn", "bm", "ams"]
 jupyter: python3
@@ -15,11 +16,6 @@ bibliography: Bibliography.bib
 
 [Index](../index.html)
 
-\usepackage{amsmath}
-\DeclareMathOperator{\var}{\mathbb{V}\mathrm{ar}}
-\DeclareMathOperator{\cov}{\mathbb{C}\mathrm{ov}}
-\renewcommand*{\vec}[1]{\boldsymbol{\mathbf{#1}}}
-\newcommand\eqc{\stackrel{c}{=}}
 :::
 
 
@@ -169,7 +165,7 @@ ll, ms, Ps, _, _, _ = fsf.kalman_filter_indep(m_0,
                                               sigma2_eta,
                                               sigma2_eps,
                                               zs.T,
-                                              full_likelihood=True
+                                              likelihood='full'
     )
 
 #print(ms)
@@ -209,9 +205,7 @@ nus, Qs,_ ,_  = fsf.information_filter_indep(nu_0,
                                             PHI_tuple,
                                             sigma2_eta,
                                             sigma2_eps,
-                                            zs_tuple,
-                                            full_likelihood=False
-    )
+                                            zs_tuple,)
 
 ms2 = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
 
@@ -340,8 +334,7 @@ def objective_info(params):
                                       PHI_tuple,
                                       Sigma_eta,
                                       Sigma_eps_tuple,
-                                      zs_tuple,
-                                      full_likelihood=False,)
+                                      zs_tuple,)
     return -ll
 
 obj_grad = jax.grad(objective_info)
