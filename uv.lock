@@ -891,7 +891,7 @@ requires-dist = [
     { name = "optax", specifier = ">=0.2.4" },
     { name = "plotly", specifier = ">=5.24.1" },
     { name = "pyqt5", specifier = ">=5.15.11" },
-    { name = "quarto-cli", specifier = ">=1.6.40" },
+    { name = "quarto-cli", specifier = "==1.6.39" },
     { name = "quartodoc", specifier = ">=0.9.1" },
     { name = "ruff", specifier = ">=0.9.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
@@ -2632,7 +2632,7 @@ wheels = [
 
 [[package]]
 name = "quarto-cli"
-version = "1.6.40"
+version = "1.6.39"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jupyter" },
@@ -2640,7 +2640,7 @@ dependencies = [
     { name = "nbclient", version = "0.10.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "wheel" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/af/3c/2107b0c7bd7f2ae993b00cda13528622bb00a7365179157d1726a10c2038/quarto_cli-1.6.40.tar.gz", hash = "sha256:cc92b66d9f65ee5e351ca53855334ae4da79500bad969da6163398b64c9376f9", size = 4624 }
+sdist = { url = "https://files.pythonhosted.org/packages/3c/fe/9acdb30b1536f35c3ee8a9b066818a96a273bfe0bea1588c78f1ebd34ec3/quarto_cli-1.6.39.tar.gz", hash = "sha256:638435a175931068b061ef151ca33a33fb950bb0454b68d6b7a7a10b3729c0e4", size = 4618 }
 
 [[package]]
 name = "quartodoc"

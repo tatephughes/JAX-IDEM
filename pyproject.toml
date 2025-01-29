@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jax-idem"
+name = "jaxidem"
 version = "0.1.0"
 authors = [
   { name="Evan Tate Paterson Hughes", email="etatephughes@gmail.com" },
@@ -24,7 +24,7 @@ dependencies = [
     "optax>=0.2.4",
     "plotly>=5.24.1",
     "pyqt5>=5.15.11",
-    "quarto-cli>=1.6.40",
+    "quarto-cli==1.6.39",
     "quartodoc>=0.9.1",
     "ruff>=0.9.0",
     "seaborn>=0.13.2",
