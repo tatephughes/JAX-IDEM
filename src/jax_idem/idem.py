@@ -32,7 +32,6 @@ from utilities import (
 
 from filter_smoother_functions import (
     kalman_filter,
-    information_filter,
     kalman_smoother,
 )
 
@@ -59,19 +58,19 @@ class Kernel:
         self.params = params
         self.function = function
         self.form = form
-        
+
     def show_plot(self,
                   width=5,
                   height=4):
         """Shows a plot of the direction of the kernel."""
-        
+
         if self.form != "expansion":
             raise Exception("""Kernel graphs only available for kernels formed
                               with knot-based basis functions""")
         else:
             with plt.style.context('seaborn-v0_8-dark-palette'):
                 fig, axes = plt.subplots(figsize=(width, height))
-                bounds=jnp.array([[0, 1], [0, 1]])
+                bounds = jnp.array([[0, 1], [0, 1]])
                 grid = create_grid(bounds, jnp.array([10, 10])).coords
 
                 def offset(s):
@@ -87,7 +86,7 @@ class Kernel:
                 offsets = vecoffset(grid)
 
                 axes.quiver(grid[:, 0], grid[:, 1],
-                                 offsets[:, 0], offsets[:, 1])
+                            offsets[:, 0], offsets[:, 1])
                 # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
 
                 axes.set_xticks([])
@@ -97,16 +96,16 @@ class Kernel:
 
                 fig.show()
 
-    def save_fig(self,
-                 name="kernel.png",
-                 width=5,
-                 height=4,
-                 dpi=300):
+    def save_plot(self,
+                  filename,
+                  width=6,
+                  height=4,
+                  dpi=300):
         """Saves a plot of the direction of the kernel."""
 
         with plt.style.context('seaborn-v0_8-dark-palette'):
             fig, axes = plt.subplots(figsize=(width, height))
-            bounds=jnp.array([[0, 1], [0, 1]])
+            bounds = jnp.array([[0, 1], [0, 1]])
             grid = create_grid(bounds, jnp.array([10, 10])).coords
 
             def offset(s):
@@ -122,7 +121,7 @@ class Kernel:
             offsets = vecoffset(grid)
 
             axes.quiver(grid[:, 0], grid[:, 1],
-                             offsets[:, 0], offsets[:, 1])
+                        offsets[:, 0], offsets[:, 1])
             # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
 
             axes.set_xticks([])
@@ -130,10 +129,7 @@ class Kernel:
 
             axes.set_title("Kernel Direction")
 
-            fig.savefig(name, dpi=dpi)
-
-                
-            
+            fig.savefig(filename, dpi=dpi)
 
 
 def param_exp_kernel(K_basis: tuple, k: tuple):
@@ -223,10 +219,10 @@ class IDEM_Model:
         ----------
         tuple
             A tuple containing the Process data and the Observed data, both
-            in long format in the ST_Data_Long type (see
+            in long format in the st_data type (see
             [utilities](/.env.example))
         """
-        
+
         M = self.M
         PHI_proc = self.PHI_proc
         beta = self.beta
@@ -263,7 +259,7 @@ class IDEM_Model:
             if fixed_data:
                 obs_locs = jnp.column_stack(
                     [
-                        jnp.repeat(jnp.arange(T), nobs) + 1,
+                        jnp.repeat(jnp.arange(T), nobs)+1,
                         jnp.tile(
                             rand.uniform(
                                 keys[0],
@@ -278,7 +274,7 @@ class IDEM_Model:
             else:
                 obs_locs = jnp.column_stack(
                     [
-                        jnp.repeat(jnp.arange(T), nobs) + 1,
+                        jnp.repeat(jnp.arange(T), nobs)+1,
                         rand.uniform(
                             keys[0],
                             shape=(T * nobs, 2),
@@ -329,7 +325,7 @@ class IDEM_Model:
                 lambda i: jnp.column_stack(
                     [jnp.tile(i, process_grids[i].shape[0]), process_grids[i]]
                 ),
-                jnp.arange(T),
+                jnp.arange(T)+1,
             )
         )
 
@@ -387,18 +383,16 @@ class IDEM_Model:
     def filter_information(
         self,
         obs_data: st_data,
-        X_obs,
         nu_0=None,
         Q_0=None,
     ):
-        """NOT IMPLEMENTED"""
 
         nbasis = self.process_basis.nbasis
 
         if nu_0 is None:
             nu_0 = jnp.zeros(nbasis)
         if Q_0 is None:
-            Q_0 = jnp.zeros((nbasis, nbasis))
+            Q_0 = jnp.ones(nbasis) / self.sigma2_0
 
         unique_times = jnp.unique(obs_data.t)
 
@@ -407,8 +401,6 @@ class IDEM_Model:
         obs_locs_tuple = [obs_locs[obs_data.t == t][:, 1:]
                           for t in unique_times]
 
-        # X_obs = jnp.column_stack(
-        #    [jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
         X_obs_tuple = jax.tree.map(lambda locs:
                                    jnp.column_stack((jnp.ones(len(locs)),
                                                      locs)), obs_locs_tuple)
@@ -421,23 +413,21 @@ class IDEM_Model:
 
         PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
 
-        z = [obs_data.z[obs_data.t == t] for t in unique_times]
+        ztildes = [obs_data.z[obs_data.t == t] -
+                   X_obs_tuple[t] @ beta for t in unique_times]
 
-        carry, seq = information_filter(
+        ll, nus, Qs, nupreds, Qpreds = information_filter_indep(
             nu_0,
             Q_0,
             self.M,
             PHI_obs_tuple,
             self.sigma2_eta,
             self.sigma2_eps,
-            self.beta,
-            z,
-            X_obs_tuple,
+            ztildes,
+            likelihood='full'
         )
 
-        nus, Qs = seq
-
-        return (nus, Qs)
+        return (ll, nus, Qs, nupreds, Qpreds)
 
     def smooth(self, ms, Ps, mpreds, Ppreds):
         """Runs the Kalman smoother on the """
@@ -504,7 +494,7 @@ class IDEM_Model:
             * self.process_grid.area**2
         )
 
-    def data_mle_fit(
+    def fit_kalman_filter(
         self,
         obs_data: st_data,
         X_obs: ArrayLike,
@@ -515,8 +505,8 @@ class IDEM_Model:
         nits: int = 10,
     ):
         """MAY BE OUT OF DATE"""
-        obs_data_wide = ST_towide(obs_data)
-        obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
+        obs_data_wide = obs_data.as_wide()
+        obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
         PHI_obs = self.process_basis.mfun(obs_locs)
 
         bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
@@ -565,10 +555,6 @@ class IDEM_Model:
                 jnp.full(self.beta.shape, -jnp.inf),
             )
 
-        # self.m_0 = PHI_obs.T @ obs_data_wide.z[:,0]
-
-        # sigma2_0 = 3.4e38
-
         ks0 = (
             jnp.log(self.kernel.params[0]),
             jnp.log(self.kernel.params[1]),
@@ -586,7 +572,6 @@ class IDEM_Model:
         )
 
         nbasis = self.process_basis.nbasis
-        nobs = obs_locs.shape[0]
 
         @jax.jit
         def objective(params):
@@ -628,23 +613,22 @@ class IDEM_Model:
                 beta = self.beta
 
             M = self.con_M((ks1, ks2, ks3, ks4))
-
-            Sigma_eta = sigma2_eta * jnp.eye(nbasis)
-            Sigma_eps = sigma2_eps * jnp.eye(nobs)
             P_0 = sigma2_0 * jnp.eye(nbasis)
 
-            carry, seq = kalman_filter(
+            # CHECK BELOW
+            ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
+
+            ll, _, _, _, _, _ = fsf.kalman_filter_indep(
                 m_0,
                 P_0,
                 M,
                 PHI_obs,
-                Sigma_eta,
-                Sigma_eps,
-                beta,
-                obs_data_wide.z,
-                X_obs,
+                sigma2_eta,
+                sigma2_eps,
+                ztildes,
+                likelihood='partial'
             )
-            return -carry[4]
+            return -ll
 
         obj_grad = jax.grad(objective)
 
@@ -655,12 +639,17 @@ class IDEM_Model:
             grad = obj_grad(params)
             updates, opt_state = optimizer.update(grad, opt_state)
             params = optax.apply_updates(params, updates)
-            params = optax.projections.projection_box(params, lower, upper)
+            #params = optax.projections.projection_box(params, lower, upper)
 
         # please make sure this is all the arguments necessary
+        kernel_params = (jnp.exp(params[4][0]),
+                         jnp.exp(params[4][1]),
+                         params[4][2],
+                         params[4][3])
+        
         new_fitted_model = IDEM_Model(
             process_basis=self.process_basis,
-            kernel=param_exp_kernel(self.kernel.basis, params[4]),
+            kernel=param_exp_kernel(self.kernel.basis, kernel_params),
             process_grid=self.process_grid,
             sigma2_eta=jnp.exp(params[2]),
             sigma2_eps=jnp.exp(params[3]),
@@ -669,7 +658,7 @@ class IDEM_Model:
             sigma2_0=jnp.exp(params[1]),
         )
 
-        init_ll, _, _, _, _, _ = self.filter(obs_data_wide, X_obs)
+        init_ll = -objective(params0)
 
         print(
             f"""The log likelihood (up to a constant) of the initial model is
@@ -683,10 +672,6 @@ class IDEM_Model:
         print(
             f"""\nthe final offset parameters are {params[4][2]} and
                {params[4][3]}\n\n"""
-        )
-        print(
-            f"""\nthe final variance parameters are {jnp.exp(params[1])},
-               {jnp.exp(params[2])}, and {jnp.exp(params[3])}\n\n"""
         )
 
         return new_fitted_model
@@ -1124,7 +1109,7 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     times: ArrayLike (T,)
       (optional) The array of times which the processes correspond to
     """
-    
+
     PHI_proc = process_basis.mfun(process_grid.coords)
 
     T = alphas.shape[0]
@@ -1151,6 +1136,7 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     data = st_data(x=pdata[:, 1], y=pdata[:, 2],
                    t=pdata[:, 0], z=pdata[:, 3])
     return data
+
 
 if __name__ == "__main__":
     print("IDEM loaded as main. Simulating a simple example.")

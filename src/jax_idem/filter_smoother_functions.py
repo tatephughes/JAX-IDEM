@@ -70,7 +70,7 @@ def kalman_filter(
         # Update
 
         # Prediction Errors
-        eps_t = z_t - PHI_obs @ m_pred
+        e_t = z_t - PHI_obs @ m_pred
 
         Sigma_t = PHI_obs @ P_pred @ PHI_obs.T + Sigma_eps
 
@@ -80,13 +80,13 @@ def kalman_filter(
             @ P_pred.T
         ).T
 
-        m_up = m_pred + K_t @ eps_t
+        m_up = m_pred + K_t @ e_t
 
         P_up = (jnp.eye(nbasis) - K_t @ PHI_obs) @ P_pred
 
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t, lower=True)
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e_t, lower=True)
 
         if likelihood == 'full':
             ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
@@ -97,7 +97,8 @@ def kalman_filter(
         elif likelihood == 'none':
             ll_new = jnp.nan
         else:
-            raise ValueError("Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
+            raise ValueError(
+                "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
 
         return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
             m_up,
@@ -184,7 +185,7 @@ def kalman_filter_indep(
         # Update
 
         # Prediction error
-        eps_t = z_t - PHI_obs @ m_pred
+        e_t = z_t - PHI_obs @ m_pred
 
         # Prediction Variance
         P_oprop = PHI_obs @ P_pred @ PHI_obs.T
@@ -197,23 +198,24 @@ def kalman_filter_indep(
             @ P_pred.T
         ).T
 
-        m_up = m_pred + K_t @ eps_t
+        m_up = m_pred + K_t @ e_t
 
         P_up = (jnp.eye(nbasis) - K_t @ PHI_obs) @ P_pred
 
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t, lower=True)
-        if likelihood=='full':
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e_t, lower=True)
+        if likelihood == 'full':
             ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
                 0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
         elif likelihood == 'partial':
             ll_new = ll - \
                 jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
         elif likelihood == 'none':
-            ll_new=jnp.nan
+            ll_new = jnp.nan
         else:
-            raise ValueError("Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
+            raise ValueError(
+                "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
 
         return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
             m_up,
@@ -233,7 +235,7 @@ def kalman_filter_indep(
     return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
 
 
-@partial(jax.jit, static_argnames=["full_likelihood"])
+@partial(jax.jit, static_argnames=["likelihood"])
 def information_filter(
     nu_0: ArrayLike,  # initial information vector
     Q_0: ArrayLike,  # initial information matrix
@@ -242,7 +244,7 @@ def information_filter(
     Sigma_eta: ArrayLike,
     Sigma_eps_tuple: tuple,
     ztildes: tuple,
-    full_likelihood: bool = False
+    likelihood: str = 'partial'
 ) -> tuple:
     """
     Applies the Information Filter to a PyTree of data.
@@ -340,10 +342,76 @@ def information_filter(
         scan_elts,
     )
 
-    return seq[0], seq[1], seq[2], seq[3]
+    if likelihood == 'full':
+        mapping_elts = jax.tree.map(
+            lambda t: (ztildes[t], PHI_obs_tuple[t],
+                       Sigma_eps_tuple[t], seq[2][t], seq[3][t]), tuple(range(len(ztildes)))
+        )
+
+        def comp_full_likelihood_good(tree):
+            z = tree[0]
+            nobs = z.shape[0]
+            PHI = tree[1]
+            Sigma_eps = tree[2]
+            nu_pred = tree[3]
+            Q_pred = tree[4]
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+
+            chol_Sigma_t = jnp.linalg.cholesky(
+                PHI @ jnp.linalg.solve(Q_pred, PHI.T) + Sigma_eps)
+            z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e, lower=True)
+
+            ll = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(jax.tree.map(comp_full_likelihood_good,
+                                     mapping_elts, is_leaf=is_leaf))
+        ll = jnp.sum(lls)
+    elif likelihood == 'partial':
+        mapping_elts = jax.tree.map(
+            lambda t: (ztildes[t], PHI_obs_tuple[t],
+                       Sigma_eps_tuple[t], seq[2][t], seq[3][t]), tuple(range(len(ztildes)))
+        )
+
+        def comp_full_likelihood_good(tree):
+            z = tree[0]
+            nobs = z.shape[0]
+            PHI = tree[1]
+            Sigma_eps = tree[2]
+            nu_pred = tree[3]
+            Q_pred = tree[4]
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+
+            chol_Sigma_t = jnp.linalg.cholesky(
+                PHI @ jnp.linalg.solve(Q_pred, PHI.T) + Sigma_eps)
+            z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e, lower=True)
+
+            ll = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+                0.5 * jnp.dot(z, z)
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(jax.tree.map(comp_full_likelihood_good,
+                                     mapping_elts, is_leaf=is_leaf))
+        ll = jnp.sum(lls)
+    elif likelihood == 'none':
+        ll = jnp.nan
+    else:
+        raise ValueError(
+            "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
+
+    return ll, seq[0], seq[1], seq[2], seq[3]
 
 
-@partial(jax.jit, static_argnames=["full_likelihood"])
+@partial(jax.jit, static_argnames=["likelihood"])
 def information_filter_indep(
     nu_0: ArrayLike,  # initial information vector
     Q_0: ArrayLike,  # initial information matrix
@@ -352,7 +420,7 @@ def information_filter_indep(
     sigma2_eta: float,
     sigma2_eps: float,
     ztildes: tuple,
-    full_likelihood: bool = True
+    likelihood: str = 'partial'
 ) -> tuple:
     """
     Applies the Information Filter to a PyTree of data.
@@ -454,7 +522,78 @@ def information_filter_indep(
         scan_elts,
     )
 
-    return seq[0], seq[1], seq[2], seq[3]
+    if likelihood == 'full':
+        mapping_elts = jax.tree.map(
+            lambda t: (ztildes[t], PHI_obs_tuple[t], seq[2]
+                       [t], seq[3][t]), tuple(range(len(ztildes)))
+        )
+
+        def comp_full_likelihood_good(tree):
+            z = tree[0]
+            nobs = z.shape[0]
+            PHI = tree[1]
+            nu_pred = tree[2]
+            Q_pred = tree[3]
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+
+            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T) + sigma2_eps
+            Sigma_t = jnp.fill_diagonal(
+                P_oprop, sigma2_eps+jnp.diag(P_oprop), inplace=False)
+
+            chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+            z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e, lower=True)
+
+            ll = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(jax.tree.map(comp_full_likelihood_good,
+                                     mapping_elts, is_leaf=is_leaf))
+        ll = jnp.sum(lls)
+    elif likelihood == 'partial':
+        mapping_elts = jax.tree.map(
+            lambda t: (ztildes[t], PHI_obs_tuple[t],
+                       Sigma_eps_tuple[t], seq[2][t], seq[3][t]), tuple(range(len(ztildes)))
+        )
+
+        def comp_full_likelihood_good(tree):
+            z = tree[0]
+            nobs = z.shape[0]
+            PHI = tree[1]
+            Sigma_eps = tree[2]
+            nu_pred = tree[3]
+            Q_pred = tree[4]
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+
+            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T) + sigma2_eps
+            Sigma_t = jnp.fill_diagonal(
+                P_oprop, sigma2_eps+jnp.diag(P_oprop), inplace=False)
+
+            chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+            z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e, lower=True)
+
+            ll = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
+                0.5 * jnp.dot(z, z)
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(jax.tree.map(comp_full_likelihood_good,
+                                     mapping_elts, is_leaf=is_leaf))
+        ll = jnp.sum(lls)
+    elif likelihood == 'none':
+        ll = jnp.nan
+    else:
+        raise ValueError(
+            "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
+
+    return ll, seq[0], seq[1], seq[2], seq[3]
 
 
 @jax.jit

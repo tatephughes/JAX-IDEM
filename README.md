@@ -18,7 +18,7 @@ There is also a non-dynamical component $\eta_t(\mathbf s)$ and measurement erro
 
 For more rigorous treatment of this model, you can start with the books [Statistics for Spatio-Temporal Data](https://www.wiley.com/en-ie/Statistics+for+Spatio-Temporal+Data-p-9780471692744), [Spatio-Temporal Statistics with R ](https://www.taylorfrancis.com/books/mono/10.1201/9781351769723/spatio-temporal-statistics-christopher-wikle-andrew-zammit-mangion-noel-cressie), and the articles [Data-Driven Spatio-Temporal Modeling Using the Integro-Difference Equation](https://ieeexplore-ieee-org.ezphost.dur.ac.uk/document/4623135), [Deep integro-difference equation models for spatio-temporal forecasting](https://www-sciencedirect-com.ezphost.dur.ac.uk/science/article/pii/S2211675320300026).
 
-This project could also be understood as a re-implementation of [Andrew Zammit Mangion's `R` package `IDE`](https://github.com/andrewzm/IDE), though the hope is that the functionality and speed will surpass that implementation.
+This project could also be understood as a re-implementation and continuation of [Andrew Zammit Mangion's `R` package `IDE`](https://github.com/andrewzm/IDE), though the hope is that the functionality and speed will surpass that implementation.
 
 
 For more information, see the [github pages](https://tatephughes.github.io/JAX-IDEM/).

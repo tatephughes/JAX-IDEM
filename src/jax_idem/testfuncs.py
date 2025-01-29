@@ -36,6 +36,7 @@ def kalman_filter_naive(m_0, P_0, M, PHI_obs, Sigma_eta, Sigma_eps, ztildes):
 
         Sigma_t = PHI_obs @ Ppred @ PHI_obs.T + Sigma_eps
 
+        
         ll = ll - 0.5 * n * jnp.log(2*jnp.pi) - \
             0.5 * jnp.log(jnp.linalg.det(Sigma_t)) -\
             0.5 * e.T @ jnp.linalg.solve(Sigma_t, e)

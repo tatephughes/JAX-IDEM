@@ -264,7 +264,6 @@ def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
 
 
 def plot_kernel(kernel, output_file="kernel.png"):
-
     """Will be replaced with the show_plt method in the kernel class."""
 
     grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([10, 10])).coords
@@ -307,14 +306,14 @@ class st_data:
         self.t = t
         self.z = z
 
-        times = jnp.unique(t)
-        self.T = len(times)
+        self.times = jnp.unique(t)
+        self.T = len(self.times)
 
     def as_wide(self):
         """
         Gives the data in wide format. Any missing data will be represented in
         the returned matris as NaN.
-          
+
         Returns
         ----------
         A dictionary containing the x coordinates and y coordinates as JAX
@@ -323,7 +322,7 @@ class st_data:
         """
         data_array = jnp.column_stack((self.x, self.y, self.t, self.z))
 
-        times = jnp.unique(data_array[:, 2])
+        times = self.times
         xycoords = jnp.unique(data_array[:, 0:2], axis=0)
         nlocs = data_array.shape[0]
 
@@ -350,7 +349,7 @@ class st_data:
     def show_plot(self):
 
         nrows = int(jnp.ceil(self.T / 3))
-        
+
         # Create a figure and axes for the subplots
         with plt.style.context('seaborn-v0_8-dark-palette'):
             fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
@@ -358,20 +357,18 @@ class st_data:
 
             data_array = jnp.column_stack([self.x, self.y, self.t, self.z])
 
-            T = int(jnp.max(self.t) - jnp.min(self.t)) + 1
-
             vmin = jnp.min(self.z)
             vmax = jnp.max(self.z)
-            
+
             # Loop through each time point and create a scatter plot
-            for t in range(T):
+            for i, time in enumerate(self.times):
                 # fairly sure this should use jnp.where or similar
-                time_data = data_array[data_array[:, 2] == t + 1]
+                time_data = data_array[data_array[:, 2] == time]
                 x = time_data[:, 0]
                 y = time_data[:, 1]
                 values = time_data[:, 3]
 
-                scatter = axes[t].scatter(
+                scatter = axes[i].scatter(
                     x,
                     y,
                     c=values,
@@ -379,18 +376,66 @@ class st_data:
                     vmin=vmin,
                     vmax=vmax,
                 )
-                axes[t].set_title(f"Time = {t+1}", fontsize=11)
+                axes[i].set_title(f"Time = {time}", fontsize=11)
                 # axes[t].set_xlabel("x", fontsize=9)
                 # axes[t].set_ylabel("y", fontsize=9)
-                axes[t].tick_params(
+                axes[i].tick_params(
                     axis="both", which="major", labelsize=5
                 )  # Set tick labels font size
 
                 # Add color bar
-                fig.colorbar(scatter, ax=axes[t])
+                fig.colorbar(scatter, ax=axes[i])
 
             fig.tight_layout()
             fig.show()
+
+    def save_plot(self,
+                  filename,
+                  width=6,
+                  height=1.5,
+                  dpi=300):
+
+        nrows = int(jnp.ceil(self.T / 3))
+
+        # Create a figure and axes for the subplots
+        with plt.style.context('seaborn-v0_8-dark-palette'):
+            fig, axes = plt.subplots(nrows, 3, figsize=(width, nrows * height))
+            axes = axes.flatten()
+
+            data_array = jnp.column_stack([self.x, self.y, self.t, self.z])
+
+            vmin = jnp.min(self.z)
+            vmax = jnp.max(self.z)
+
+            # Loop through each time point and create a scatter plot
+            for i, time in enumerate(self.times):
+                # fairly sure this should use jnp.where or similar
+                time_data = data_array[data_array[:, 2] == time]
+                x = time_data[:, 0]
+                y = time_data[:, 1]
+                values = time_data[:, 3]
+
+                scatter = axes[i].scatter(
+                    x,
+                    y,
+                    c=values,
+                    cmap="viridis",
+                    vmin=vmin,
+                    vmax=vmax,
+                )
+                axes[i].set_title(f"Time = {time}", fontsize=11)
+                # axes[t].set_xlabel("x", fontsize=9)
+                # axes[t].set_ylabel("y", fontsize=9)
+                axes[i].tick_params(
+                    axis="both", which="major", labelsize=5
+                )  # Set tick labels font size
+
+                # Add color bar
+                fig.colorbar(scatter, ax=axes[i])
+
+            fig.tight_layout()
+            fig.savefig(filename, dpi=dpi)
+
 
 def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
                 interval=100,
@@ -398,7 +443,7 @@ def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
                 height=4,
                 dpi=300):
 
-    data_array = jnp.column_stack([data.x,data.y,data.t,data.z])
+    data_array = jnp.column_stack([data.x, data.y, data.t, data.z])
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
 
@@ -430,7 +475,6 @@ def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
         # plt.set_xlabel(data.x)
         # plt.set_ylabel(data.y)
 
-        
         plt.savefig(buf,
                     format="png",
                     dpi=dpi)
@@ -451,7 +495,7 @@ def gif_st_pts(data: st_data,
                height=4,
                dpi=300):
 
-    data_array = jnp.column_stack([data.x,data.y,data.t,data.z])
+    data_array = jnp.column_stack([data.x, data.y, data.t, data.z])
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
 

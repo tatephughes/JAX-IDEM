@@ -1,0 +1,162 @@
+---
+title: "Efficient Filtering and Fitting of Models Derived from Integro-Difference Equations"
+author: "Evan Tate Paterson Hughes"
+format:
+    html:
+        code-fold: true
+        toc: true
+        include-in -header: header.html
+        mathjax:
+            extensions: ["breqn", "bm", "ams"]
+    pdf:
+        toc: true
+        number-sections: true
+        colorlinks: true
+        keep-tex: true
+        include-in -header: header.tex
+        documentclass: report
+        geometry:
+            - left = 20.0mm
+            - right = 20.0mm
+            - marginparsep = 7.7mm
+            - marginparwidth = 70.3mm
+            - top = 20mm
+        code-block-bg: "#EEEEEE"
+jupyter: python3
+bibliography: Bibliography.bib
+---
+
+: : : {.content-visible unless-format = "pdf"}
+[Index](../index.html)
+: : :
+
+    # Fitting IDEM using ```jax_idem```
+
+The primary use of the jax_idem package is to fit Integro-difference equation models to data.
+
+Currently, the only supported way to do this is through maximum-likelihood estimation with the kalman/information filter and OPTAX.
+
+# Simple example; synthetic simple data
+
+We will start by simulating from a simple IDEM with only three time steps. We can quickly make a model using ```gen_example_idem```
+
+```{python}
+# | output: false
+
+import jax
+import jax.random as rand
+import jax.numpy as jnp
+
+jax.config.update('jax_enable_x64', True)
+
+import matplotlib.pyplot as plt
+
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jax_idem'))
+import idem
+import utilities
+import filter_smoother_functions as fsf
+
+import importlib
+importlib.reload(idem)
+importlib.reload(utilities)
+importlib.reload(fsf)
+
+```
+
+
+```{python}
+#| output: false
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 3)
+
+process_basis = utilities.place_basis(nres=1, min_knot_num=5)
+nbasis = process_basis.nbasis
+
+m_0 = jnp.zeros(nbasis).at[20].set(10)
+sigma2_0 = 0.0001
+
+truemodel = idem.gen_example_idem(
+    keys[0], k_spat_inv=True,
+    process_basis=process_basis,
+    m_0=m_0, sigma2_0=sigma2_0,
+    sigma2_eta=0.02**2,
+    sigma2_eps=0.05**2
+)
+
+process_data, obs_data = truemodel.simulate(nobs=50, T=3, key=keys[1])
+
+process_data.save_plot("true_process.png")
+obs_data.save_plot("synthetic_data.png")
+```
+
+::: {#fig-example layout-row=2}
+
+![Process](true_process.png)
+
+![Observations](synthetic_data.png)
+
+An example target simulation, with the underlying process (left), and noisy observations (right).
+:::
+
+
+Note that there is one missing process time point that is not plotted here; $t=0$. 
+In the version of the model used, data is only taken at $t=1,2,3$, while it is assumed that the process exists from time 0.
+
+## Fitting
+
+Now, after we initialise with a 'guess' baseline model, we can use ```idem.IDEM_model.fit_kalman_filter``` (recomended for fixed data observation locations) or ```fit_information_filter``` to fit the model to the synthetic data.
+
+```{python}
+K_basis = truemodel.kernel.basis
+# scale and shape of the kernel will be the same, but the offsets will be estimated
+k = (
+    jnp.array([200.0]),
+    jnp.array([0.001]),
+    jnp.array([0.0]),
+    jnp.array([0.0]),
+)
+# This is the kind of kernel used by ```gen_example_idem```
+kernel = idem.param_exp_kernel(K_basis, k)
+
+model0 = idem.IDEM_Model(
+                    process_basis = process_basis,
+                    kernel=kernel,
+                    process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
+                                               jnp.array([41, 41])),
+                    sigma2_eta = 0.01**2,
+                    sigma2_eps = 0.01**2,
+                    beta = jnp.array([0.0, 0.0, 0.0]),
+                    m_0 = jnp.zeros(nbasis),
+                    sigma2_0=10*jnp.eye(nbasis))
+```
+
+For context, the true values of the kernel parameters are
+
+```{python}
+print(truemodel.kernel.params)
+```
+
+So we've chosen a model with high prior variance and no flow, with inaccurate guesses for the spread, diffusion, and variances.
+
+The fitting functions output new ```IDEM_Model``` objects, generated using OPTAX to optimise for the likelihood.
+
+```{python}
+#| output: false
+obs_data_wide = obs_data.as_wide()
+X_obs = jnp.column_stack([jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['x'], obs_data_wide['y']])
+
+import optax
+model1 = model0.fit_kalman_filter(obs_data=obs_data,
+                                  X_obs=X_obs,
+                                  fixed_ind=["m_0", "sigma2_0", "beta"],
+                                  nits=100,
+                                  optimizer=optax.adam(1e-1),)
+```
+
+```{python}
+print(model1.kernel.params)
+print(model1.sigma2_eps, "truth:", 0.05**2)
+print(model1.sigma2_eta, "truth:", 0.02**2)
+```

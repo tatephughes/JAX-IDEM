@@ -425,5 +425,26 @@
     "title": "Efficient Filtering and Fitting of Models Derived from Integro-Difference Equations",
     "section": "Footnotes",
     "text": "Footnotes\n\n\nat least, in a discrete-time scenario. Integro-difference based mechanics can be derived from continuous-time convection-diffusion processes, see Liu, Yeo, and Lu (2022)↩︎"
+  },
+  {
+    "objectID": "site/fit_example.html",
+    "href": "site/fit_example.html",
+    "title": "Efficient Filtering and Fitting of Models Derived from Integro-Difference Equations",
+    "section": "",
+    "text": ": : : {.content-visible unless-format = “pdf”} Index : : :\nThe primary use of the jax_idem package is to fit Integro-difference equation models to data.\nCurrently, the only supported way to do this is through maximum-likelihood estimation with the kalman/information filter and OPTAX."
+  },
+  {
+    "objectID": "site/fit_example.html#simple-example-synthetic-simple-data",
+    "href": "site/fit_example.html#simple-example-synthetic-simple-data",
+    "title": "Efficient Filtering and Fitting of Models Derived from Integro-Difference Equations",
+    "section": "1.1 Simple example; synthetic simple data",
+    "text": "1.1 Simple example; synthetic simple data\nWe will start by simulating from a simple IDEM with only three time steps. We can quickly make a model using gen_example_idem;\n\n\nCode\nimport sys\nimport os\nsys.path.append(os.path.abspath('../src/jax_idem'))\n\nimport jax.random as rand\nimport jax.numpy as jnp\nimport jax\nimport matplotlib.pyplot as plt\nimport filter_smoother_functions as fsf\nimport plotly.express as px\nimport plotly.io as pio\nimport plotly.graph_objs as go\nimport pandas as pd\n\nimport utilities\nimport idem\nimport filter_smoother_functions as fsf\n\nimport importlib\nimportlib.reload(idem)\nimportlib.reload(utilities)\nimportlib.reload(fsf)\n\n\n\n\nCode\nkey = jax.random.PRNGKey(1)\nkeys = rand.split(key, 3)\n\nprocess_basis = utilities.place_basis(nres=1, min_knot_num=5)\nnbasis = process_basis.nbasis\n\nm_0 = jnp.zeros(nbasis).at[20].set(10)\nsigma2_0 = 0.0001\n\ntruemodel = idem.gen_example_idem(\n    keys[0], k_spat_inv=True,\n    process_basis=process_basis,\n    m_0=m_0, sigma2_0=sigma2_0\n)\n\n# Simulation\nT = 3\n                                            \nprocess_data, obs_data = truemodel.simulate(nobs=50, T=T, key=keys[1])\n\nprocess_data.show_plot()\n\n\n/home/tate/MyProjects/JAX-IDEM/src/jax_idem/utilities.py:391: UserWarning:\n\nMatplotlib is currently using module://matplotlib_inline.backend_inline, which is a non-GUI backend, so cannot show the figure."
+  },
+  {
+    "objectID": "site/fit_example.html#fitting",
+    "href": "site/fit_example.html#fitting",
+    "title": "Efficient Filtering and Fitting of Models Derived from Integro-Difference Equations",
+    "section": "1.1 Fitting",
+    "text": "1.1 Fitting\nNow, after we initialise with a ‘guess’ baseline model, we can use idem.IDEM_model.fit_kalman_filter (recomended for fixed data observation locations) or fit_information_filter to fit the model to the synthetic data.\n\n\nCode\nK_basis = truemodel.kernel.basis\n# scale and shape of the kernel will be the same, but the offsets will be estimated\nk = (\n    jnp.array([200.0]),\n    jnp.array([0.001]),\n    jnp.array([0.0]),\n    jnp.array([0.0]),\n)\n# This is the kind of kernel used by ```gen_example_idem```\nkernel = idem.param_exp_kernel(K_basis, k)\n\nmodel0 = idem.IDEM_Model(\n                    process_basis = process_basis,\n                    kernel=kernel,\n                    process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),\n                                               jnp.array([41, 41])),\n                    sigma2_eta = 0.01**2,\n                    sigma2_eps = 0.01**2,\n                    beta = jnp.array([0.0, 0.0, 0.0]),\n                    m_0 = jnp.zeros(nbasis),\n                    sigma2_0=10*jnp.eye(nbasis))\n\n\nFor context, the true values of the kernel parameters are\n\n\nCode\nprint(truemodel.kernel.params)\n\n\n(Array([150.], dtype=float64), Array([0.002], dtype=float64), Array([-0.1], dtype=float64), Array([0.1], dtype=float64))\n\n\nSo we’ve chosen a model with high prior variance and no flow, with inaccurate guesses for the spread, diffusion, and variances.\nThe fitting functions output new IDEM_Model objects, generated using OPTAX to optimise for the likelihood.\n\n\nCode\nobs_data_wide = obs_data.as_wide()\nX_obs = jnp.column_stack([jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['x'], obs_data_wide['y']])\n\nimport optax\nmodel1 = model0.fit_kalman_filter(obs_data=obs_data,\n                                  X_obs=X_obs,\n                                  fixed_ind=[\"m_0\", \"sigma2_0\", \"beta\"],\n                                  nits=100,\n                                  optimizer=optax.adam(1e-1),)\n\n\n\n\nCode\nprint(model1.kernel.params)\nprint(model1.sigma2_eps, \"truth:\", 0.05**2)\nprint(model1.sigma2_eta, \"truth:\", 0.02**2)\n\n\n(Array([238.02798171], dtype=float64), Array([0.00123066], dtype=float64), Array([-0.10337608], dtype=float64), Array([0.100334], dtype=float64))\n0.0006457021729769518 truth: 0.0025000000000000005\n0.0005462007362969308 truth: 0.0004"
   }
 ]
