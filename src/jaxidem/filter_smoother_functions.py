@@ -6,6 +6,7 @@ import jax.lax as jl
 from jax.typing import ArrayLike
 
 from functools import partial
+from utilities import mat_sq, mat_hug
 
 
 @partial(jax.jit, static_argnames=["likelihood"])
@@ -100,14 +101,7 @@ def kalman_filter(
             raise ValueError(
                 "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
 
-        return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
-            m_up,
-            P_up,
-            m_pred,
-            P_pred,
-            ll_new,
-            K_t,
-        )
+        return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (m_up, P_up, m_pred, P_pred, ll_new, K_t,)
 
     carry, seq = jl.scan(
         step,
@@ -178,7 +172,8 @@ def kalman_filter_indep(
         m_pred = M @ m_tt
 
         # Add sigma2_eps to the diagonal intelligently
-        P_prop = M @ P_tt @ M.T
+        # P_prop = M @ P_tt @ M.T
+        P_prop = mat_hug(M, P_tt)
         P_pred = jnp.fill_diagonal(
             P_prop, sigma2_eta + jnp.diag(P_prop), inplace=False)
 
@@ -188,7 +183,8 @@ def kalman_filter_indep(
         e_t = z_t - PHI_obs @ m_pred
 
         # Prediction Variance
-        P_oprop = PHI_obs @ P_pred @ PHI_obs.T
+        # P_oprop = PHI_obs @ P_pred @ PHI_obs.T
+        P_oprop = mat_hug(PHI_obs, P_pred)
         Sigma_t = jnp.fill_diagonal(
             P_oprop, sigma2_eps+jnp.diag(P_oprop), inplace=False)
 
@@ -524,8 +520,8 @@ def information_filter_indep(
 
     if likelihood == 'full':
         mapping_elts = jax.tree.map(
-            lambda t: (ztildes[t], PHI_obs_tuple[t], seq[2]
-                       [t], seq[3][t]), tuple(range(len(ztildes)))
+            lambda t: (ztildes[t], PHI_obs_tuple[t],
+                       seq[2][t], seq[3][t]), tuple(range(len(ztildes)))
         )
 
         def comp_full_likelihood_good(tree):
@@ -549,7 +545,7 @@ def information_filter_indep(
             return ll
 
         def is_leaf(node):
-            return jax.tree.structure(node).num_leaves == 5
+            return jax.tree.structure(node).num_leaves == 4
 
         lls = jnp.array(jax.tree.map(comp_full_likelihood_good,
                                      mapping_elts, is_leaf=is_leaf))
@@ -557,16 +553,15 @@ def information_filter_indep(
     elif likelihood == 'partial':
         mapping_elts = jax.tree.map(
             lambda t: (ztildes[t], PHI_obs_tuple[t],
-                       Sigma_eps_tuple[t], seq[2][t], seq[3][t]), tuple(range(len(ztildes)))
+                       seq[2][t], seq[3][t]), tuple(range(len(ztildes)))
         )
 
         def comp_full_likelihood_good(tree):
             z = tree[0]
             nobs = z.shape[0]
             PHI = tree[1]
-            Sigma_eps = tree[2]
-            nu_pred = tree[3]
-            Q_pred = tree[4]
+            nu_pred = tree[2]
+            Q_pred = tree[3]
             e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
 
             P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T) + sigma2_eps
@@ -582,7 +577,7 @@ def information_filter_indep(
             return ll
 
         def is_leaf(node):
-            return jax.tree.structure(node).num_leaves == 5
+            return jax.tree.structure(node).num_leaves == 4
 
         lls = jnp.array(jax.tree.map(comp_full_likelihood_good,
                                      mapping_elts, is_leaf=is_leaf))

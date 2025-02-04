@@ -100,7 +100,8 @@ class Kernel:
                   filename,
                   width=6,
                   height=4,
-                  dpi=300):
+                  dpi=300,
+                  title=None):
         """Saves a plot of the direction of the kernel."""
 
         with plt.style.context('seaborn-v0_8-dark-palette'):
@@ -127,7 +128,8 @@ class Kernel:
             axes.set_xticks([])
             axes.set_yticks([])
 
-            axes.set_title("Kernel Direction")
+            if title != None:
+                axes.set_title(title)
 
             fig.savefig(filename, dpi=dpi)
 
@@ -1004,7 +1006,7 @@ def gen_example_idem(
     nints: ArrayLike = jnp.array([100, 100]),
     nobs: int = 50,
     m_0: ArrayLike = None,
-    sigma2_0: ArrayLike = None,
+    sigma2_0 = 0.5**2,
     process_basis: Basis = None,
     sigma2_eta=0.5**2,
     sigma2_eps=0.1**2,
@@ -1046,9 +1048,7 @@ def gen_example_idem(
     nbasis = process_basis.nbasis
 
     if m_0 is None:
-        m_0 = jnp.zeros(nbasis)
-    if sigma2_0 is None:
-        sigma2_0 = 0.01
+        m_0 = jnp.zeros(nbasis).at[0].set(1)
 
     if k_spat_inv:
         K_basis = (

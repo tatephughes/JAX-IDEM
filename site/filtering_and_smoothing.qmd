@@ -64,7 +64,7 @@ Lets simulate from this system;
 
 import sys
 import os
-sys.path.append(os.path.abspath('../src/jax_idem'))
+sys.path.append(os.path.abspath('../src/jaxidem'))
 
 import jax.random as rand
 import jax.numpy as jnp
@@ -199,7 +199,7 @@ nu_0 = jnp.zeros(2)
 PHI_tuple = tuple([PHI for _ in range(T)])
 zs_tuple = tuple(zs)
 
-nus, Qs,_ ,_  = fsf.information_filter_indep(nu_0,
+ll, nus, Qs,_ ,_  = fsf.information_filter_indep(nu_0,
                                             Q_0,
                                             M,
                                             PHI_tuple,
@@ -328,7 +328,7 @@ def objective_info(params):
 
     Sigma_eps_tuple = tuple([Sigma_eps for _ in range(T)])
 
-    ll, _, _ = fsf.information_filter(nu_0,
+    ll, _, _, _, _ = fsf.information_filter(nu_0,
                                       Q_0,
                                       M,
                                       PHI_tuple,
@@ -356,7 +356,7 @@ for i in range(50):
     param_ad = optax.apply_updates(param_ad, updates)
     nll = objective_info(param_ad)
 
-ll, nus, Qs = fsf.information_filter(nu_0,
+ll, nus, Qs, _, _ = fsf.information_filter(nu_0,
                                      P_0,
                                      param_ad['M'],
                                      PHI_tuple,

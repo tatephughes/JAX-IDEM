@@ -5,21 +5,23 @@
 \newcommand{\bv}[1]{\symbfit{#1}}
 \setmainfont{XITS}
 \setmathfont{XITS Math}
+\usepackage[framemethod=tikz]{mdframed}
 
+% Define custom mdframed settings for shading
+\mdfdefinestyle{thmstyle}{
+  skipabove=12,skipbelow=12pt,
+  linecolor=black,
+  linewidth=0.5pt,
+  backgroundcolor=gray!10,
+  innerleftmargin=10pt,
+  innerrightmargin=10pt,
+  innertopmargin=10pt,
+  innerbottommargin=10pt,
+  roundcorner=5pt
+}
 
-\usepackage{tcolorbox}
-\tcbuselibrary{most}
-
-
-% Define styles for theorem, lemma, proof, etc.
-\newtcolorbox{mytheorem}[1][]{colback=blue!5!white, colframe=blue!75!black,
-fonttitle=\bfseries, title=Theorem, #1}
-
-\newtcolorbox{mylemma}[1][]{colback=green!5!white, colframe=green!75!black,
-fonttitle=\bfseries, title=Lemma, #1}
-
-\newtcolorbox{myproof}[1][]{colback=red!5!white, colframe=red!75!black,
-fonttitle=\bfseries, title=Proof, #1}
-
-\newtcolorbox{myexample}[1][]{colback=yellow!5!white, colframe=yellow!75!black,
-fonttitle=\bfseries, title=Example, #1}
+% Redefine theorem and lemma environments to use mdframed
+\surroundwithmdframed[style=thmstyle]{theorem}
+\surroundwithmdframed[style=thmstyle]{lemma}
+\surroundwithmdframed[style=thmstyle]{proof}
+\surroundwithmdframed[style=thmstyle]{Shaded}

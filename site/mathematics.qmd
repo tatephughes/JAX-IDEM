@@ -21,112 +21,265 @@ format:
       - marginparsep=7.7mm
       - marginparwidth=70.3mm
       - top=20mm
-    code-block-bg: "#EEEEEE"
+    fig-pos: 'h'
 jupyter: python3
 bibliography: Bibliography.bib
 ---
-
-
-\newtheorem{prototheorem}{Theorem}[section]
-
-\renewenvironment{theorem}
-   {\begin{tcolorbox}[leftrule=3mm,colback=red!10!white,colframe=red!75!black,breakable]\begin{prototheorem}}
-   {\end{prototheorem}\end{tcolorbox}}
-
-\newtheorem{protolemma}[prototheorem]{Lemma}
-\renewenvironment{lemma}
-   {\begin{tcolorbox}[leftrule=3mm,colback=purple!10!white,colframe=purple!75!black, breakable]\begin{protolemma}}
-   {\end{protolemma}\end{tcolorbox}}
-   
-\newtheorem{protoproof}{Proof}
-\renewenvironment{proof}
-   {\begin{tcolorbox}[frame hidden, enhanced, colback=black!10!white, left=3mm,right=3mm,borderline vertical={4pt}{0pt}{gray},arc=8pt, center, width = 0.9\textwidth, breakable]\begin{protoproof}}
-   {\end{protoproof}\end{tcolorbox}}
-   
-\ifdefined\Shaded\renewenvironment{Shaded}{\begin{tcolorbox}[leftrule=3mm, colback={codebgcolor}, enhanced, breakable, width=0.9\textwidth, center]}{\end{tcolorbox}}\fi
-
 
 ::: {.content-visible unless-format="pdf"}
 [Index](../index.html)
 :::
 
+# Introduction
+
+The Integro-Difference equation model (here abbreviated as IDEM ^[Historically, this has been abbrevited as IDE. However, with that abbreviation almost universally meaning 'Integrated Development Environment', here, we choose to include the 'M' in the abbreviation.]) is dynamics-based spatio-temporal aiming to model diffusion and advection/convection by making the value of a process a weighted average of it's previous time, plus noise.
+
+<span style="color: red;">[NOTE: I intend to create a more thorough background for the introduction here.]</span>
 
 # Integro-difference Based Dynamics
 
 As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty. Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.
 
 Traditionally, the problem has been tackled by the moments (usually the means and covariances) of the process in order to make inference (@wikle2019spatio, for example, call this 'descriptive' modelling).
-While this method can be sufficient for many problems, there are many cases where we are underutilizing some knowledge of the underlying dynamical systems involved.
-For instance, in temperature models, we know that temperature has movement (convection) and spread (diffusion), and that the state at any given time will depend on its state at previous times ^[at least, in a discrete-time scenario. Integro-difference based mechanics can be derived from continuous-time convection-diffusion processes, see @liu2022statistical].
+While this method can be sufficient for many problems, there are many cases where we are underutilizing some knowledge of the underlying dynamic systems involved.
+For instance, in temperature models, we know that temperature has movement (convection/advection) and spread (diffusion), and that the state at any given time will depend on its state at previous times ^[at least, in a discrete-time scenario. Integro-difference based mechanics can be derived from continuous-time convection-diffusion processes, see @liu2022statistical].
 We call models which make use of this 'dynamical' models. 
-Of focus here is the Integro-Difference Equation Model (IDEM), which models diffusion and convection in discrete time by using convolution-like integral equations to model the relation between the process and it's previous state. 
-We use a hierarchical model to represent this type of system;
+
+A general way of writing such hierarchical dynamical models might be
 
 $$\begin{split}
-Z_t(\bv s) &= Y_t(\bv s) + X(\bv s)^{\intercal}\bv \beta + \epsilon_t(\bv s)\\
-Y_{t+1}(\bv s) &= \int_{\mathcal D_s} \kappa(s,r) Y_t(r) d\bv r + \omega_t(\bv s). 
+Y_{t+1}(\bv s) &= \mathcal M_t(Y_0(\bv s), \dots, Y_t(\bv s)) + \omega_t(\bv s), \quad t=0, \dots, T-1,\\
+Z_t(\bv s) &= \mathcal O_t(Y_t(\bv s)) + X(\bv s)^{\intercal}\bv \beta + \epsilon_t(\bv s), \quad t=1,\dots,T.
+\end{split}
+$$
+
+This describes the random fields $Z_t(\bv s)$ and $Y_t(\bv s)$, which are the observed data and unobserved dynamic process, respectively.
+$\mathcal M_t$ here is a non-random 'propegation operator', defining how the process evovles with respect to it's previous state(s), and $\mathcal O_t$ is a non-random 'observation operator', defining how observations of a given process state are taken.
+Both these fields have random (usually time-independant) additive terms, $\omega_t(\bv s)$, and we also include non-random measured linear covariate terms $X(\bv s)^{\intercal}\bv \beta$.
+
+If we discretize the space into spatial locations $\{\bv s_i\}_{i=1,\dots, n}$, assume the operator are linear, assert a Markov condition, and assume the errors are all normal, we get a simple linear dynamic system;
+
+$$\begin{split}
+\bv Y_{t+1} &= M_t\bv Y_t + \bv \omega_t, \quad t=0, \dots, T-1,\\
+\tilde{\bv Z_t} &= O_t\bv Y_t + \bv \epsilon_t, \quad t=1,\dots,T,
+\end{split}
+$${#eq-ldstm}
+ 
+ where we have written $\bv Y_t = (Y_t(\bv s_1),\dots, Y_t(\bv s_n))$, and similar for $\bv Z_t, \bv \epsilon_t$ and $\bv\omega_t$.
+This is a well-known type of system, the the process $Y$ can easily be estimated either directly of with a Kalman filter/smoother and variants, which will be discussed later.
+
+However, this model is restrictive and high-dimensional; $M_t$, the primary quantities which needs estimation, is of dimension $n\times n$, of which there are $T$ matrices to be estimated. 
+Even if we allow the propegation matrix to be invariant in time, we can still only make predictions at the stations $\{\bv s_i\}$.
+
+This motivates a different approach; in particular, one which allows us to estimate the entire random field $Y_t(\bv s)$ using some spectral decomposition, which would alleviate these problems.
+
+The integro-difference equation model attempts to generalise @eq-ldstm into the continuous space by replacing the discrete linear $M_t$ by a continuous integral equivalent;
+
+$$\begin{split}
+  Y_{t+1}(\bv s) &= \int_{\mathcal D_s} \kappa_t(\bv s,\bv r) Y_t(\bv r) d\bv r + \omega_t(\bv s), \quad t=0, \dots, T-1, \\
+  Z_t(\bv s) &= Y_t(\bv s) + X(\bv s)^{\intercal}\bv \beta + \epsilon_t(\bv s), \quad t=1,\dots,T.
 \end{split}
 $${#eq-IDEM}
 
-Where $\omega_t(\bv s)$ is a small scale gaussian variation with no temporal dynamics [@cressie2015statistics call this a 'spatially descriptive' component], $\bv X(\bv s)$ are spatially varying covariates (for example, in a large-scale climate scenario, this might simply be latitude), $Z$ is observed data, $Y$ is an unobserved dynamic process, $\kappa$ is the driving 'kernel' function, and $\epsilon_t$ is a gaussian white noise 'measurement error' term.
+Where $\omega_t(\bv s)$ is a small scale gaussian variation with no temporal dynamics [@cressie2015statistics call this a 'spatially descriptive' component], $\bv X(\bv s)$ are spatially varying covariates (for example, in a large-scale climate scenario, this might be latitude, concentration of some chemical/element like nitrogen)
+$\kappa(\bv s, \bv r)$ is the driving 'kernel' function, and $\epsilon_t$ is a gaussian white noise 'measurement error' term.
 
-# Process Decomposition
-
-In order to work with the process, we likely want to consider the spectral decomposition of it. 
-That is, choose a complete class of spatial spectral basis functions, $\phi_i(\bv s)$, and decompose;
+Our operator is now $\mathcal M_(Y_t(\bv s)) = \int_{\mathcal D_s} \kappa_t(\bv s,\bv r) Y_t(\bv r) d\bv r$, which can model diffusion and convection by choosing the shape of $\kappa$ (which, from now on, we will assume to be temporally invariant).
+This kernel defines how each point in space is affected by every other point in space at the previous time. For example, if we choose a Gaussian-like shape,
 
 $$\begin{split}
-Y_t(\bv s) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\bv s).
+  \kappa(\bv s, \bv r; \bv m, a, b) = a \exp \left( -\frac{1}{b} \vert \bv s- \bv r +\bv m(\bv s)\vert^2 \right),
+\end{split}
+$$
+
+then the 'flow' would be in the direction of $-\bv m(\bv s)$, and the diffusion would be controlled by $b$ and $a$.
+This creates a 'spatially invariant kernel', where the direction of flow varies across the space, as in @fig-examplekernelvar.
+
+```{python}
+#|echo: false
+#|output: false
+              
+import numpy
+import matplotlib.pyplot as plt
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jaxidem'))
+import idem
+import utilities
+import jax
+import jax.random as rand
+import jax.numpy as jnp
+
+key = jax.random.PRNGKey(2)
+keys = rand.split(key, 2)
+
+K_basis = (
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+)
+k = (
+    jnp.array([150.0]),
+    jnp.array([0.2]),
+    jnp.array([-0.1]),
+    jnp.array([0.1]),
+)
+kernel = idem.param_exp_kernel(K_basis, k)
+kernel.save_plot("kernel_example_direction.png", height=5, width=5,title=None) 
+plt.close()
+                                                    
+grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([50, 50])).coords
+
+z = jax.vmap(lambda s: kernel.function(jnp.array([0.5,0.5]), s))(grid)
+
+plt.figure(figsize=(5, 5))
+plt.scatter(grid[:,0],
+            grid[:,1],
+            c=z,
+            cmap="viridis",
+            marker='s'
+            )
+plt.scatter(0.5, 0.5, color='red', marker='x', s=100)
+plt.xticks([])
+plt.yticks([])
+plt.savefig("kernel_example_strength.png", dpi=300)
+```
+
+```{python}
+#|echo: false
+#|output: false
+
+K_basis = (
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utilities.place_basis(nres=1),
+    utilities.place_basis(nres=1),
+)
+k = (
+    jnp.array([150]),
+    jnp.array([0.2]),
+    0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
+    0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+)
+kernel = idem.param_exp_kernel(K_basis, k)
+kernel.save_plot("kernel_example_direction_var.png", height=5, width=5,title=None) 
+plt.close()
+                                                    
+grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([50, 50])).coords
+
+centre = jnp.array([0.5,0.5])
+                                            
+z = jax.vmap(lambda s: kernel.function(centre, s))(grid)
+
+plt.figure(figsize=(5, 5))
+plt.scatter(grid[:,0],
+            grid[:,1],
+            c=z,
+            cmap="viridis",
+            marker='s'
+            )
+plt.scatter(0.5, 0.5, color='red', marker='x', s=100)
+plt.xticks([])
+plt.yticks([])
+
+def offset(s):
+    return -jnp.array(
+        [
+            kernel.params[2] @ kernel.basis[2].vfun(s),
+            kernel.params[3] @ kernel.basis[3].vfun(s),
+        ]
+    )
+
+
+
+start_point = centre - offset(centre)
+end_point = centre
+
+# Add an arrow between the points
+plt.annotate(
+    '', xy=end_point, xytext=start_point,
+    arrowprops=dict(arrowstyle="->", color='black', lw=2))
+
+plt.savefig("kernel_example_strength_var.png", dpi=300)
+```
+
+::: {#fig-examplekernelvar layout-ncol=2}
+
+![Invariant Kernel Direction](kernel_example_direction_var.png)
+
+![Invariant Kernel Strength](kernel_example_strength_var.png)
+
+A spatially invarient kernel across the region $[0,1]\times[0,1]$. 
+The kernel direction is shown on the left, and on the right is the amount that each point affects the point $(0.5,0.5)$, marked with a red cross.
+'Flow' is allowed to vary by a function $\bv m(\bv s)$ which is chosen randomly using a basis expansion (see @sec-kerneldecomp).
+The other two parameters are set at $a=150,b=0.2$.
+
+:::
+
+
+# Spectral Representations
+
+The key to being able to computationally work with IDEMs, as perhaps originally made by @wikle1999dimension, is to work with the spectral decomposition of the process, in order to coerce the model heirarchy into a more familiar linear dynamical system form, like @eq-ldstm.
+
+This kind of dimension-reduction allows us to parameterise spatial fields with as few or as many parameters as we want.
+
+## Process decomposition
+
+Choose a complete class of spatial spectral basis functions, $\phi_i(\bv s)$, and decompose the process spatial field at each time;
+
+$$\begin{split}
+Y_t(\bv s) \approx \sum_{i=1}^{r} \alpha_{i,t} \phi_i(\bv s), \quad t=0,\dots,T.
 \end{split}
 $${#eq-processdecomp}
 
-where we truncate the expansion at some $r\in\mathbb N$. Notice that we can write this in vector/matrix form; considering times $t=1,2,\dots, T$, we set
+where we truncate the expansion at some $r\in\mathbb N$. 
+Notice that we can write this in vector/matrix form; considering times $t=1,2,\dots, T$, we set
 
 $$\begin{split}
-\bv \phi(\bv s) &= (\phi_1(\bv s), \phi_2(\bv s), \dots, \phi_r(\bv s))^{\intercal}\\
-\bv \alpha_t &= (\alpha_{1,t}, \alpha_{2,t}, \dots, \alpha_{r, t})^{\intercal}
+\bv \phi(\bv s) &= (\phi_1(\bv s), \phi_2(\bv s), \dots, \phi_r(\bv s))^{\intercal},\\
+\bv \alpha_t &= (\alpha_{1,t}, \alpha_{2,t}, \dots, \alpha_{r, t})^{\intercal}.
 \end{split}
 $${#eq-vecmats}
 
 Now, (@eq-processdecomp) gives us
 
 $$\begin{split}
-Y(\bv s; t) &= \bv \phi^{\intercal}(\bv s)  \alpha(t)\\
+Y(\bv s; t) \approx \bv \phi^{\intercal}(\bv s)  \alpha(t).\\
 \end{split}
 $${#eq-pbvec}
 
 
-We now want to find the equation defining the evolution of the spectral coefficients, $\bv \alpha_t$.
+We can effectively now work exclusively with $\bv alpha_t$.
+To do so, we need to find the evolution equation of $\bv alpha_t$, as given below.
 
 ::: {#thm-state_form}
-## Basis form of the state evolution
+## Spectral form of the state evolution
  
-Define the Gram matrix;
+Define the _Gram matrix_;
 
-$$\Psi := \int_{\mathcal D_s} \bv \phi(\bv s) \bv \phi(\bv s)^\intercal d\bv s
+$$\Psi \coloneq \int_{\mathcal D_s} \bv \phi(\bv s) \bv \phi(\bv s)^\intercal d\bv s.
 $${#eq-gram}
 
 Then, the basis coefficients evolve by the equation
  
-$$\bv \alpha(t+1) = M \bv\alpha(t) + \bv\eta_t,
-$$
+$$\bv \alpha_{t+1} = M \bv\alpha_t + \bv\eta_t,
+$${#eq-stateev}
 
 where $M = \Psi^{-1} \int\int \bv\phi(\bv s) \kappa(\bv s, \bv r)\bv\phi(\bv r)^\intercal d\bv r d \bv s$ and $\bv\eta_t =\Psi^{-1} \int \bv \phi(\bv s)\omega_t(s)d\bv s$.
 :::
 
-\newpage
-
 ::: {.proof}
 [Adapting from @dewar2008data], write out the process equation, (@eq-IDEM), using the first equation of (@eq-pbvec);
 
-$$Y(\bv s;t+1) = \bv \phi(\bv s) \alpha(t+1) = \int_{\mathcal D_s} \kappa(\bv s, \bv r) \bv\phi(\bv r)^{\intercal}\bv \alpha(t)d\bv r + \omega_t(\bv s),
+$$Y_{t+1}(\bv s) = \bv \phi(\bv s)^{\intercal} \alpha_{t+1} = \int_{\mathcal D_s} \kappa(\bv s, \bv r) \bv\phi(\bv r)^{\intercal}\bv \alpha_t d\bv r + \omega_t(\bv s),
 $$
 
 We then multiply both sides by $\bv \phi(s)$ and integrate over $\bv s$
 
 $$\begin{split}
-\int_{\mathcal D_s} \bv\phi(\bv s)\bv\phi(\bv s) d\bv s \bv\alpha(t+1) &= \int\bv\phi(\bv s)\int \kappa(\bv s, \bv r)\bv\phi(\bv r)^\intercal d\bv r  d \bv s\ \bv\alpha(t) + \int \bv \phi(\bv s)\omega_t(s)d\bv s\\
-\Psi \bv\alpha(t+1) &= \int\int \bv\phi(\bv s)\kappa(\bv s, \bv r) \bv\phi(\bv r)^\intercal d\bv r d \bv s\ \bv\alpha(t) + \int \bv \phi(\bv s)\omega_t(s)d\bv s.
+\int_{\mathcal D_s} \bv\phi(\bv s)\bv\phi(\bv s)^{\intercal} d\bv s \bv\alpha_{t+1} &= \int\bv\phi(\bv s)\int \kappa(\bv s, \bv r)\bv\phi(\bv r)^\intercal d\bv r  d \bv s\ \bv\alpha_t + \int \bv \phi(\bv s)\omega_t(s)d\bv s\\
+\Psi \bv\alpha_{t+1} &= \int\int \bv\phi(\bv s)\kappa(\bv s, \bv r) \bv\phi(\bv r)^\intercal d\bv r d \bv s\ \bv\alpha_t + \int \bv \phi(\bv s)\omega_t(s)d\bv s.
 \end{split}
 $$
 
@@ -135,16 +288,13 @@ So, finally, pre-multipling by the inverse of the gram matrix, $\Psi^{-1}$ (@eq-
 
 
 
-## Process Noise
+## Spectral form of the Process Noise
 
 We still have to set out what the process noise, $\omega_t(\bv s)$, and it's spectral couterpart, $\bv \eta_t$, are. 
-Dewar [@dewar2008data] fixes the variance of $\omega_t(\bv s)$ to be uniform and uncorrelated across space and time, with $\omega_t(\bv s) \sim \mathcal N(0,\sigma^2)$
+@dewar2008data fix the variance of $\omega_t(\bv s)$ to be uniform and uncorrelated across space and time, with $\omega_t(\bv s) \sim \mathcal N(0,\sigma^2)$
 It is then easily shown that $\bv\eta_t$ is also normal, with $\bv\eta_t \sim \mathcal N(0, \sigma^2\Psi^{-1})$.
 
 However, in practice, we simulate in the spectral domain; that is, if we want to keep things simple, it would make sense to specify (and fit) the distribution of $\bv\eta_t$, and compute the variance of $\omega_t(\bv s)$ if needed. 
-This is exactly what the IDE package [@zammit2022IDE] in R does, and, correspondingly, what this JAX project does.
-
-
 
 ::: {#lem-omegadist}
 
@@ -162,11 +312,11 @@ $$
 
 ::: {.proof}
 
-Consider $\Psi \bv\eta_t$.
-It is clearly normal, with expectation zero and variance (using (@eq-gram)),
+Consider $\Psi \bv\eta_t$, and consider the case $\tau=0$.
+It is clearly normal, with zero expectation and variance (using @eq-gram),
 
 $$\begin{split}
-\var[\Psi \bv\eta_t] &= \Psi \var[\bv\omega_t] \Psi^\intercal = \Psi\Sigma_\eta\Psi^\intercal,\\
+\var[\Psi \bv\eta_t] &= \Psi \var[\bv\eta_t] \Psi^\intercal = \Psi\Sigma_\eta\Psi^\intercal,\\
 &= \int_{\mathcal D_s} \bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \  \Sigma_\eta \ \int_{\mathcal D_s} \bv\phi(\bv r) \bv\phi(\bv r)^\intercal d\bv r\\
 &=  \int\int_{\mathcal D_s^2} \bv\phi(\bv s) \bv\phi(\bv s)^\intercal \  \Sigma_\eta \  \bv\phi(\bv r) \bv\phi(\bv r)^\intercal d\bv r d\bv s\\
 \end{split}
@@ -185,36 +335,51 @@ We can see that, comparing (@eq-var1) and (@eq-var2), we have
 
 $$\cov [\omega_t(\bv s), \omega_t(\bv r)] = \mathbb E[\omega_t(\bv s)\omega_t(\bv r)]= \bv\phi(\bv s)^\intercal \Sigma_\eta \bv\phi(\bv r).
 $$
+
+Since, once again, $\mathbb E[\bv\omega_t(\bv s)]=0$.
+
+For the $\tau\neq0$ case, it is simple to show that the covariance is 0.
+
 \qed
 :::
 
+## Kernel Parameterisations {#sec-kerneldecomp}
 
-## Kernel Decomposition
-
-Next is the key part od the system, which defines the dynamics; the kernelf function, $\kappa$.
+Next is the part of the system, which defines the dynamics; the kernelf function, $\kappa$.
 There are a few ways to handle the kernel. 
 One of the most obvious is to expand it out into a spectral decomposition as well;
 
 $$\kappa \approx \sum_i \beta_i\psi(\bv s, \bv r).
 $$
 
-This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on $\mathbb R^2\times \mathbb R^2$; to get a wide enough space of possible functions, we would likely need many terms of the basis expansion. 
+This can allow for a wide range of interestingly shaped kernel functions, but see how these basis functions must now act on $\mathbb R^2\times \mathbb R^2$; to get a wide enough space of possible functions, we would likely need many terms in the spectral expansion. 
 
 A much simpler approach would be to simply parameterise the kernel function, to $\kappa(\bv s, \bv r, \bv \theta_\kappa)$. 
 We then establish a simple shape for the kernel (e.g. Gaussian) and rely on very few parameters (for example, scale, shape, offsets). 
-The example kernel used in the program is aGaussian kernel;
+The example kernel used in the ```jaxidem``` is a Gaussian-shape kernel;
 
-$$\kappa(\bv s, \bv r; \bv m, a, b) = a \exp \left( -\frac{1}{b} \vert \bv s- \bv r +\bv m\vert^2 \right)
+$$\kappa(\bv s, \bv r; \bv m, a, b) = a \exp \left( -\frac{1}{b} \vert \bv s- \bv r +\bv m\vert^2 \right). 
 $$
 
 Of course, this kernel lacks spatial dependance.
-We can add spatial variance back in in a nice way by adding dependance on $\bv s$ to the parameters, for example, variyng the offset term as $\bv m(\bv s)$.
+We can add spatial variance back by adding dependance on $\bv s$ to the parameters, for example, variyng the offset term as $\bv m(\bv s)$.
 Of course, now we are back to having entire functions as parameters, but taking the spectral decomposition of the parameters we actually want to be spatially variant seems like a reasonable middle ground [@cressie2015statistics].
-The actual parameters of such a spatially-variant kernel are then the basis coefficients for the expansion of any spatially variant parameters, as well as any constant parameters.
+The actual parameters of such a spatially-variant kernel are then the spectral coefficients for the expansion of any spatially variant parameters, as well as any constant parameters.
+This is precisely what is plotting in @fig-examplekernelvar, where the spectral coeficients are randomly sampled from a multivariate normal distribution;
+
+$$\begin{split}
+  \bv m(\bv s) = \left(\begin{matrix}
+    \sum_{i=1}^{r_m} \phi_{\kappa,i}(\bv s) m^{(x)}_i\\
+    \sum_{i=1}^{r_m} \phi_{\kappa,i}(\bv s) m^{(y)}_i
+  \end{matrix}\right),
+\end{split}
+$$
+
+where $m^{(x)}_i$ and $m^{(y)}_i$ are coefficients for the x and y coordinates respectively, and $\phi_{\kappa, i}(\bv s)$ are basis functions (e.g. bisquare functions in @fig-examplekernelvar).
 
 ## IDEM as a linear dynamical system
 
-To recap, we have discretized space in such a way that the Integro-difference model is of a more traditional linear dynamical system form.
+To summarise, we have taken a truncated spectral decompostion to write the Integro-difference equation model as a more traditional linear dynamical system form (@eq-stateev).
 All that is left is to include our observations in our system.
 
 Lets assume that at each time $t$ there are $n_t$ observations at locations $\bv s_{1,t},\dots, \bv s_{n_{t},t}$.
@@ -229,8 +394,8 @@ For the covariates, we write the matrix $X_t = (\bv X(\bv s_{1, t}), \dots, \bv 
 We then have
 
 $$\begin{split}
-\bv Z_t &= \Phi \alpha_t + X_{t} \bv \beta + \bv \epsilon_t, \quad t=0,1,\dots, T,\\
-\bv \alpha_{t+1} &= M\bv \alpha_t + \bv\eta_t,\quad t = 1,2,\dots, T,\\
+\bv Z_t &= \Phi \alpha_t + X_{t} \bv \beta + \bv \epsilon_t, \quad t = 1,\dots, T,\\
+\bv \alpha_{t+1} &= M\bv \alpha_t + \bv\eta_t,\quad t = 0,2,\dots, T-1,\\
 M &= \int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \int_{\mathcal D_s^2}\bv\phi(\bv s) \kappa(\bv s, \bv r; \bv\theta_\kappa)\bv\phi(\bv r)^\intercal d\bv r d \bv s,
 \end{split}
 $$
@@ -241,7 +406,7 @@ $$\begin{split}
 \tilde{\bv Z}_t &= \Phi_{t} \bv \alpha_t + \bv \epsilon_t,\quad &t = 1,2,\dots, T,\\
 \bv \alpha_{t+1} &= M \bv \alpha_t + \bv\eta_t,\quad &t = 0,1, \dots, T.\\
 \end{split}
-$$ {#eq-ldstm}
+$$ {#eq-stateidem}
 
 We should also initialise $\bv \alpha_0 \sim \mathcal N^{r}(\bv m_{0}, \Sigma_{0})$, and fix simple distrubtions to the noise terms,
 
@@ -253,27 +418,55 @@ $$
 
 which are (also) independant in time.
 
-As in, for example, [@wikle1999dimension], this is now in a traditional enough form that the Kalman filter can be applied to filter and compute many necessary quantities for inference, including the marginal likelihood.
-We can use these quantities in either an EM algorithm or a Bayesian approach. Firstly, we cover the EM algorithm applied to this system.
+As in, for example, [@wikle1999dimension], @eq-stateidem is now in a traditional enough form that the Kalman filter can be applied to filter and compute many necessary quantities for inference, including the marginal likelihood.
+We can use these quantities in either an EM algorithm or a Bayesian approach, or directly maximise the marginal data likelihood
 
-At most, the parameters to be estimated are
+We now move on to an example simulation of this kind of model using it's spectral decomposition and ```jaxidem```.
 
-$$\begin{split}
-\bv\theta = \left(\bv\theta_\kappa^\intercal, \bv\beta^\intercal, \bv m_0^\intercal, \sigma^{2}_{\epsilon}, \sigma^{2}_{\eta}, \mathrm{vec}[\Sigma_0]\right),
-\end{split}
-$$
+## Example Simulation
 
-where the $\mathrm{vec}[\cdot]$ operator gives the elements of the matrix in a column vector.
-Of course, in practice, some of these may be estimated outside of the algorithm, fixed, given a much simpler form (e.g. $\Sigma_\eta = \sigma_\eta^2 I_d$), etc.
+We can now use the above to simulate easily from such models; once we have chosen the appropriate decompositions, we simply compute $M$ and propegate $\bv \alpha_t$ as we would when simulating any other linear dynamic system. 
+We then use the spectral coefficients to generate $Y_t(\bv s)$ and $Z_t(\bv s)$ in the obvious way.
 
-There are two approaches we can make from here; directly maximising the marginal data likelihood using only the Kalman filter, or maximising the full likelihood with the EM algorithm.
+```jaxidem``` implements this in the function ```simIDEM```, or through the more user-friendly method ```idem.idemModel.simulate```.
+An object of the idemModel class contains all the necesary information about basis decompositions, and the simulate methods calls ```simIDEM``` without comprimising its jit-ability (although just-in-time computation obviously isn't as important for simulation, the jit-ed function could save compile time if someone want to simulate from many models).
 
-Now (@eq-ldstm) is of the very familar linear dynamical system (LDS) type.
-This is a well-understood problem, and optimal state estimation can be done using the kalman filter and (RTS) smoother. 
+The ```gen_example_idem``` method creates a simple IDEM object without many required parameters;
+
+```{python}
+key = jax.random.PRNGKey(1)
+keys = rand.split(key, 2)
+
+model = idem.gen_example_idem(keys[0], k_spat_inv=False)
+
+process_data, obs_data = model.simulate(keys[1], T=3, nobs=50)
+```
+
+The resulting objects are of class ```st_data```, containing a couple of niceties for handling spatio-temporal data, while still storing all data as JAX arrays.
+For example, the ```show_plot```, ```save_plot``` and ```save_gif``` methods provide easy plotting;
+
+```{python}
+#|output: false
+process_data.save_plot('process_data_example.png')
+obs_data.save_plot('obs_data_example.png')
+```
+
+::: {#fig-examplesim layout-ncol=1}
+
+![Process Simulation](process_data_example.png)
+
+![Observation Simulation](obs_data_example.png)
+
+Example simulations from an Integro-difference Equation Model. 
+Kernel is generated with spatially varying flow terms, generated by bisquare basis functions with randomly generated coefficient.
+Not that some artifacts from the decomposition are visible, such as a faint checkerboard pattern in the process.
+
+:::
+
 
 # Filtering, Forecasting and Maximum Likelihood Estimation
 
-The Kalman filter gives us linear estimates for the distribution of $\bv\alpha_r\mid \{Z_t\}_{t=0,...,r}$ in any dynamical system like @eq-ldstm.
+The Kalman filter gives us linear estimates for the distribution of $\bv\alpha_r\mid \{\bv Z_t=\bv z_t\}_{t=0,...,r}$ in any dynamical system like @eq-ldstm.
 For full discussions and proofs of the Kalman filter, see, for example, [@shumway2000time].
 
 
@@ -283,25 +476,25 @@ Firstly, we should establish some notation.
 Write
 
 $$\begin{split}
-m_{r \mid s} &= \mathbb E[\bv\alpha_r \mid \{Z_t\}_{t=0,\dots,s}]\\
-P_{r \mid s} &= \var[\bv\alpha_r \mid \{Z_t\}_{t=0,\dots,s}]\\
-P_{r,q \mid s} &= \cov[\bv\alpha_r, \bv\alpha_q \mid \{Z_t\}_{t=0,\dots,s}].
+m_{i \mid j} &= \mathbb E[\bv\alpha_i \mid \{\bv Z_t=\bv z_t\}_{t=0,\dots,j}],\\
+P_{i \mid j} &= \var[\bv\alpha_i \mid \{\bv Z_t=\bv z_t\}_{t=0,\dots,j}],\\
+P_{i,j \mid k} &= \cov[\bv\alpha_i, \bv\alpha_k \mid \{\bv Z_t=\bv z_t\}_{t=0,\dots,k}].
 \end{split}
 $$
 
-For the initial terms, $m_{0\mid0}=m_0$ and $P_{0\mid0}=\Sigma_0$.
+For the initial terms, we choose bayesian-like prior moments $m_{0\mid0}=m_0$ and $P_{0\mid0}=\Sigma_0$.
 For convenience and generality, we write $\Sigma_\eta$ and $\Sigma_\epsilon$ for the variance matrices of the process and observations.
 Note that, if the number of observations change at each time point (for example, due to missing data), then $\Sigma_\epsilon$ should be time variyng; we could either always keep it as uncorrelated so that $\Sigma_\epsilon = \mathrm{diag} (\sigma_\epsilon^2)$, or perhaps put some kind of distance-dependant covariance function to it.
 
-To move the filter forward, that is, given $m_{r\mid s}$ and $P_{r\mid s}$, to get $m_{t+1\mid t+1}$ and $P_{t+1\mid t+1}$, we first _predict_
+To move the filter forward, that is, given $m_{t\mid t}$ and $P_{t\mid t}$, to get $m_{t+1\mid t+1}$ and $P_{t+1\mid t+1}$, we first _predict_
 
 $$\begin{split}
-\bv m_{t+1\mid t} &= M \bv m_{t\mid t}\\
+\bv m_{t+1\mid t} &= M \bv m_{t\mid t},\\
 P_{t+1\mid t} &= M P_{t\mid t} M^\intercal + \Sigma_\eta,
 \end{split}
 $${#eq-kalman-predict}
 
-then we add our new information, $z_{t}$, adjusted for the _Kalman gain_;
+then we add our new information, $z_{t}$;
 
 $$\begin{split}
 \bv m_{t+1\mid t+1} &= \bv m_{t+1\mid t} + K_{t+1} \bv e_{t+1}\\
@@ -323,12 +516,12 @@ $$\begin{split}
 \end{split}
 $$
 
-Starting with $m_{0\mid0} = m_0$ and $P_{0\mid0} =\Sigma_0$, we can then iteratively move across the data to eventually compute $m_{T\mid T}$ and $P_{T\mid T}$. 
+Starting with $m_0$ and $P_0$, we can then iteratively move across the data to eventually compute $m_{T\mid T}$ and $P_{T\mid T}$. 
 
 Assuming Gaussian all random variables here are Guassian, this is the optimal mean-square estimators for these quantities, but even outside of the Gaussian case, these are optimal for the class of _linear_ operators.
 
 We can compute the marginal data likelihood alongside the kalman fiter using the prediciton errors $\bv e_t$. 
-These, under the assumptions we have made about $\eta$ and $\epsilon$ being normal, are also normal with zero mean and variance
+These, under the assumptions we have made about $\bv \eta_t$ and $\bv\epsilon_t$ being normal, are also normal with zero mean and variance
 
 $$\begin{split}
 \mathbb V\mathrm{ar}[\bv e_t]=\Sigma_t= \Phi_{t} P_{t\mid t-1} \Phi_{t}^\intercal + \Sigma_\epsilon. 
@@ -347,20 +540,13 @@ Summing these across time, we get the log likelihood for all the data.
 
 A simplified example of the kalman filter function, written to be jax compatible, used in the package is this;
 
+
+\newpage
+\small
 ```{python}
 #| eval: false
-
-# TODO: Replace this with a simpler 'naive' implementation
 @jax.jit
-def kalman_filter(
-    m_0: ArrayLike,
-    P_0: ArrayLike,
-    M: ArrayLike,
-    PHI_obs: ArrayLike,
-    Sigma_eta: ArrayLike,
-    Sigma_eps: ArrayLike,
-    ztildes: ArrayLike,  # data matrix, with time across columns
-) -> tuple:
+def kalman_filter(m_, P_0, M, PHI_obs, Sigma_eta, Sigma_eps, ztildes):
     nbasis = m_0.shape[0]
     nobs = ztildes.shape[0]
 
@@ -373,36 +559,22 @@ def kalman_filter(
         P_pred = M @ P_tt @ M.T + Sigma_eta
 
         # Update
-
         # Prediction Errors
         eps_t = z_t - PHI_obs @ m_pred
 
         Sigma_t = PHI_obs @ P_pred @ PHI_obs.T + Sigma_eps
-
         # Kalman Gain
-        K_t = (
-            jnp.linalg.solve(Sigma_t, PHI_obs)
-            @ P_pred.T
-        ).T
+        K_t = (jnp.linalg.solve(Sigma_t, PHI_obs)@ P_pred.T).T
 
         m_up = m_pred + K_t @ eps_t
-
         P_up = (jnp.eye(nbasis) - K_t @ PHI_obs) @ P_pred
 
         # likelihood of epsilon, using cholesky decomposition
-        chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, eps_t)
-        ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))
-                              ) - 0.5 * jnp.dot(z, z)
+        ll_new = ll - 0.5 * n * jnp.log(2*jnp.pi) - \
+            0.5 * jnp.log(jnp.linalg.det(Sigma_t)) -\
+            0.5 * e.T @ jnp.linalg.solve(Sigma_t, e)
 
-        return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
-            m_up,
-            P_up,
-            m_pred,
-            P_pred,
-            ll_new,
-            K_t,
-        )
+        return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (m_up, P_up, m_pred, P_pred, ll_new, K_t,)
 
     carry, seq = jl.scan(
         step,
@@ -412,19 +584,20 @@ def kalman_filter(
 
     return (carry[4], seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:])
 ```
+\normalsize
 
 For the documentation of the method proveded by the package, see [WORK OUT HOW TO LINK DO PAGES]
 
 ## The Information Filter
 
 In some computational scenarios, it is beneficial to work with vectors of consistent dimension.
-In python jax, the efficient ```scan``` and ```map``` operations work only with such operations; JAX has no support for jagged arrays, and traditional for loops with have long compile times when jit-compiled.
-Although there are some tools in JAX to get around this problem (namely the ```jax.tree``` functions which allow mapping over PyTrees), scan is still a large problem; since the Kalman filter is, at it's core, a scan-type operation, this causes a large problem when the observation dimension is changing, as is frequent with many spatio-temporal data.
+In Python JAX, the efficient ```scan``` method works only with such arrays; JAX has no support for jagged arrays, and traditional for loops will likely lead to long compile times when jit-compiled.
+Although there are some tools in JAX to get around this problem (namely the ```jax.tree``` functions which allow mapping over PyTrees), scan is still a large problem; since the Kalman filter is, at it's core, a scan-type operation (scanning over the data), this causes a large problem when the observation dimension is changing, as is frequent with many spatio-temporal data.
 
-But it is possible to re-write the kalman filter in a way which is compatible with this kind of data.
-the sometimes called 'information filter' involves transforming the data into a kind of 'information form', which will always have consistent dimension.
+But it is possible to re-write the Kalman filter in a way which is compatible with this kind of data.
+The 'information filter' (sometimes called inverse Kalman filter or other names) involves transforming the data into its 'information form', which will always have consistent dimension, allowing us to avoid jagged scans.
 
-The information filter is simply the kalman filter re-written to use the Gaussian distribution's canonical parameters, those being the information vector and the information matrix.
+The information filter is simply the Kalman filter re-written to use the Gaussian distribution's canonical parameters ^[that is, the parameters of the Gaussian distribution in it's exponential  family form], those being the information vector and the information matrix.
 If a Gaussian distribution has mean $\bv\mu$ and variance matrix $\Sigma$, then the corresponding _information vector_ and _information matrix_ is $\nu = \Sigma^{-1}\mu$ and $Q = \Sigma^{-1}$, correspondingly.
 
 
@@ -471,15 +644,15 @@ $$
 
 Proof in Appendix (@sec-app1.)
 
-We can see that the information form of the observations (@eq-obsinfo) will always have the same dimension (that being the process dimension, previously labelled $r$, the number of basis functions used in the expansion).
+We can see that the information form of the observations (@eq-obsinfo) will always have the same dimension ^[that being the process dimension, previously labelled $r$, the number of basis functions used in the expansion of the process].
 For our purposes, this means that ```jax.lax.scan``` will work after we 'informationify' the data, which can be done using ```jax.tree.map```.
 This is implemented in the functions ```information_filter``` and ```information_filter_indep``` (for uncorrelated errors).
 
 There are other often cited advantages to filtering in this form.
-It can be quicker that the traditional form in certain cases, especially when the observation dimension is bigger than the state dimension (since you solve a smaller system of equations with $[S_t + \Sigma_\eta]^{-1}$ in the process dimesnion instead of $[\Phi_t P_{t+1\mid t} \Phi_t^\intercal + \Sigma_\epsilon]^{-1}$ in the observation dimension) [@assimakis2012information].
+It can be quicker that the traditional form in certain cases, especially when the observation dimension is bigger than the state dimension (since you solve a smaller system of equations with $[S_t + \Sigma_\eta]^{-1}$ in the process dimension instead of $[\Phi_t P_{t+1\mid t} \Phi_t^\intercal + \Sigma_\epsilon]^{-1}$ in the observation dimension) [@assimakis2012information].
 
-The other often mentioned advantage is the ability to use a truly vague prior for $\alpha_0$; that is, we can set $Q_0$ as the zero matrix, without worriying about an infinite variance matrix.
-While this is indeed true, it is actually possible to do the same with the Kalman filter by doing the first step analytically, see (@sec-vagueprior).
+The other often mentioned advantage is the ability to use a flat prior for $\alpha_0$; that is, we can set $Q_0$ as the zero matrix, without worriying about an infinite variance matrix.
+While this is indeed true, it is actually possible to do the same with the Kalman filter by doing the first step analytically, see @sec-vagueprior.
 
 As with the kalman filter, it is also possible to get the data likelihood in-line as well.
 Again, we would like to stick with things in the state dimension, so working direclty with the prediction errors $\bv e_t$ should be avoided.
@@ -509,12 +682,12 @@ $$\begin{split}
 \end{split}
 $$
 
-## Kalman Smoothers
+## Smoothing
 
-Beyond the Kalman filters, we can also do Kalman smoothers. 
-That is, filters estimate $\bv m_{T\mid T}$ and $P_{T\mid T}$, but there is use for estimating $\bv m_t\mid T$ and $P_{t\mid T}$ for all $t=0,\dots, T$.
+Beyond the filtering, another task is _smoothing_.
+That is, filters estimate $\bv m_{T\mid T}$ and $P_{T\mid T}$, but there is use for estimating $\bv m_{t\mid T}$ and $P_{t\mid T}$ for all $t=0,\dots, T$.
 
-We can then work backwards from these values using what is known as the _Rauch-Tung-Striebel (RTS) smoother_;
+We simply work backwards from $\bv m_{T\mid T}$ and $P_{T\mid T}$ values using what is known as the _Rauch-Tung-Striebel (RTS) smoother_;
 
 $$\begin{split}
 \bv m_{t-1\mid T} &= \bv m_{t-1\mid t-1} + J_{t-1}(\bv m_{t\mid T} - \bv m_{t\mid t-1}),\\
@@ -531,7 +704,8 @@ $$
 
 We can clearly see, then, that it is crucial to keep the values in @eq-kalman-predict.
 
-We can then also compute the lag-one cross-covariance matrices $P_{t,t-1\mid T}$ using the _Lag-One Covariance Smoother_ (is this what they call the RTS smoother?)
+We can then also compute the lag-one cross-covariance matrices $P_{t,t-1\mid T}$ using the _Lag-One Covariance Smoother_.
+This will b useful, for example, in the expectation-maximisation algorithm later.
 From
 
 $$\begin{split}

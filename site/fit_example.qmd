@@ -8,20 +8,6 @@ format:
         include-in -header: header.html
         mathjax:
             extensions: ["breqn", "bm", "ams"]
-    pdf:
-        toc: true
-        number-sections: true
-        colorlinks: true
-        keep-tex: true
-        include-in -header: header.tex
-        documentclass: report
-        geometry:
-            - left = 20.0mm
-            - right = 20.0mm
-            - marginparsep = 7.7mm
-            - marginparwidth = 70.3mm
-            - top = 20mm
-        code-block-bg: "#EEEEEE"
 jupyter: python3
 bibliography: Bibliography.bib
 ---
@@ -47,13 +33,13 @@ import jax
 import jax.random as rand
 import jax.numpy as jnp
 
-jax.config.update('jax_enable_x64', True)
+jax.config.update('jax_enable_x64', False)
 
 import matplotlib.pyplot as plt
 
 import sys
 import os
-sys.path.append(os.path.abspath('../src/jax_idem'))
+sys.path.append(os.path.abspath('../src/jaxidem'))
 import idem
 import utilities
 import filter_smoother_functions as fsf

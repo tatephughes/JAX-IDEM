@@ -38,7 +38,8 @@
   \KOMAoptions{parskip=half}}
 \makeatother
 \usepackage{xcolor}
-\usepackage[left=20.0mm,right=20.0mm,marginparsep=7.7mm,marginparwidth=70.3mm,top=20mm]{geometry}
+\usepackage[left = 20.0mm,right = 20.0mm,marginparsep =
+7.7mm,marginparwidth = 70.3mm,top = 20mm]{geometry}
 \setlength{\emergencystretch}{3em} % prevent overfull lines
 \setcounter{secnumdepth}{5}
 % Make \paragraph and \subparagraph free-standing
@@ -133,31 +134,6 @@
 \def\fps@figure{htbp}
 \makeatother
 
-\usepackage{unicode-math}
-\DeclareMathOperator{\var}{\mathbb{V}\mathrm{ar}}
-\DeclareMathOperator{\cov}{\mathbb{C}\mathrm{ov}}
-\newcommand\eqc{\stackrel{c}{=}}
-\newcommand{\bv}[1]{\symbfit{#1}}
-\setmainfont{XITS}
-\setmathfont{XITS Math}
-
-
-\usepackage{tcolorbox}
-\tcbuselibrary{most}
-
-
-% Define styles for theorem, lemma, proof, etc.
-\newtcolorbox{mytheorem}[1][]{colback=blue!5!white, colframe=blue!75!black,
-fonttitle=\bfseries, title=Theorem, #1}
-
-\newtcolorbox{mylemma}[1][]{colback=green!5!white, colframe=green!75!black,
-fonttitle=\bfseries, title=Lemma, #1}
-
-\newtcolorbox{myproof}[1][]{colback=red!5!white, colframe=red!75!black,
-fonttitle=\bfseries, title=Proof, #1}
-
-\newtcolorbox{myexample}[1][]{colback=yellow!5!white, colframe=yellow!75!black,
-fonttitle=\bfseries, title=Example, #1}
 \makeatletter
 \@ifpackageloaded{caption}{}{\usepackage{caption}}
 \AtBeginDocument{%
@@ -209,7 +185,7 @@ fonttitle=\bfseries, title=Example, #1}
 \@ifundefined{codebgcolor}{\definecolor{codebgcolor}{HTML}{EEEEEE}}{}
 \makeatother
 \makeatletter
-\ifdefined\Shaded\renewenvironment{Shaded}{\begin{tcolorbox}[frame hidden, sharp corners, enhanced, boxrule=0pt, breakable, colback={codebgcolor}]}{\end{tcolorbox}}\fi
+\ifdefined\Shaded\renewenvironment{Shaded}{\begin{tcolorbox}[enhanced, colback={codebgcolor}, breakable, frame hidden, boxrule=0pt, sharp corners]}{\end{tcolorbox}}\fi
 \makeatother
 
 \usepackage{bookmark}
@@ -242,8 +218,12 @@ Integro-Difference Equations}
 \tableofcontents
 }
 
-\chapter{\texorpdfstring{Fitting IDEM using
-\texttt{jax\_idem}}{Fitting IDEM using jax\_idem}}\label{fitting-idem-using-jax_idem}
+: : : \{.content-visible unless-format = ``pdf''\}
+\href{../index.html}{Index} : : :
+
+\begin{verbatim}
+# Fitting IDEM using ```jax_idem```
+\end{verbatim}
 
 The primary use of the jax\_idem package is to fit Integro-difference
 equation models to data.
@@ -252,31 +232,33 @@ Currently, the only supported way to do this is through
 maximum-likelihood estimation with the kalman/information filter and
 OPTAX.
 
-\section{Simple example; synthetic simple
+\chapter{Simple example; synthetic simple
 data}\label{simple-example-synthetic-simple-data}
 
 We will start by simulating from a simple IDEM with only three time
-steps. We can quickly make a model using \texttt{gen\_example\_idem};
+steps. We can quickly make a model using \texttt{gen\_example\_idem}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\ImportTok{import}\NormalTok{ sys}
-\ImportTok{import}\NormalTok{ os}
-\NormalTok{sys.path.append(os.path.abspath(}\StringTok{\textquotesingle{}../src/jax\_idem\textquotesingle{}}\NormalTok{))}
-
+\ImportTok{import}\NormalTok{ jax}
 \ImportTok{import}\NormalTok{ jax.random }\ImportTok{as}\NormalTok{ rand}
 \ImportTok{import}\NormalTok{ jax.numpy }\ImportTok{as}\NormalTok{ jnp}
-\ImportTok{import}\NormalTok{ jax}
-\ImportTok{import}\NormalTok{ matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
-\ImportTok{import}\NormalTok{ filter\_smoother\_functions }\ImportTok{as}\NormalTok{ fsf}
-\ImportTok{import}\NormalTok{ plotly.express }\ImportTok{as}\NormalTok{ px}
-\ImportTok{import}\NormalTok{ plotly.io }\ImportTok{as}\NormalTok{ pio}
-\ImportTok{import}\NormalTok{ plotly.graph\_objs }\ImportTok{as}\NormalTok{ go}
-\ImportTok{import}\NormalTok{ pandas }\ImportTok{as}\NormalTok{ pd}
 
+\NormalTok{jax.config.update(}\StringTok{\textquotesingle{}jax\_enable\_x64\textquotesingle{}}\NormalTok{, }\VariableTok{False}\NormalTok{)}
+
+\ImportTok{import}\NormalTok{ matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
+
+\ImportTok{import}\NormalTok{ sys}
+\ImportTok{import}\NormalTok{ os}
+\NormalTok{sys.path.append(os.path.abspath(}\StringTok{\textquotesingle{}../src/jaxidem\textquotesingle{}}\NormalTok{))}
+\ImportTok{import}\NormalTok{ idem}
 \ImportTok{import}\NormalTok{ utilities}
-\ImportTok{import}\NormalTok{ IDEM }\ImportTok{as}\NormalTok{ idem}
 \ImportTok{import}\NormalTok{ filter\_smoother\_functions }\ImportTok{as}\NormalTok{ fsf}
+
+\ImportTok{import}\NormalTok{ importlib}
+\NormalTok{importlib.}\BuiltInTok{reload}\NormalTok{(idem)}
+\NormalTok{importlib.}\BuiltInTok{reload}\NormalTok{(utilities)}
+\NormalTok{importlib.}\BuiltInTok{reload}\NormalTok{(fsf)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -288,31 +270,129 @@ steps. We can quickly make a model using \texttt{gen\_example\_idem};
 \NormalTok{process\_basis }\OperatorTok{=}\NormalTok{ utilities.place\_basis(nres}\OperatorTok{=}\DecValTok{1}\NormalTok{, min\_knot\_num}\OperatorTok{=}\DecValTok{5}\NormalTok{)}
 \NormalTok{nbasis }\OperatorTok{=}\NormalTok{ process\_basis.nbasis}
 
-\NormalTok{m\_0 }\OperatorTok{=}\NormalTok{ jnp.zeros(nbasis).at[}\DecValTok{7}\NormalTok{].}\BuiltInTok{set}\NormalTok{(}\DecValTok{1}\NormalTok{)}
-\NormalTok{sigma2\_0 }\OperatorTok{=} \FloatTok{0.01}
+\NormalTok{m\_0 }\OperatorTok{=}\NormalTok{ jnp.zeros(nbasis).at[}\DecValTok{20}\NormalTok{].}\BuiltInTok{set}\NormalTok{(}\DecValTok{10}\NormalTok{)}
+\NormalTok{sigma2\_0 }\OperatorTok{=} \FloatTok{0.0001}
 
 \NormalTok{truemodel }\OperatorTok{=}\NormalTok{ idem.gen\_example\_idem(}
 \NormalTok{    keys[}\DecValTok{0}\NormalTok{], k\_spat\_inv}\OperatorTok{=}\VariableTok{True}\NormalTok{,}
 \NormalTok{    process\_basis}\OperatorTok{=}\NormalTok{process\_basis,}
-\NormalTok{    m\_0}\OperatorTok{=}\NormalTok{m\_0, sigma2\_0}\OperatorTok{=}\NormalTok{sigma2\_0}
+\NormalTok{    m\_0}\OperatorTok{=}\NormalTok{m\_0, sigma2\_0}\OperatorTok{=}\NormalTok{sigma2\_0,}
+\NormalTok{    sigma2\_eta}\OperatorTok{=}\FloatTok{0.02}\OperatorTok{**}\DecValTok{2}\NormalTok{,}
+\NormalTok{    sigma2\_eps}\OperatorTok{=}\FloatTok{0.05}\OperatorTok{**}\DecValTok{2}
 \NormalTok{)}
 
-\CommentTok{\# Simulation}
-\NormalTok{T }\OperatorTok{=} \DecValTok{3}
-                                            
-\NormalTok{process\_data, obs\_data }\OperatorTok{=}\NormalTok{ truemodel.simulate(nobs}\OperatorTok{=}\DecValTok{50}\NormalTok{, T}\OperatorTok{=}\NormalTok{T }\OperatorTok{+} \DecValTok{1}\NormalTok{, key}\OperatorTok{=}\NormalTok{keys[}\DecValTok{1}\NormalTok{])}
+\NormalTok{process\_data, obs\_data }\OperatorTok{=}\NormalTok{ truemodel.simulate(nobs}\OperatorTok{=}\DecValTok{50}\NormalTok{, T}\OperatorTok{=}\DecValTok{3}\NormalTok{, key}\OperatorTok{=}\NormalTok{keys[}\DecValTok{1}\NormalTok{])}
 
-\NormalTok{process\_data.show\_plot()}
+\NormalTok{process\_data.save\_plot(}\StringTok{"true\_process.png"}\NormalTok{)}
+\NormalTok{obs\_data.save\_plot(}\StringTok{"synthetic\_data.png"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+\centering{
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio]{true_process.png}}
+\caption{Process}
+\end{figure}
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio]{synthetic_data.png}}
+\caption{Observations}
+\end{figure}
+
+}
+
+\caption{\label{fig-example}An example target simulation, with the
+underlying process (left), and noisy observations (right).}
+
+\end{figure}%
+
+Note that there is one missing process time point that is not plotted
+here; \(t=0\). In the version of the model used, data is only taken at
+\(t=1,2,3\), while it is assumed that the process exists from time 0.
+
+\section{Fitting}\label{fitting}
+
+Now, after we initialise with a `guess' baseline model, we can use
+\texttt{idem.IDEM\_model.fit\_kalman\_filter} (recomended for fixed data
+observation locations) or \texttt{fit\_information\_filter} to fit the
+model to the synthetic data.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{K\_basis }\OperatorTok{=}\NormalTok{ truemodel.kernel.basis}
+\CommentTok{\# scale and shape of the kernel will be the same, but the offsets will be estimated}
+\NormalTok{k }\OperatorTok{=}\NormalTok{ (}
+\NormalTok{    jnp.array([}\FloatTok{200.0}\NormalTok{]),}
+\NormalTok{    jnp.array([}\FloatTok{0.001}\NormalTok{]),}
+\NormalTok{    jnp.array([}\FloatTok{0.0}\NormalTok{]),}
+\NormalTok{    jnp.array([}\FloatTok{0.0}\NormalTok{]),}
+\NormalTok{)}
+\CommentTok{\# This is the kind of kernel used by \textasciigrave{}\textasciigrave{}\textasciigrave{}gen\_example\_idem\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+\NormalTok{kernel }\OperatorTok{=}\NormalTok{ idem.param\_exp\_kernel(K\_basis, k)}
+
+\NormalTok{model0 }\OperatorTok{=}\NormalTok{ idem.IDEM\_Model(}
+\NormalTok{                    process\_basis }\OperatorTok{=}\NormalTok{ process\_basis,}
+\NormalTok{                    kernel}\OperatorTok{=}\NormalTok{kernel,}
+\NormalTok{                    process\_grid }\OperatorTok{=}\NormalTok{ utilities.create\_grid(jnp.array([[}\DecValTok{0}\NormalTok{, }\DecValTok{1}\NormalTok{], [}\DecValTok{0}\NormalTok{, }\DecValTok{1}\NormalTok{]]),}
+\NormalTok{                                               jnp.array([}\DecValTok{41}\NormalTok{, }\DecValTok{41}\NormalTok{])),}
+\NormalTok{                    sigma2\_eta }\OperatorTok{=} \FloatTok{0.01}\OperatorTok{**}\DecValTok{2}\NormalTok{,}
+\NormalTok{                    sigma2\_eps }\OperatorTok{=} \FloatTok{0.01}\OperatorTok{**}\DecValTok{2}\NormalTok{,}
+\NormalTok{                    beta }\OperatorTok{=}\NormalTok{ jnp.array([}\FloatTok{0.0}\NormalTok{, }\FloatTok{0.0}\NormalTok{, }\FloatTok{0.0}\NormalTok{]),}
+\NormalTok{                    m\_0 }\OperatorTok{=}\NormalTok{ jnp.zeros(nbasis),}
+\NormalTok{                    sigma2\_0}\OperatorTok{=}\DecValTok{10}\OperatorTok{*}\NormalTok{jnp.eye(nbasis))}
+\end{Highlighting}
+\end{Shaded}
+
+For context, the true values of the kernel parameters are
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\BuiltInTok{print}\NormalTok{(truemodel.kernel.params)}
 \end{Highlighting}
 \end{Shaded}
 
 \begin{verbatim}
-/home/tate/MyProjects/JAX-IDEM/src/jax_idem/utilities.py:393: UserWarning:
-
-Matplotlib is currently using module://matplotlib_inline.backend_inline, which is a non-GUI backend, so cannot show the figure.
+(Array([150.], dtype=float32), Array([0.002], dtype=float32), Array([-0.1], dtype=float32), Array([0.1], dtype=float32))
 \end{verbatim}
 
-\pandocbounded{\includegraphics[keepaspectratio]{fit_example_files/figure-pdf/cell-3-output-2.pdf}}
+So we've chosen a model with high prior variance and no flow, with
+inaccurate guesses for the spread, diffusion, and variances.
+
+The fitting functions output new \texttt{IDEM\_Model} objects, generated
+using OPTAX to optimise for the likelihood.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{obs\_data\_wide }\OperatorTok{=}\NormalTok{ obs\_data.as\_wide()}
+\NormalTok{X\_obs }\OperatorTok{=}\NormalTok{ jnp.column\_stack([jnp.ones(obs\_data\_wide[}\StringTok{\textquotesingle{}x\textquotesingle{}}\NormalTok{].shape[}\DecValTok{0}\NormalTok{]), obs\_data\_wide[}\StringTok{\textquotesingle{}x\textquotesingle{}}\NormalTok{], obs\_data\_wide[}\StringTok{\textquotesingle{}y\textquotesingle{}}\NormalTok{]])}
+
+\ImportTok{import}\NormalTok{ optax}
+\NormalTok{model1 }\OperatorTok{=}\NormalTok{ model0.fit\_kalman\_filter(obs\_data}\OperatorTok{=}\NormalTok{obs\_data,}
+\NormalTok{                                  X\_obs}\OperatorTok{=}\NormalTok{X\_obs,}
+\NormalTok{                                  fixed\_ind}\OperatorTok{=}\NormalTok{[}\StringTok{"m\_0"}\NormalTok{, }\StringTok{"sigma2\_0"}\NormalTok{, }\StringTok{"beta"}\NormalTok{],}
+\NormalTok{                                  nits}\OperatorTok{=}\DecValTok{100}\NormalTok{,}
+\NormalTok{                                  optimizer}\OperatorTok{=}\NormalTok{optax.adam(}\FloatTok{1e{-}1}\NormalTok{),)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\BuiltInTok{print}\NormalTok{(model1.kernel.params)}
+\BuiltInTok{print}\NormalTok{(model1.sigma2\_eps, }\StringTok{"truth:"}\NormalTok{, }\FloatTok{0.05}\OperatorTok{**}\DecValTok{2}\NormalTok{)}
+\BuiltInTok{print}\NormalTok{(model1.sigma2\_eta, }\StringTok{"truth:"}\NormalTok{, }\FloatTok{0.02}\OperatorTok{**}\DecValTok{2}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+(Array([nan], dtype=float32), Array([nan], dtype=float32), Array([nan], dtype=float32), Array([nan], dtype=float32))
+nan truth: 0.0025000000000000005
+nan truth: 0.0004
+\end{verbatim}
 
 
 

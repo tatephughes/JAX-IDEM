@@ -436,6 +436,9 @@ class st_data:
             fig.tight_layout()
             fig.savefig(filename, dpi=dpi)
 
+    def save_gif(self):
+        """UNIMPLEMENTED"""
+        return None
 
 def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
                 interval=100,
@@ -449,11 +452,11 @@ def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
 
     frames = []
 
-    grid = int(jnp.sqrt(data_array[data_array[:, 2] == 0].shape[0]))
+    grid = int(jnp.sqrt(data_array[data_array[:, 2] == jnp.min(data.times)].shape[0]))
 
-    T = int(jnp.max(data.t) - jnp.min(data.t)) + 1
+    T = int(jnp.max(data.times) - jnp.min(data.times)) + 1
 
-    for t in range(T):
+    for t in data.times:
         time_data = data_array[data_array[:, 2] == t]
         values = time_data[:, 3]
         valmat = jnp.flipud(values.reshape(grid, grid))
@@ -552,3 +555,46 @@ def gif_st_pts(data: st_data,
         output_file, save_all=True, append_images=frames[1:],
         duration=interval, loop=0
     )
+
+
+@jax.jit
+def mat_sq(A: ArrayLike):
+    """
+    Computes the 'outer square' of a A, A@A.T, in a stable way.
+
+    Simply doing A@A.T can cause the result to not be symmetric
+
+    Parameters
+    ----------
+    A: ArrayLike (n,m)
+
+    Returns
+    ----------
+    ArrayLike (n,n), the 'outer square' of A.
+    """
+    sq = A@A.T
+    return jnp.linalg.pinv(jnp.linalg.pinv(sq, hermitian=True), hermitian=True)
+
+@jax.jit
+def mat_hug(A:ArrayLike,Sigma:ArrayLike):
+    """
+    Computes A@Sigma@A.T using a cholesky decomposition followed by a mat_sq.
+    Sigma must be symmetric.
+    Particularly useful for variances, since, unlike directly calling  A@Sigma@A.T, the result is guaranteed to be symmetric.
+    Uses that if Sigma = L@L.T, then A@Sigma@A.T=(A@L)@(A@L).T.
+    I call this a matrix 'hug' because variances need hugs too.
+
+    Parameters
+    ----------
+    A: ArrayLike (n,m)
+      The hug-giver
+    Sigma: ArrayLike (m,m)
+      The hug-reciever
+
+    Returns
+    ----------
+    ArrayLike (n,n), the 'hugged' matrix.
+    """
+    chol_sigma = jnp.linalg.cholesky(Sigma)
+    return mat_sq(A@chol_sigma)
+

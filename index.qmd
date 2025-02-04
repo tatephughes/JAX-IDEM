@@ -21,18 +21,18 @@ bibliography: site/Bibliography.bib
 #| output: false
 import sys
 import os
-sys.path.append(os.path.abspath('src/jax_idem'))
+sys.path.append(os.path.abspath('src/jaxidem'))
 
 import jax
 import importlib
 import utilities
-import IDEM
+import idem
 
 importlib.reload(utilities)
-importlib.reload(IDEM)
+importlib.reload(idem)
 
 from utilities import *
-from IDEM import *
+from idem import *
 import warnings
 
 import matplotlib.pyplot as plt
@@ -54,7 +54,7 @@ height = 480 / dpi
 # plot the objects
 gif_st_grid(process_data, "site/process.gif", width=width, height=height)
 gif_st_pts(obs_data, "site/obs.gif", width=width, height=height)
-model.kernel.save_fig("site/kernel.png", width=width, height=height)
+model.kernel.save_plot("site/kernel.png", width=width, height=height)
 
 from PIL import Image, ImageSequence
 
