@@ -560,6 +560,7 @@ def gif_st_pts(data: st_data,
 @jax.jit
 def mat_sq(A: ArrayLike):
     """
+      Doesnt really work.
     Computes the 'outer square' of a A, A@A.T, in a stable way.
 
     Simply doing A@A.T can cause the result to not be symmetric
@@ -573,11 +574,12 @@ def mat_sq(A: ArrayLike):
     ArrayLike (n,n), the 'outer square' of A.
     """
     sq = A@A.T
-    return jnp.linalg.pinv(jnp.linalg.pinv(sq, hermitian=True), hermitian=True)
+    return sq
 
 @jax.jit
 def mat_hug(A:ArrayLike,Sigma:ArrayLike):
     """
+      Doesnt really work.
     Computes A@Sigma@A.T using a cholesky decomposition followed by a mat_sq.
     Sigma must be symmetric.
     Particularly useful for variances, since, unlike directly calling  A@Sigma@A.T, the result is guaranteed to be symmetric.
@@ -598,3 +600,7 @@ def mat_hug(A:ArrayLike,Sigma:ArrayLike):
     chol_sigma = jnp.linalg.cholesky(Sigma)
     return mat_sq(A@chol_sigma)
 
+@jax.jit # not differentiable!
+def brute_abs(Sigma):
+    eig = jnp.linalg.eigh(Sigma)
+    return eig[1] @ jnp.diag(jnp.sqrt(eig[0]**2)) @ eig[1].T

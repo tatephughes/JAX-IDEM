@@ -172,8 +172,6 @@ class IDEM_Model:
         sigma2_eps,
         beta,
         int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
-        m_0=None,
-        sigma2_0=None,
     ):
         self.process_basis = process_basis
         self.kernel = kernel
@@ -186,11 +184,6 @@ class IDEM_Model:
         self.M = self.con_M(kernel.params)
         # self.PHI_obs = jl.map(process_basis.mfun, obs_locs)
         self.beta = beta
-        self.m_0 = m_0
-        self.sigma2_0 = sigma2_0
-
-        if self.sigma2_0 is None:
-            self.sigma2_0 = 1000
 
     def simulate(
         self,
@@ -200,6 +193,7 @@ class IDEM_Model:
         nobs=100,
         T=9,
         int_grid: Grid = create_grid(bounds, ngrids),
+        alpha_0=None
     ):
         """
         Simulates from the model, using the jit-able function simIDEM.
@@ -231,9 +225,6 @@ class IDEM_Model:
         sigma2_eta = self.sigma2_eta
         sigma2_eps = self.sigma2_eps
         process_grid = self.process_grid
-
-        m_0 = self.m_0
-        P_0 = self.sigma2_0 * jnp.eye(m_0.shape[0])
 
         # Check that M is not explosive
         if jnp.max(jnp.absolute(jnp.linalg.eig(M)[0])) > 1.0:
@@ -299,7 +290,11 @@ class IDEM_Model:
         )
         PHI_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
 
-        alpha0 = jax.random.multivariate_normal(keys[1], m_0, P_0)
+        nbasis = self.process_basis.nbasis
+
+        if alpha_0 is None:
+            alpha_0 = jax.random.multivariate_normal(
+                keys[1], jnp.zeros(nbasis), 0.1*jnp.eye(nbasis))
 
         # really should consider exploring a sparse matrix solution!
         PHI_obs = jax.scipy.linalg.block_diag(*PHI_tree)
@@ -311,7 +306,7 @@ class IDEM_Model:
             PHI_proc=PHI_proc,
             PHI_obs=PHI_obs,
             beta=beta,
-            alpha0=alpha0,
+            alpha_0=alpha_0,
             obs_locs=obs_locs,
             process_grid=process_grid,
             int_grid=int_grid,
@@ -344,24 +339,23 @@ class IDEM_Model:
 
         return (process_data, obs_data)
 
-    def filter(self, obs_data_wide: st_data, X_obs):
+    def filter(self, obs_data_wide: st_data, X_obs, m_0=None, P_0=None):
         """
         Runs the Kalman filter on the inputted data.
         """
         obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
 
-        m_0 = self.m_0
+        nbasis = m_0.shape[0]
+
+        if m_0 is None:
+            m_0 = jnp.zeros(nbasis)
+        if P_0 is None:
+            P_0 = 100 * jnp.eye(nbasis)
 
         M = self.M
         PHI_obs = self.process_basis.mfun(obs_locs)
         nbasis = self.process_basis.nbasis
         nobs = obs_locs.shape[0]
-
-        if m_0 is None:
-            PHI_obs_0 = self.process_basis.mfun(obs_locs)
-            m_0 = PHI_obs_0.T @ obs_data_wide.z[:, 0]
-
-        P_0 = self.sigma2_0 * jnp.eye(m_0.shape[0])
 
         Sigma_eta = self.sigma2_eta * jnp.eye(nbasis)
         Sigma_eps = self.sigma2_eps * jnp.eye(nobs)
@@ -394,13 +388,13 @@ class IDEM_Model:
         if nu_0 is None:
             nu_0 = jnp.zeros(nbasis)
         if Q_0 is None:
-            Q_0 = jnp.ones(nbasis) / self.sigma2_0
+            Q_0 = 0.01 * jnp.eye(nbasis)
 
         unique_times = jnp.unique(obs_data.t)
 
         obs_locs = jnp.column_stack(
             jnp.column_stack((obs_data.x, obs_data.y))).T
-        obs_locs_tuple = [obs_locs[obs_data.t == t][:, 1:]
+        obs_locs_tuple = [obs_locs[obs_data.t == t][:, 0:]
                           for t in unique_times]
 
         X_obs_tuple = jax.tree.map(lambda locs:
@@ -416,9 +410,9 @@ class IDEM_Model:
         PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
 
         ztildes = [obs_data.z[obs_data.t == t] -
-                   X_obs_tuple[t] @ beta for t in unique_times]
+                   X_obs_tuple[i] @ self.beta for i, t in enumerate(unique_times)]
 
-        ll, nus, Qs, nupreds, Qpreds = information_filter_indep(
+        ll, nus, Qs, nupreds, Qpreds = fsf.information_filter_indep(
             nu_0,
             Q_0,
             self.M,
@@ -515,8 +509,6 @@ class IDEM_Model:
 
         if upper is None:
             upper = (
-                jnp.full(self.process_basis.nbasis, jnp.inf),
-                jnp.array(jnp.log(1000)),
                 jnp.array(jnp.log(1000)),
                 jnp.array(jnp.log(1000)),
                 (
@@ -537,8 +529,6 @@ class IDEM_Model:
         # but this is messy. Clean these up later please
         if lower is None:
             lower = (
-                jnp.full(self.process_basis.nbasis, -jnp.inf),
-                jnp.array(jnp.log(0.0001)),
                 jnp.array(jnp.log(0.0001)),
                 jnp.array(jnp.log(0.0001)),
                 (
@@ -565,8 +555,6 @@ class IDEM_Model:
         )
 
         params0 = (
-            self.m_0,
-            jnp.log(self.sigma2_0),
             jnp.log(self.sigma2_eta),
             jnp.log(self.sigma2_eps),
             ks0,
@@ -577,28 +565,22 @@ class IDEM_Model:
 
         @jax.jit
         def objective(params):
-            (m_0,
-             log_sigma2_0,
-             log_sigma2_eta,
-             log_sigma2_eps,
-             ks,
-             beta, ) = params
+            (
+                log_sigma2_eta,
+                log_sigma2_eps,
+                ks,
+                beta, ) = params
 
             logks1, logks2, ks3, ks4 = ks
 
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)
 
-            sigma2_0 = jnp.exp(log_sigma2_0)
             sigma2_eta = jnp.exp(log_sigma2_eta)
             sigma2_eps = jnp.exp(log_sigma2_eps)
 
             # yes, this looks bad BUT after jit-compilation,
             # these ifs will be compiled away.
-            if "m_0" in fixed_ind:
-                m_0 = self.m_0
-            if "sigma2_0" in fixed_ind:
-                sigma2_0 = self.sigma2_0
             if "sigma2_eta" in fixed_ind:
                 sigma2_eta = self.sigma2_eta
             if "sigma2_eps" in fixed_ind:
@@ -641,14 +623,14 @@ class IDEM_Model:
             grad = obj_grad(params)
             updates, opt_state = optimizer.update(grad, opt_state)
             params = optax.apply_updates(params, updates)
-            #params = optax.projections.projection_box(params, lower, upper)
+            # params = optax.projections.projection_box(params, lower, upper)
 
         # please make sure this is all the arguments necessary
         kernel_params = (jnp.exp(params[4][0]),
                          jnp.exp(params[4][1]),
                          params[4][2],
                          params[4][3])
-        
+
         new_fitted_model = IDEM_Model(
             process_basis=self.process_basis,
             kernel=param_exp_kernel(self.kernel.basis, kernel_params),
@@ -681,24 +663,38 @@ class IDEM_Model:
     def fit_information_filter(
         self,
         obs_data: st_data,
-        X_obs: ArrayLike,
+        X_obs_tuple: ArrayLike,
         fixed_ind: list = [],
         lower=None,
         upper=None,
         optimizer=optax.adam(1e-3),
         nits: int = 10,
+        nu_0=None,
+        Q_0=None,
     ):
-        """NOT FULLY IMPLEMENTED"""
-        obs_data_wide = ST_towide(obs_data)
-        obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
-        PHI_obs = self.process_basis.mfun(obs_locs)
+
+        unique_times = jnp.unique(obs_data.t)
+        zs_tuple = tuple([obs_data.z[obs_data.t == t] for t in unique_times])
+
+        obs_locs = jnp.column_stack(
+            jnp.column_stack((obs_data.x, obs_data.y))).T
+        obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:]
+                                for t in unique_times])
+
+        PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
 
         bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
 
+        nbasis = self.process_basis.nbasis
+        nobs = obs_locs.shape[0]
+
+        if nu_0 is None:
+            nu_0 = jnp.zeros(nbasis)
+        if Q_0 is None:
+            Q_0 = 0.01 * jnp.eye(nbasis)
+
         if upper is None:
             upper = (
-                jnp.full(self.process_basis.nbasis, jnp.inf),
-                jnp.array(jnp.log(1000)),
                 jnp.array(jnp.log(1000)),
                 jnp.array(jnp.log(1000)),
                 (
@@ -719,8 +715,6 @@ class IDEM_Model:
         # but this is messy. Clean these up later please
         if lower is None:
             lower = (
-                jnp.full(self.process_basis.nbasis, -jnp.inf),
-                jnp.array(jnp.log(0.0001)),
                 jnp.array(jnp.log(0.0001)),
                 jnp.array(jnp.log(0.0001)),
                 (
@@ -739,10 +733,6 @@ class IDEM_Model:
                 jnp.full(self.beta.shape, -jnp.inf),
             )
 
-        # self.m_0 = PHI_obs.T @ obs_data_wide.z[:,0]
-
-        # sigma2_0 = 3.4e38
-
         ks0 = (
             jnp.log(self.kernel.params[0]),
             jnp.log(self.kernel.params[1]),
@@ -751,35 +741,38 @@ class IDEM_Model:
         )
 
         params0 = (
-            self.m_0,
-            jnp.log(self.sigma2_0),
             jnp.log(self.sigma2_eta),
             jnp.log(self.sigma2_eps),
             ks0,
             self.beta,
         )
 
-        nbasis = self.process_basis.nbasis
-        nobs = obs_locs.shape[0]
+        print(f"Initial Params are {params0}")
+
+        @jax.jit
+        def tildify(z, X_obs, beta):
+            return z - X_obs @ beta
+
+        mapping_elts = tuple([[zs_tuple[i], X_obs_tuple[i]]
+                             for i in range(len(zs_tuple))])
+
+        def is_leaf(node): return jax.tree.structure(node).num_leaves == 2
 
         @jax.jit
         def objective(params):
-            (m_0, log_sigma2_0, log_sigma2_eta,
-             log_sigma2_eps, ks, beta, ) = params
+            (log_sigma2_eta, log_sigma2_eps, ks, beta, ) = params
+
+            ztildes = jax.tree.map(lambda tup: tildify(
+                tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf)
 
             logks1, logks2, ks3, ks4 = ks
 
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)
 
-            sigma2_0 = jnp.exp(log_sigma2_0)
             sigma2_eta = jnp.exp(log_sigma2_eta)
             sigma2_eps = jnp.exp(log_sigma2_eps)
 
-            if "m_0" in fixed_ind:
-                m_0 = self.m_0
-            if "sigma2_0" in fixed_ind:
-                sigma2_0 = self.sigma2_0
             if "sigma2_eta" in fixed_ind:
                 sigma2_eta = self.sigma2_eta
             if "sigma2_eps" in fixed_ind:
@@ -797,47 +790,48 @@ class IDEM_Model:
 
             M = self.con_M((ks1, ks2, ks3, ks4))
 
-            Sigma_eta = sigma2_eta * jnp.eye(nbasis)
-            Sigma_eps = sigma2_eps * jnp.eye(nobs)
-            P_0 = sigma2_0 * jnp.eye(nbasis)
-
-            carry, seq = kalman_filter(
-                m_0,
-                P_0,
+            ll, _, _, _, _ = fsf.information_filter_indep(
+                nu_0,
+                Q_0,
                 M,
-                PHI_obs,
-                Sigma_eta,
-                Sigma_eps,
-                beta,
-                obs_data_wide.z,
-                X_obs,
+                PHI_obs_tuple,
+                sigma2_eta,
+                sigma2_eps,
+                ztildes,
+                likelihood='full'
             )
-            return -carry[4]
+            return -ll
 
         obj_grad = jax.grad(objective)
 
         params = params0
         opt_state = optimizer.init(params)
 
-        for i in tqdm(range(nits), desc="Optimising"):
+        for i in range(nits):
             grad = obj_grad(params)
             updates, opt_state = optimizer.update(grad, opt_state)
             params = optax.apply_updates(params, updates)
-            params = optax.projections.projection_box(params, lower, upper)
+            print(params)
+            print(objective(params))
+
+        logks1, logks2, ks3, ks4 = params[2]
+
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+
+        new_kernel_params = (ks1, ks2, ks3, ks4)
 
         # please make sure this is all the arguments necessary
         new_fitted_model = IDEM_Model(
             process_basis=self.process_basis,
-            kernel=param_exp_kernel(self.kernel.basis, params[4]),
+            kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
             process_grid=self.process_grid,
-            sigma2_eta=jnp.exp(params[2]),
-            sigma2_eps=jnp.exp(params[3]),
-            beta=params[5],
-            m_0=params[0],
-            sigma2_0=jnp.exp(params[1]),
+            sigma2_eta=jnp.exp(params[0]),
+            sigma2_eps=jnp.exp(params[1]),
+            beta=params[3],
         )
 
-        init_ll, _, _, _, _, _ = self.filter(obs_data_wide, X_obs)
+        init_ll = -objective(params0)
 
         print(
             f"""The log likelihood (up to a constant) of the initial model is
@@ -849,12 +843,12 @@ class IDEM_Model:
         )
 
         print(
-            f"""\nthe final offset parameters are {params[4][2]} and
-             {params[4][3]}\n\n"""
+            f"""\nthe final offset parameters are {params[2][2]} and
+             {params[2][3]}\n\n"""
         )
         print(
-            f"""\nthe final variance parameters are {jnp.exp(params[1])},
-             {jnp.exp(params[2])}, and {jnp.exp(params[3])}\n\n"""
+            f"""\nthe final variance parameters are {jnp.exp(params[0])},
+             {jnp.exp(params[1])}.\n\n"""
         )
 
         return new_fitted_model
@@ -869,7 +863,7 @@ def simIDEM(
     PHI_obs: ArrayLike,
     obs_locs: ArrayLike,
     beta: ArrayLike,
-    alpha0: ArrayLike,
+    alpha_0: ArrayLike,
     sigma2_eta: float = 0.01**2,
     sigma2_eps: float = 0.01**2,
     process_grid: Grid = create_grid(bounds, ngrids),
@@ -932,7 +926,7 @@ def simIDEM(
 
     alpha_keys = rand.split(keys[3], T)
 
-    alpha = jl.scan(step, alpha0, alpha_keys)[1]
+    alpha = jl.scan(step, alpha_0, alpha_keys)[1]
 
     @jax.jit
     def get_process(alpha):
@@ -1005,8 +999,6 @@ def gen_example_idem(
     ngrid: ArrayLike = jnp.array([41, 41]),
     nints: ArrayLike = jnp.array([100, 100]),
     nobs: int = 50,
-    m_0: ArrayLike = None,
-    sigma2_0 = 0.5**2,
     process_basis: Basis = None,
     sigma2_eta=0.5**2,
     sigma2_eps=0.1**2,
@@ -1047,9 +1039,6 @@ def gen_example_idem(
 
     nbasis = process_basis.nbasis
 
-    if m_0 is None:
-        m_0 = jnp.zeros(nbasis).at[0].set(1)
-
     if k_spat_inv:
         K_basis = (
             place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
@@ -1088,8 +1077,6 @@ def gen_example_idem(
         sigma2_eta=sigma2_eta,
         sigma2_eps=sigma2_eps,
         beta=beta,
-        m_0=m_0,
-        sigma2_0=sigma2_0,
     )
 
 

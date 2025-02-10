@@ -36,7 +36,6 @@ def kalman_filter_naive(m_0, P_0, M, PHI_obs, Sigma_eta, Sigma_eps, ztildes):
 
         Sigma_t = PHI_obs @ Ppred @ PHI_obs.T + Sigma_eps
 
-        
         ll = ll - 0.5 * n * jnp.log(2*jnp.pi) - \
             0.5 * jnp.log(jnp.linalg.det(Sigma_t)) -\
             0.5 * e.T @ jnp.linalg.solve(Sigma_t, e)
@@ -86,11 +85,51 @@ def information_filter_naive(nu_0, Q_0, M, PHI_obs_tuple, Sigma_eta, Sigma_eps_t
         nu_up = nu_pred + i_t
         Q_up = Q_pred + I_t
 
-        #iota = i_t - I_t @ jnp.linalg.solve(Q_pred, nu_pred)
-        #Sigma_iota = I_t @ jnp.linalg.solve(Q_pred, I_t.T) + I_t
-        #ll = ll - 0.5 * r * jnp.log(2*jnp.pi) - \
+        # iota = i_t - I_t @ jnp.linalg.solve(Q_pred, nu_pred)
+        # Sigma_iota = I_t @ jnp.linalg.solve(Q_pred, I_t.T) + I_t
+        # ll = ll - 0.5 * r * jnp.log(2*jnp.pi) - \
         #    0.5 * jnp.log(jnp.linalg.det(Sigma_iota)) -\
         #    0.5 * iota.T @ jnp.linalg.solve(Sigma_iota, iota)
+
+        nus.append(nu_up)
+        Qs.append(Q_up)
+        nupreds.append(nu_pred)
+        Qpreds.append(Q_pred)
+
+    nus = jnp.array(nus)
+    Qs = jnp.array(Qs)
+
+    return (nus[1:], Qs[1:], nupreds, Qpreds)
+
+
+def information_filter_naive_indep(nu_0, Q_0, M, PHI_obs_tuple, sigma2_eta, sigma2_eps, zs):
+
+    r = nu_0.shape[0]
+    T = len(zs)
+
+    ll = 0
+
+    nus = [nu_0]
+    Qs = [Q_0]
+    nupreds = []
+    Qpreds = []
+
+    Minv = jnp.linalg.solve(M, jnp.eye(r))
+    sigma2_eta_inv = 1/sigma2_eta
+
+    for i in range(T):
+
+        i_t = PHI_obs_tuple[i].T @ zs[i] / sigma2_eps
+        I_t = PHI_obs_tuple[i].T @ PHI_obs_tuple[i] / sigma2_eps
+
+        S_t = Minv.T @ Qs[-1] @ Minv
+        J_t = S_t @ jnp.linalg.solve((S_t + sigma2_eta_inv*jnp.eye(r)), jnp.eye(r))
+
+        nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nus[-1]
+        Q_pred = (jnp.eye(r) - J_t) @ S_t
+
+        nu_up = nu_pred + i_t
+        Q_up = Q_pred + I_t
 
         nus.append(nu_up)
         Qs.append(Q_up)

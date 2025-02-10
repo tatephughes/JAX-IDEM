@@ -27,13 +27,9 @@ keys = rand.split(key, 3)
 process_basis = utilities.place_basis(nres=1, min_knot_num=5)
 nbasis = process_basis.nbasis
 
-m_0 = jnp.zeros(nbasis).at[20].set(1)
-sigma2_0 = 0.01
-
 truemodel = idem.gen_example_idem(
     keys[0], k_spat_inv=True,
     process_basis=process_basis,
-    m_0=m_0, sigma2_0=sigma2_0,
     sigma2_eta=0.02**2,
     sigma2_eps=0.05**2
 )

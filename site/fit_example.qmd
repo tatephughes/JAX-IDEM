@@ -33,7 +33,7 @@ import jax
 import jax.random as rand
 import jax.numpy as jnp
 
-jax.config.update('jax_enable_x64', False)
+jax.config.update('jax_enable_x64', True)
 
 import matplotlib.pyplot as plt
 
@@ -59,19 +59,16 @@ keys = rand.split(key, 3)
 
 process_basis = utilities.place_basis(nres=1, min_knot_num=5)
 nbasis = process_basis.nbasis
-
-m_0 = jnp.zeros(nbasis).at[20].set(10)
-sigma2_0 = 0.0001
-
 truemodel = idem.gen_example_idem(
-    keys[0], k_spat_inv=True,
+    keys[0], k_spat_inv=False,
     process_basis=process_basis,
-    m_0=m_0, sigma2_0=sigma2_0,
     sigma2_eta=0.02**2,
     sigma2_eps=0.05**2
 )
 
-process_data, obs_data = truemodel.simulate(nobs=50, T=3, key=keys[1])
+alpha_0 = jnp.zeros(nbasis).at[20].set(10)
+
+process_data, obs_data = truemodel.simulate(nobs=50, T=3, key=keys[1], alpha_0 = alpha_0)
 
 process_data.save_plot("true_process.png")
 obs_data.save_plot("synthetic_data.png")
@@ -97,12 +94,20 @@ Now, after we initialise with a 'guess' baseline model, we can use ```idem.IDEM_
 ```{python}
 K_basis = truemodel.kernel.basis
 # scale and shape of the kernel will be the same, but the offsets will be estimated
+#k = (
+#    jnp.array([200.0]),
+#    jnp.array([0.001]),
+#    jnp.array([0.0]),
+#    jnp.array([0.0]),
+    #)
+
 k = (
-    jnp.array([200.0]),
-    jnp.array([0.001]),
-    jnp.array([0.0]),
-    jnp.array([0.0]),
-)
+            jnp.array([100]),
+            jnp.array([0.001]),
+            jnp.zeros(truemodel.kernel.basis[2].nbasis),
+            jnp.zeros(truemodel.kernel.basis[2].nbasis),
+        )
+
 # This is the kind of kernel used by ```gen_example_idem```
 kernel = idem.param_exp_kernel(K_basis, k)
 
@@ -113,9 +118,7 @@ model0 = idem.IDEM_Model(
                                                jnp.array([41, 41])),
                     sigma2_eta = 0.01**2,
                     sigma2_eps = 0.01**2,
-                    beta = jnp.array([0.0, 0.0, 0.0]),
-                    m_0 = jnp.zeros(nbasis),
-                    sigma2_0=10*jnp.eye(nbasis))
+                    beta = jnp.array([0.0, 0.0, 0.0]),)
 ```
 
 For context, the true values of the kernel parameters are
@@ -129,20 +132,30 @@ So we've chosen a model with high prior variance and no flow, with inaccurate gu
 The fitting functions output new ```IDEM_Model``` objects, generated using OPTAX to optimise for the likelihood.
 
 ```{python}
-#| output: false
+#| output: true
 obs_data_wide = obs_data.as_wide()
 X_obs = jnp.column_stack([jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['x'], obs_data_wide['y']])
+X_obs_tuple = [X_obs for _ in range(len(obs_data.z))]
 
-import optax
-model1 = model0.fit_kalman_filter(obs_data=obs_data,
-                                  X_obs=X_obs,
-                                  fixed_ind=["m_0", "sigma2_0", "beta"],
-                                  nits=100,
-                                  optimizer=optax.adam(1e-1),)
+import optax 
+model1 = model0.fit_information_filter(obs_data=obs_data,
+                                       X_obs_tuple=X_obs_tuple, 
+                                       nits=100,
+                                       optimizer=optax.adam(1e-1),
+#                                  fixed_ind = ['sigma2_eps', 'sigma2_eta']
+                                                                        )
+print(model1.kernel.params)
+print(truemodel.kernel.params)
 ```
 
 ```{python}
-print(model1.kernel.params)
-print(model1.sigma2_eps, "truth:", 0.05**2)
-print(model1.sigma2_eta, "truth:", 0.02**2)
+
+ll, nus, Qs, _, _ = truemodel.filter_information(obs_data)
+ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
+
+data = idem.basis_params_to_st_data(ms, truemodel.process_basis, truemodel.process_grid)
+
+data.show_plot()
+print(ll)
 ```
+

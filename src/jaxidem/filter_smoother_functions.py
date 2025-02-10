@@ -6,7 +6,7 @@ import jax.lax as jl
 from jax.typing import ArrayLike
 
 from functools import partial
-from utilities import mat_sq, mat_hug
+from utilities import mat_sq, mat_hug, brute_abs
 
 
 @partial(jax.jit, static_argnames=["likelihood"])
@@ -304,7 +304,7 @@ def information_filter(
     Sigma_eta_inv = jnp.linalg.solve(Sigma_eta, jnp.eye(r))
 
     def step(carry, scan_elt):
-        nu_tt, Q_tt, _, _ = carry
+        ll, nu_tt, Q_tt, _, _ = carry
 
         i_tp = scan_elt[0, :]
         I_tp = scan_elt[1:, :]
@@ -318,26 +318,41 @@ def information_filter(
         nu_up = nu_pred + i_tp
         Q_up = Q_pred + I_tp
 
-        # chol_Sigma_iota = jnp.linalg.cholesky(
-        #    I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
-        # iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
-        # z = jax.scipy.linalg.solve_triangular(chol_Sigma_iota, iota, lower=True)
+        chol_Sigma_iota = jnp.linalg.cholesky(
+            I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
+        iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
+        z = jax.scipy.linalg.solve_triangular(
+            chol_Sigma_iota, iota, lower=True)
+        if likelihood == 'full':
+            ll_k = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
+        elif likelihood == 'partial':
+            ll_k = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
+                0.5 * jnp.dot(z, z)
+        else:
+            ll_k = jnp.nan
 
-        # if full_likelihood:
-        #    ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
-        #        0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
-        # else:
-        #    ll_new = ll - \
-        #        jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - 0.5 * jnp.dot(z, z)
-
-        return (nu_up, Q_up, nu_pred, Q_pred), (nu_up, Q_up, nu_pred, Q_pred)
+        return (ll_k, nu_up, Q_up, nu_pred, Q_pred), (ll_k, nu_up, Q_up, nu_pred, Q_pred)
 
     carry, seq = jl.scan(
         step,
-        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
+        (0, nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
         scan_elts,
     )
+    
+    mapping_elts = jax.tree.map(
+        lambda t: (seq[0][t], PHI_obs_tuple[t],
+                   Sigma_eps_tuple[t]), tuple(range(len(ztildes)))
+    )
 
+    def detmult(tup):
+        Phieps = jnp.linalg.solve(tup[2], tup[1])
+        R = jnp.linalg.cholesky(Phieps@Phieps.T)
+        return jnp.sum(jnp.diag(R)) + tup[0]
+
+    ll = jnp.sum(jnp.array(jax.tree.map(
+        detmult, mapping_elts, is_leaf=is_leaf)))
+    """
     if likelihood == 'full':
         mapping_elts = jax.tree.map(
             lambda t: (ztildes[t], PHI_obs_tuple[t],
@@ -403,8 +418,9 @@ def information_filter(
     else:
         raise ValueError(
             "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
+    """
 
-    return ll, seq[0], seq[1], seq[2], seq[3]
+    return ll, seq[1], seq[2], seq[3], seq[4]
 
 
 @partial(jax.jit, static_argnames=["likelihood"])
@@ -491,8 +507,8 @@ def information_filter_indep(
             S_t) + sigma2_eta_inv, inplace=False)
         J_t = S_t @ jnp.linalg.solve(R_t, jnp.eye(r))
 
-        J_tmin = jnp.fill_diagonal(J_t, jnp.diag(
-            J_t) + 1, inplace=False)
+        J_tmin = -jnp.fill_diagonal(J_t, jnp.diag(
+            J_t-1), inplace=False)
 
         nu_pred = J_tmin @ Minv.T @ nu_tt
         Q_pred = J_tmin @ S_t
@@ -532,7 +548,7 @@ def information_filter_indep(
             Q_pred = tree[3]
             e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
 
-            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T) + sigma2_eps
+            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
             Sigma_t = jnp.fill_diagonal(
                 P_oprop, sigma2_eps+jnp.diag(P_oprop), inplace=False)
 
@@ -564,7 +580,7 @@ def information_filter_indep(
             Q_pred = tree[3]
             e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
 
-            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T) + sigma2_eps
+            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
             Sigma_t = jnp.fill_diagonal(
                 P_oprop, sigma2_eps+jnp.diag(P_oprop), inplace=False)
 
@@ -587,6 +603,144 @@ def information_filter_indep(
     else:
         raise ValueError(
             "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
+
+    return ll, seq[0], seq[1], seq[2], seq[3]
+
+@partial(jax.jit, static_argnames=["likelihood"])
+def information_filter_indep_experimental(
+    nu_0: ArrayLike,  # initial information vector
+    Q_0: ArrayLike,  # initial information matrix
+    M: ArrayLike,
+    PHI_obs_tuple: tuple,
+    sigma2_eta: float,
+    sigma2_eps: float,
+    ztildes: tuple,
+    likelihood: str = 'partial'
+) -> tuple:
+    """
+    Applies the Information Filter to a PyTree of data.
+    Includes some optimisation for uncorrelated errors.
+
+    Parameters
+    ----------
+    nu_0: ArrayLike (r,)
+        The initial information of the process vector
+    Q_0: ArrayLike (r,r)
+        The initial information matrix of the process vector
+    M: ArrayLike (r,r)
+        The transition matrix of the process
+    PHI_obs_tuple: Pytree[ArrayLike (r,n)]
+        The process-to-data matrix
+    sigma2_eta: float
+        The variance of the process noise
+    sigma2_eps: float
+        The variance of the observation noise
+    ztildes: ArrayLike
+        The observed data to be filtered, in matrix format
+    full_likelihood: bool
+        Whether to include constant terms in the likelihood computation
+    Returns
+    ----------
+    A tuple containing:
+        ll: The log (data) likelihood of the data
+        nus: (T,r) The posterior information vectors $\nu_{t \\mid t}$ of the
+    process given the data 1:t
+        Qs: (T,r,r) The posterior information matrices $Q_{t \\mid t}$ of
+    the process given the data 1:t
+    """
+
+    mapping_elts = jax.tree.map(
+        lambda t: (ztildes[t], PHI_obs_tuple[t],
+                   ), tuple(range(len(ztildes)))
+    )
+
+    r = nu_0.shape[0]
+
+    def informationify(tup: tuple):
+        z_k = tup[0]
+        PHI_obs_k = tup[1]
+        i_k = PHI_obs_k.T @ z_k / sigma2_eps
+        I_k = PHI_obs_k.T @ PHI_obs_k / sigma2_eps
+        return jnp.vstack((i_k, I_k))
+
+    def is_leaf(node):
+        # return len(node)==2 # IMPORTANT NOTE: what if T=2?
+        return jax.tree.structure(node).num_leaves == 2
+        # This works better, but could still be a problem if T=1. But
+        # then, why would you even be filtering?
+        # Added a raise to filter_information for this case
+
+    scan_elts = jnp.array(jax.tree.map(
+        informationify, mapping_elts, is_leaf=is_leaf))
+
+    # This is one situation where I do not know how to avoid inverting
+    # a matrix explicitely...
+    # With the adjusted information filter, you should be able to fix this now
+    Minv = jnp.linalg.solve(M, jnp.eye(r))
+    sigma2_eta_inv = 1/sigma2_eta
+
+    def step(carry, scan_elt):
+        _, nu_tt, Q_tt, _, _ = carry
+
+        i_tp = scan_elt[0, :]
+        I_tp = scan_elt[1:, :]
+
+        S_t = Minv.T @ Q_tt @ Minv
+        R_t = jnp.fill_diagonal(S_t, jnp.diag(
+            S_t) + sigma2_eta_inv, inplace=False)
+        J_t = S_t @ jnp.linalg.solve(R_t, jnp.eye(r))
+
+        J_tmin = -jnp.fill_diagonal(J_t, jnp.diag(
+            J_t-1), inplace=False)
+
+        nu_pred = J_tmin @ Minv.T @ nu_tt
+        Q_pred = J_tmin @ S_t
+
+        nu_up = nu_pred + i_tp
+        Q_up = Q_pred + I_tp
+
+        chol_Sigma_iota = jnp.linalg.cholesky(
+            I_tp @ jnp.linalg.solve(Q_pred, I_tp.T) + I_tp)
+        iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
+        z = jax.scipy.linalg.solve_triangular(
+            chol_Sigma_iota, iota, lower=True)
+        
+        if likelihood == 'full':
+            ll_k = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
+        elif likelihood == 'partial':
+            ll_k = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
+                0.5 * jnp.dot(z, z)
+        else:
+            ll_k = jnp.nan
+
+        return (ll_k, nu_up, Q_up, nu_pred, Q_pred), (ll_k,nu_up, Q_up, nu_pred, Q_pred)
+
+    carry, seq = jl.scan(
+        step,
+        (0, nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
+        scan_elts,
+    )
+
+    mapping_elts = jax.tree.map(
+        lambda t: (seq[0][t], PHI_obs_tuple[t]), tuple(range(len(ztildes)))
+    )
+
+    sigma2_eps_inv = 1/sigma2_eps
+    
+    def detmult(tup):
+        Phieps = tup[1] * sigma2_eps_inv
+        R = jnp.linalg.cholesky(Phieps@Phieps.T)
+        return jnp.sum(jnp.diag(R)) + tup[0]
+
+    #def detmult(tup):
+    #    Phieps = tup[1] * sigma2_eps_inv
+    #    _,Sing,_ = jnp.linalg.svd(Phieps)
+    #    return jnp.log(jnp.prod(Sing)) + tup[0]
+
+    
+    ll = jnp.sum(jnp.array(jax.tree.map(
+        detmult, mapping_elts, is_leaf=is_leaf)))
 
     return ll, seq[0], seq[1], seq[2], seq[3]
 

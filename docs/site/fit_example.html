@@ -244,14 +244,14 @@ window.Quarto = {
 <section id="simple-example-synthetic-simple-data" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Simple example; synthetic simple data</h1>
 <p>We will start by simulating from a simple IDEM with only three time steps. We can quickly make a model using <code>gen_example_idem</code></p>
-<div id="e827052d" class="cell" data-execution_count="1">
+<div id="96a09778" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.random <span class="im">as</span> rand</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">'jax_enable_x64'</span>, <span class="va">False</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">'jax_enable_x64'</span>, <span class="va">True</span>)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
@@ -268,7 +268,7 @@ window.Quarto = {
 <span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>importlib.<span class="bu">reload</span>(fsf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div id="6073ad8a" class="cell" data-execution_count="2">
+<div id="c7dd7962" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">1</span>)</span>
@@ -276,22 +276,19 @@ window.Quarto = {
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>process_basis <span class="op">=</span> utilities.place_basis(nres<span class="op">=</span><span class="dv">1</span>, min_knot_num<span class="op">=</span><span class="dv">5</span>)</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>nbasis <span class="op">=</span> process_basis.nbasis</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>m_0 <span class="op">=</span> jnp.zeros(nbasis).at[<span class="dv">20</span>].<span class="bu">set</span>(<span class="dv">10</span>)</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>sigma2_0 <span class="op">=</span> <span class="fl">0.0001</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>truemodel <span class="op">=</span> idem.gen_example_idem(</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    keys[<span class="dv">0</span>], k_spat_inv<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    process_basis<span class="op">=</span>process_basis,</span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    m_0<span class="op">=</span>m_0, sigma2_0<span class="op">=</span>sigma2_0,</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    sigma2_eta<span class="op">=</span><span class="fl">0.02</span><span class="op">**</span><span class="dv">2</span>,</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    sigma2_eps<span class="op">=</span><span class="fl">0.05</span><span class="op">**</span><span class="dv">2</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>process_data, obs_data <span class="op">=</span> truemodel.simulate(nobs<span class="op">=</span><span class="dv">50</span>, T<span class="op">=</span><span class="dv">3</span>, key<span class="op">=</span>keys[<span class="dv">1</span>])</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>process_data.save_plot(<span class="st">"true_process.png"</span>)</span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>obs_data.save_plot(<span class="st">"synthetic_data.png"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>truemodel <span class="op">=</span> idem.gen_example_idem(</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    keys[<span class="dv">0</span>], k_spat_inv<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    process_basis<span class="op">=</span>process_basis,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    sigma2_eta<span class="op">=</span><span class="fl">0.02</span><span class="op">**</span><span class="dv">2</span>,</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    sigma2_eps<span class="op">=</span><span class="fl">0.05</span><span class="op">**</span><span class="dv">2</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>alpha_0 <span class="op">=</span> jnp.zeros(nbasis).at[<span class="dv">20</span>].<span class="bu">set</span>(<span class="dv">10</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>process_data, obs_data <span class="op">=</span> truemodel.simulate(nobs<span class="op">=</span><span class="dv">50</span>, T<span class="op">=</span><span class="dv">3</span>, key<span class="op">=</span>keys[<span class="dv">1</span>], alpha_0 <span class="op">=</span> alpha_0)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>process_data.save_plot(<span class="st">"true_process.png"</span>)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>obs_data.save_plot(<span class="st">"synthetic_data.png"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div id="fig-example" class="quarto-float quarto-figure quarto-figure-center anchored" data-layout-row="2">
@@ -319,69 +316,319 @@ Figure&nbsp;1: An example target simulation, with the underlying process (left),
 <section id="fitting" class="level2" data-number="1.1">
 <h2 data-number="1.1" class="anchored" data-anchor-id="fitting"><span class="header-section-number">1.1</span> Fitting</h2>
 <p>Now, after we initialise with a ‘guess’ baseline model, we can use <code>idem.IDEM_model.fit_kalman_filter</code> (recomended for fixed data observation locations) or <code>fit_information_filter</code> to fit the model to the synthetic data.</p>
-<div id="ddc7b067" class="cell" data-execution_count="3">
+<div id="5a9df46e" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>K_basis <span class="op">=</span> truemodel.kernel.basis</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># scale and shape of the kernel will be the same, but the offsets will be estimated</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> (</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    jnp.array([<span class="fl">200.0</span>]),</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    jnp.array([<span class="fl">0.001</span>]),</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    jnp.array([<span class="fl">0.0</span>]),</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    jnp.array([<span class="fl">0.0</span>]),</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the kind of kernel used by ```gen_example_idem```</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> idem.param_exp_kernel(K_basis, k)</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>model0 <span class="op">=</span> idem.IDEM_Model(</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                    process_basis <span class="op">=</span> process_basis,</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                    kernel<span class="op">=</span>kernel,</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>                    process_grid <span class="op">=</span> utilities.create_grid(jnp.array([[<span class="dv">0</span>, <span class="dv">1</span>], [<span class="dv">0</span>, <span class="dv">1</span>]]),</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>                                               jnp.array([<span class="dv">41</span>, <span class="dv">41</span>])),</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>                    sigma2_eta <span class="op">=</span> <span class="fl">0.01</span><span class="op">**</span><span class="dv">2</span>,</span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>                    sigma2_eps <span class="op">=</span> <span class="fl">0.01</span><span class="op">**</span><span class="dv">2</span>,</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>                    beta <span class="op">=</span> jnp.array([<span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>]),</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>                    m_0 <span class="op">=</span> jnp.zeros(nbasis),</span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>                    sigma2_0<span class="op">=</span><span class="dv">10</span><span class="op">*</span>jnp.eye(nbasis))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">#k = (</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">#    jnp.array([200.0]),</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">#    jnp.array([0.001]),</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">#    jnp.array([0.0]),</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co">#    jnp.array([0.0]),</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">#)</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> (</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="dv">100</span>]),</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">0.001</span>]),</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>            jnp.zeros(truemodel.kernel.basis[<span class="dv">2</span>].nbasis),</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>            jnp.zeros(truemodel.kernel.basis[<span class="dv">2</span>].nbasis),</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the kind of kernel used by ```gen_example_idem```</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> idem.param_exp_kernel(K_basis, k)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>model0 <span class="op">=</span> idem.IDEM_Model(</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>                    process_basis <span class="op">=</span> process_basis,</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>                    kernel<span class="op">=</span>kernel,</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>                    process_grid <span class="op">=</span> utilities.create_grid(jnp.array([[<span class="dv">0</span>, <span class="dv">1</span>], [<span class="dv">0</span>, <span class="dv">1</span>]]),</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>                                               jnp.array([<span class="dv">41</span>, <span class="dv">41</span>])),</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>                    sigma2_eta <span class="op">=</span> <span class="fl">0.01</span><span class="op">**</span><span class="dv">2</span>,</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>                    sigma2_eps <span class="op">=</span> <span class="fl">0.01</span><span class="op">**</span><span class="dv">2</span>,</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>                    beta <span class="op">=</span> jnp.array([<span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>]),)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <p>For context, the true values of the kernel parameters are</p>
-<div id="f264889d" class="cell" data-execution_count="4">
+<div id="e196c384" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(truemodel.kernel.params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>(Array([150.], dtype=float32), Array([0.002], dtype=float32), Array([-0.1], dtype=float32), Array([0.1], dtype=float32))</code></pre>
+<pre><code>(Array([200], dtype=int64), Array([0.002], dtype=float64), Array([ 0.11745081, -0.02986882, -0.1386995 ,  0.22818769, -0.06451262,
+       -0.08074671, -0.03438223, -0.18205457,  0.02150127], dtype=float64), Array([-0.05474642, -0.01624902,  0.06350729, -0.03063153,  0.02212441,
+        0.06758303, -0.11604501,  0.22119089, -0.10443025], dtype=float64))</code></pre>
 </div>
 </div>
 <p>So we’ve chosen a model with high prior variance and no flow, with inaccurate guesses for the spread, diffusion, and variances.</p>
 <p>The fitting functions output new <code>IDEM_Model</code> objects, generated using OPTAX to optimise for the likelihood.</p>
-<div id="e5715bf9" class="cell" data-execution_count="5">
+<div id="dcf12798" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>obs_data_wide <span class="op">=</span> obs_data.as_wide()</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>X_obs <span class="op">=</span> jnp.column_stack([jnp.ones(obs_data_wide[<span class="st">'x'</span>].shape[<span class="dv">0</span>]), obs_data_wide[<span class="st">'x'</span>], obs_data_wide[<span class="st">'y'</span>]])</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> optax</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>model1 <span class="op">=</span> model0.fit_kalman_filter(obs_data<span class="op">=</span>obs_data,</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>                                  X_obs<span class="op">=</span>X_obs,</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>                                  fixed_ind<span class="op">=</span>[<span class="st">"m_0"</span>, <span class="st">"sigma2_0"</span>, <span class="st">"beta"</span>],</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>                                  nits<span class="op">=</span><span class="dv">100</span>,</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>                                  optimizer<span class="op">=</span>optax.adam(<span class="fl">1e-1</span>),)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-</div>
-<div id="0f62f1c3" class="cell" data-execution_count="6">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model1.kernel.params)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model1.sigma2_eps, <span class="st">"truth:"</span>, <span class="fl">0.05</span><span class="op">**</span><span class="dv">2</span>)</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model1.sigma2_eta, <span class="st">"truth:"</span>, <span class="fl">0.02</span><span class="op">**</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>X_obs_tuple <span class="op">=</span> [X_obs <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(obs_data.z))]</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> optax </span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>model1 <span class="op">=</span> model0.fit_information_filter(obs_data<span class="op">=</span>obs_data,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>                                       X_obs_tuple<span class="op">=</span>X_obs_tuple, </span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>                                       nits<span class="op">=</span><span class="dv">100</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>                                       optimizer<span class="op">=</span>optax.adam(<span class="fl">1e-1</span>),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co">#                                  fixed_ind = ['sigma2_eps', 'sigma2_eta']</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>                                                                        )</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model1.kernel.params)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(truemodel.kernel.params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>(Array([nan], dtype=float32), Array([nan], dtype=float32), Array([nan], dtype=float32), Array([nan], dtype=float32))
-nan truth: 0.0025000000000000005
-nan truth: 0.0004</code></pre>
+<pre><code>Initial Params are (Array(-9.21034037, dtype=float64, weak_type=True), Array(-9.21034037, dtype=float64, weak_type=True), (Array([4.60517019], dtype=float64), Array([-6.90775528], dtype=float64), Array([0., 0., 0., 0., 0., 0., 0., 0., 0.], dtype=float64), Array([0., 0., 0., 0., 0., 0., 0., 0., 0.], dtype=float64)), Array([0., 0., 0.], dtype=float64))
+(Array(-9.11034037, dtype=float64), Array(-9.11034037, dtype=float64), (Array([4.70517019], dtype=float64), Array([-6.80775528], dtype=float64), Array([-0.1, -0.1, -0.1, -0.1, -0.1, -0.1,  0.1,  0.1,  0.1], dtype=float64), Array([-0.1, -0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1], dtype=float64)), Array([0.1, 0.1, 0.1], dtype=float64))
+838805.3572973381
+(Array(-9.01024845, dtype=float64), Array(-9.01064232, dtype=float64), (Array([4.78561134], dtype=float64), Array([-6.72719366], dtype=float64), Array([-0.12591437, -0.14251658, -0.1884658 , -0.06707638, -0.16626125,
+       -0.16764831,  0.17395899,  0.16148285,  0.1994821 ], dtype=float64), Array([-0.19743688, -0.1896886 ,  0.02745148,  0.04122927,  0.0443709 ,
+        0.04091428,  0.07543394,  0.08181004,  0.1038421 ], dtype=float64)), Array([0.19235926, 0.19911039, 0.19916886], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+(Array(nan, dtype=float64), Array(nan, dtype=float64), (Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64)), Array([nan, nan, nan], dtype=float64))
+nan
+The log likelihood (up to a constant) of the initial model is
+             -654141.0585467011
+The final log likelihood (up to a constant) of the fit model
+               is nan
+
+the final offset parameters are [nan nan nan nan nan nan nan nan nan] and
+             [nan nan nan nan nan nan nan nan nan]
+
+
+
+the final variance parameters are nan,
+             nan.
+
+
+(Array([nan], dtype=float64), Array([nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64), Array([nan, nan, nan, nan, nan, nan, nan, nan, nan], dtype=float64))
+(Array([200], dtype=int64), Array([0.002], dtype=float64), Array([ 0.11745081, -0.02986882, -0.1386995 ,  0.22818769, -0.06451262,
+       -0.08074671, -0.03438223, -0.18205457,  0.02150127], dtype=float64), Array([-0.05474642, -0.01624902,  0.06350729, -0.03063153,  0.02212441,
+        0.06758303, -0.11604501,  0.22119089, -0.10443025], dtype=float64))</code></pre>
+</div>
+</div>
+<div id="7eefd11f" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>ll, nus, Qs, _, _ <span class="op">=</span> truemodel.filter_information(obs_data)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>ms <span class="op">=</span> jnp.linalg.solve(Qs, nus[..., <span class="va">None</span>]).squeeze(<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> idem.basis_params_to_st_data(ms, truemodel.process_basis, truemodel.process_grid)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>data.show_plot()</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ll)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>/home/tate/Projects/JAX-IDEM/src/jaxidem/utilities.py:390: UserWarning:
+
+Matplotlib is currently using module://matplotlib_inline.backend_inline, which is a non-GUI backend, so cannot show the figure.
+</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>141.0612399654288</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="fit_example_files/figure-html/cell-7-output-3.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="fit_example_files/figure-html/cell-7-output-3.png" width="568" height="134" class="figure-img"></a></p>
+</figure>
+</div>
 </div>
 </div>
 
