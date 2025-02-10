@@ -428,7 +428,7 @@ We now move on to an example simulation of this kind of model using it's spectra
 We can now use the above to simulate easily from such models; once we have chosen the appropriate decompositions, we simply compute $M$ and propegate $\bv \alpha_t$ as we would when simulating any other linear dynamic system. 
 We then use the spectral coefficients to generate $Y_t(\bv s)$ and $Z_t(\bv s)$ in the obvious way.
 
-```jaxidem``` implements this in the function ```simIDEM```, or through the more user-friendly method ```idem.idemModel.simulate```.
+```jaxidem``` implements this in the function ```sim_idem```, or through the more user-friendly method ```idem.IDEM.simulate```.
 An object of the idemModel class contains all the necesary information about basis decompositions, and the simulate methods calls ```simIDEM``` without comprimising its jit-ability (although just-in-time computation obviously isn't as important for simulation, the jit-ed function could save compile time if someone want to simulate from many models).
 
 The ```gen_example_idem``` method creates a simple IDEM object without many required parameters;
