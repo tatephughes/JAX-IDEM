@@ -54,9 +54,9 @@ quartodoc:
       desc: Classes and functions to perform simulation, fitting, filtering and prediction on IDEMs.
       contents:
         - Kernel
-        - IDEM_Model
+        - IDEM
         - param_exp_kernel
-        - simIDEM
+        - sim_idem
         - gen_example_idem
         - basis_params_to_st_data
     - title: Utilties

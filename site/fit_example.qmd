@@ -16,7 +16,7 @@ bibliography: Bibliography.bib
 [Index](../index.html)
 : : :
 
-    # Fitting IDEM using ```jax_idem```
+# Fitting IDEM using ```jax_idem```
 
 The primary use of the jax_idem package is to fit Integro-difference equation models to data.
 
@@ -54,21 +54,22 @@ importlib.reload(fsf)
 
 ```{python}
 #| output: false
-key = jax.random.PRNGKey(1)
+key = jax.random.PRNGKey(2)
 keys = rand.split(key, 3)
 
-process_basis = utilities.place_basis(nres=1, min_knot_num=5)
+process_basis = utilities.place_basis(nres=2, min_knot_num=3)
 nbasis = process_basis.nbasis
 truemodel = idem.gen_example_idem(
-    keys[0], k_spat_inv=False,
+    keys[0], k_spat_inv=True,
     process_basis=process_basis,
     sigma2_eta=0.02**2,
-    sigma2_eps=0.05**2
+    sigma2_eps=0.05**2,
+    beta = jnp.array([2.0,2.0,2.0]),
 )
 
-alpha_0 = jnp.zeros(nbasis).at[20].set(10)
+alpha_0 = jnp.zeros(nbasis).at[81].set(10)
 
-process_data, obs_data = truemodel.simulate(nobs=50, T=3, key=keys[1], alpha_0 = alpha_0)
+process_data, obs_data = truemodel.simulate(nobs=100, T=9, key=keys[1], alpha_0 = alpha_0)
 
 process_data.save_plot("true_process.png")
 obs_data.save_plot("synthetic_data.png")
@@ -93,32 +94,24 @@ Now, after we initialise with a 'guess' baseline model, we can use ```idem.IDEM_
 
 ```{python}
 K_basis = truemodel.kernel.basis
-# scale and shape of the kernel will be the same, but the offsets will be estimated
-#k = (
-#    jnp.array([200.0]),
-#    jnp.array([0.001]),
-#    jnp.array([0.0]),
-#    jnp.array([0.0]),
-    #)
 
 k = (
             jnp.array([100]),
             jnp.array([0.001]),
             jnp.zeros(truemodel.kernel.basis[2].nbasis),
             jnp.zeros(truemodel.kernel.basis[2].nbasis),
-        )
+)
 
 # This is the kind of kernel used by ```gen_example_idem```
 kernel = idem.param_exp_kernel(K_basis, k)
 
-model0 = idem.IDEM_Model(
-                    process_basis = process_basis,
-                    kernel=kernel,
-                    process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
-                                               jnp.array([41, 41])),
-                    sigma2_eta = 0.01**2,
-                    sigma2_eps = 0.01**2,
-                    beta = jnp.array([0.0, 0.0, 0.0]),)
+model0 = idem.IDEM(process_basis = process_basis,
+                   kernel=kernel,
+                   process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
+                                                        jnp.array([41, 41])),
+                   sigma2_eta = 0.01**2,
+                   sigma2_eps = 0.01**2,
+                   beta = jnp.array([0.0, 0.0, 0.0]),)
 ```
 
 For context, the true values of the kernel parameters are
@@ -138,20 +131,20 @@ X_obs = jnp.column_stack([jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['
 X_obs_tuple = [X_obs for _ in range(len(obs_data.z))]
 
 import optax 
-model1 = model0.fit_information_filter(obs_data=obs_data,
-                                       X_obs_tuple=X_obs_tuple, 
-                                       nits=100,
-                                       optimizer=optax.adam(1e-1),
-#                                  fixed_ind = ['sigma2_eps', 'sigma2_eta']
-                                                                        )
+
+model1, params = model0.fit_kalman_filter(obs_data=obs_data,
+                                       X_obs=X_obs, 
+                                       optimizer=optax.adamax(1e-1),
+                                       debug=False,
+                                       max_its=1000,
+                                       eps = 1e-5)
 print(model1.kernel.params)
 print(truemodel.kernel.params)
 ```
 
 ```{python}
-
-ll, nus, Qs, _, _ = truemodel.filter_information(obs_data)
-ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
+ll, ms, Ps, _, _ = model1.filter(obs_data, X_obs=X_obs)
+#ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
 
 data = idem.basis_params_to_st_data(ms, truemodel.process_basis, truemodel.process_grid)
 

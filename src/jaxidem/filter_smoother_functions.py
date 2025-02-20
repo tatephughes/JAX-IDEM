@@ -172,8 +172,8 @@ def kalman_filter_indep(
         m_pred = M @ m_tt
 
         # Add sigma2_eps to the diagonal intelligently
-        # P_prop = M @ P_tt @ M.T
-        P_prop = mat_hug(M, P_tt)
+        P_prop = M @ P_tt @ M.T
+        # P_prop = mat_hug(M, P_tt)
         P_pred = jnp.fill_diagonal(
             P_prop, sigma2_eta + jnp.diag(P_prop), inplace=False)
 
@@ -204,6 +204,9 @@ def kalman_filter_indep(
         if likelihood == 'full':
             ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - \
                 0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
+            # ll_new = ll + \
+            #    jax.scipy.stats.multivariate_normal.logpdf(
+            #        z_t, PHI_obs @ m_pred, Sigma_t)
         elif likelihood == 'partial':
             ll_new = ll - \
                 jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
@@ -225,6 +228,92 @@ def kalman_filter_indep(
     carry, seq = jl.scan(
         step,
         (m_0, P_0, m_0, P_0, 0, jnp.zeros((nbasis, nobs))),
+        ztildes.T,
+    )
+
+    return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
+
+
+@partial(jax.jit, static_argnames=["likelihood"])
+def sqrt_filter_indep(
+    m_0: ArrayLike,
+    U_0: ArrayLike,
+    M: ArrayLike,
+    PHI_obs: ArrayLike,
+    sigma2_eta: float,
+    sigma2_eps: float,
+    ztildes: ArrayLike,  # data matrix, with time across columns
+    likelihood: str = 'partial'
+) -> tuple:
+    """
+    Applies square-root Kalman filter using QR decompositions (cite: Kevin S. Tracy, 2022)
+    """
+
+    nbasis = m_0.shape[0]
+    nobs = ztildes.shape[0]
+    sigma_eps = jnp.sqrt(sigma2_eps)
+    sigma_eta = jnp.sqrt(sigma2_eta)
+    U_eps = sigma_eps*jnp.eye(nobs)
+    U_eta = sigma_eta*jnp.eye(nbasis)
+
+    @jax.jit
+    def step(carry, z_t):
+        m_tt, U_tt, _, _, ll, _ = carry
+
+        # predict
+        m_pred = M @ m_tt
+
+        # Add sigma2_eps to the diagonal intelligently
+        U_pred = jnp.linalg.qr(jnp.vstack([U_tt @ M.T, U_eta]), mode='r')
+
+        # Update
+
+        # Prediction error
+        e_t = z_t - PHI_obs @ m_pred
+
+        # Prediction deviation matrix
+        Ui_t = jnp.linalg.qr(jnp.vstack([U_pred@PHI_obs.T, U_eps]), mode="r")
+
+        # Kalman Gain (can you work with the qr decomp of K_t? precision seems lost here.)
+        K_t = (
+            jax.scipy.linalg.solve_triangular(Ui_t, jax.scipy.linalg.solve_triangular(
+                Ui_t.T, PHI_obs, lower=True) @ U_pred.T@U_pred)
+        ).T # look at the U_pred.T@U_pred above; is it right?
+
+        m_up = m_pred + K_t @ e_t
+
+#        P_up = (jnp.eye(nbasis) - K_t @ PHI_obs) @ P_pred
+        U_up = jnp.linalg.qr(jnp.vstack(
+            [U_pred@(jnp.eye(nbasis) - K_t @ PHI_obs).T, U_eps@K_t.T]), mode='r')
+
+        # likelihood of epsilon, using cholesky decomposition
+        chol_Sigma_t = Ui_t
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t.T, e_t, lower=True)
+        if likelihood == 'full':
+            ll_new = ll - jnp.sum(jnp.log(jnp.abs(jnp.diag(chol_Sigma_t)))) - \
+                0.5 * jnp.dot(z, z) - 0.5 * nobs * jnp.log(2*jnp.pi)
+        elif likelihood == 'partial':
+            ll_new = ll - \
+                jnp.sum(jnp.log(jnp.abs(jnp.diag(chol_Sigma_t)))) - \
+                0.5 * jnp.dot(z, z)
+        elif likelihood == 'none':
+            ll_new = jnp.nan
+        else:
+            raise ValueError(
+                "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial').")
+
+        return (m_up, U_up, m_pred, U_pred, ll_new, K_t), (
+            m_up,
+            U_up,
+            m_pred,
+            U_pred,
+            ll_new,
+            K_t,
+        )
+
+    carry, seq = jl.scan(
+        step,
+        (m_0, U_0, m_0, U_0, 0, jnp.zeros((nbasis, nobs))),
         ztildes.T,
     )
 
@@ -339,7 +428,7 @@ def information_filter(
         (0, nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
         scan_elts,
     )
-    
+
     mapping_elts = jax.tree.map(
         lambda t: (seq[0][t], PHI_obs_tuple[t],
                    Sigma_eps_tuple[t]), tuple(range(len(ztildes)))
@@ -349,6 +438,11 @@ def information_filter(
         Phieps = jnp.linalg.solve(tup[2], tup[1])
         R = jnp.linalg.cholesky(Phieps@Phieps.T)
         return jnp.sum(jnp.diag(R)) + tup[0]
+
+    def detmult(tup):
+        Phieps = jnp.linalg.solve(tup[2], tup[1])
+        R = jnp.linalg.svd(Phieps)[1]
+        return jnp.sum(jnp.log(jnp.diag(R))) + tup[0]
 
     ll = jnp.sum(jnp.array(jax.tree.map(
         detmult, mapping_elts, is_leaf=is_leaf)))
@@ -606,6 +700,7 @@ def information_filter_indep(
 
     return ll, seq[0], seq[1], seq[2], seq[3]
 
+
 @partial(jax.jit, static_argnames=["likelihood"])
 def information_filter_indep_experimental(
     nu_0: ArrayLike,  # initial information vector
@@ -704,7 +799,7 @@ def information_filter_indep_experimental(
         iota = i_tp - I_tp @ jnp.linalg.solve(Q_up, nu_up)
         z = jax.scipy.linalg.solve_triangular(
             chol_Sigma_iota, iota, lower=True)
-        
+
         if likelihood == 'full':
             ll_k = - jnp.sum(jnp.log(jnp.diag(chol_Sigma_iota))) - \
                 0.5 * jnp.dot(z, z) - 0.5 * r * jnp.log(2*jnp.pi)
@@ -714,7 +809,7 @@ def information_filter_indep_experimental(
         else:
             ll_k = jnp.nan
 
-        return (ll_k, nu_up, Q_up, nu_pred, Q_pred), (ll_k,nu_up, Q_up, nu_pred, Q_pred)
+        return (ll_k, nu_up, Q_up, nu_pred, Q_pred), (ll_k, nu_up, Q_up, nu_pred, Q_pred)
 
     carry, seq = jl.scan(
         step,
@@ -727,22 +822,21 @@ def information_filter_indep_experimental(
     )
 
     sigma2_eps_inv = 1/sigma2_eps
-    
+
+    # def detmult(tup):
+    #    Phieps = tup[1] * sigma2_eps_inv
+    #    R = jnp.linalg.cholesky(Phieps@Phieps.T)
+    #    return jnp.sum(jnp.diag(R)) + tup[0]
+
     def detmult(tup):
         Phieps = tup[1] * sigma2_eps_inv
-        R = jnp.linalg.cholesky(Phieps@Phieps.T)
-        return jnp.sum(jnp.diag(R)) + tup[0]
+        _, svs, _ = jax.scipy.linalg.svd(Phieps)
+        return jnp.sum(jnp.log(svs)) + tup[0]
 
-    #def detmult(tup):
-    #    Phieps = tup[1] * sigma2_eps_inv
-    #    _,Sing,_ = jnp.linalg.svd(Phieps)
-    #    return jnp.log(jnp.prod(Sing)) + tup[0]
-
-    
     ll = jnp.sum(jnp.array(jax.tree.map(
         detmult, mapping_elts, is_leaf=is_leaf)))
 
-    return ll, seq[0], seq[1], seq[2], seq[3]
+    return ll, seq[1], seq[2], seq[3], seq[4]
 
 
 @jax.jit

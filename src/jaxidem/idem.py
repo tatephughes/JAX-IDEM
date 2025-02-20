@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import jax.lax as jl
 from jax.numpy.linalg import solve
 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import optax
 
 # Plotting imports
@@ -160,8 +160,10 @@ def param_exp_kernel(K_basis: tuple, k: tuple):
     return Kernel(basis=K_basis, params=k, function=kernel)
 
 
-class IDEM_Model:
-    """The Integro-differential Equation Model."""
+class IDEM:
+    """The Integro-differential Equation Model.
+    I'm really going back and forth on what to name this clas
+    """
 
     def __init__(
         self,
@@ -196,7 +198,7 @@ class IDEM_Model:
         alpha_0=None
     ):
         """
-        Simulates from the model, using the jit-able function simIDEM.
+        Simulates from the model, using the jit-able function sim_idem.
 
         Parameters
         ----------
@@ -299,7 +301,7 @@ class IDEM_Model:
         # really should consider exploring a sparse matrix solution!
         PHI_obs = jax.scipy.linalg.block_diag(*PHI_tree)
 
-        process_vals, obs_vals = simIDEM(
+        process_vals, obs_vals = sim_idem(
             key=keys[2],
             T=T,
             M=M,
@@ -339,13 +341,15 @@ class IDEM_Model:
 
         return (process_data, obs_data)
 
-    def filter(self, obs_data_wide: st_data, X_obs, m_0=None, P_0=None):
+    def filter(self, obs_data: st_data, X_obs, m_0=None, P_0=None, likelihood='full'):
         """
         Runs the Kalman filter on the inputted data.
         """
-        obs_locs = jnp.column_stack([obs_data_wide.x, obs_data_wide.y])
 
-        nbasis = m_0.shape[0]
+        obs_data_wide = obs_data.as_wide()
+        obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
+
+        nbasis = self.process_basis.nbasis
 
         if m_0 is None:
             m_0 = jnp.zeros(nbasis)
@@ -357,24 +361,65 @@ class IDEM_Model:
         nbasis = self.process_basis.nbasis
         nobs = obs_locs.shape[0]
 
-        Sigma_eta = self.sigma2_eta * jnp.eye(nbasis)
-        Sigma_eps = self.sigma2_eps * jnp.eye(nobs)
+        sigma2_eta = self.sigma2_eta
+        sigma2_eps = self.sigma2_eps
 
         beta = self.beta
 
-        carry, seq = kalman_filter(
+        ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
+
+        ll, ms, Ps, mpreds, Ppreds, Ks = fsf.kalman_filter_indep(
             m_0,
             P_0,
             M,
             PHI_obs,
-            Sigma_eta,
-            Sigma_eps,
-            beta,
-            obs_data_wide.z,
-            X_obs,
+            sigma2_eta,
+            sigma2_eps,
+            ztildes,
+            likelihood=likelihood
         )
 
-        return (carry[4], seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:])
+        return (ll, ms, Ps, mpreds, Ppreds)
+
+    def sqrt_filter(self, obs_data: st_data, X_obs, m_0=None, U_0=None, likelihood='full'):
+        """
+        Runs the Kalman filter on the inputted data.
+        """
+
+        obs_data_wide = obs_data.as_wide()
+        obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
+
+        nbasis = self.process_basis.nbasis
+
+        if m_0 is None:
+            m_0 = jnp.zeros(nbasis)
+        if U_0 is None:
+            U_0 = 100 * jnp.eye(nbasis)
+
+        M = self.M
+        PHI_obs = self.process_basis.mfun(obs_locs)
+        nbasis = self.process_basis.nbasis
+        nobs = obs_locs.shape[0]
+
+        sigma2_eta = self.sigma2_eta
+        sigma2_eps = self.sigma2_eps
+
+        beta = self.beta
+
+        ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
+
+        ll, ms, Us, mpreds, Upreds, Ks = fsf.sqrt_filter_indep(
+            m_0,
+            U_0,
+            M,
+            PHI_obs,
+            sigma2_eta,
+            sigma2_eps,
+            ztildes,
+            likelihood=likelihood
+        )
+
+        return (ll, ms, Us, mpreds, Upreds)
 
     def filter_information(
         self,
@@ -498,12 +543,24 @@ class IDEM_Model:
         lower=None,
         upper=None,
         optimizer=optax.adam(1e-3),
-        nits: int = 10,
+        m_0=None,
+        P_0=None,
+        debug=False,
+        max_its: int = 100,
+        target_ll: ArrayLike = jnp.inf,
+        likelihood: str = 'partial',
+        eps=None,
+        loading_bar=True
     ):
-        """MAY BE OUT OF DATE"""
         obs_data_wide = obs_data.as_wide()
         obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
         PHI_obs = self.process_basis.mfun(obs_locs)
+        nbasis = self.process_basis.nbasis
+
+        if m_0 is None:
+            m_0 = jnp.zeros(nbasis)
+        if P_0 is None:
+            P_0 = 100 * jnp.eye(nbasis)
 
         bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
 
@@ -561,15 +618,11 @@ class IDEM_Model:
             self.beta,
         )
 
-        nbasis = self.process_basis.nbasis
+        print(f"Initial Parameters:\n\n{format_params(params0)}\n")
 
         @jax.jit
         def objective(params):
-            (
-                log_sigma2_eta,
-                log_sigma2_eps,
-                ks,
-                beta, ) = params
+            (log_sigma2_eta, log_sigma2_eps, ks, beta, ) = params
 
             logks1, logks2, ks3, ks4 = ks
 
@@ -597,7 +650,6 @@ class IDEM_Model:
                 beta = self.beta
 
             M = self.con_M((ks1, ks2, ks3, ks4))
-            P_0 = sigma2_0 * jnp.eye(nbasis)
 
             # CHECK BELOW
             ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
@@ -610,36 +662,61 @@ class IDEM_Model:
                 sigma2_eta,
                 sigma2_eps,
                 ztildes,
-                likelihood='partial'
-            )
+                likelihood=likelihood)
             return -ll
 
         obj_grad = jax.grad(objective)
 
+        ll = -objective(params0)
         params = params0
         opt_state = optimizer.init(params)
 
-        for i in tqdm(range(nits), desc="Optimising"):
+        if loading_bar:
+            progress = tqdm(range(max_its), desc="Optimising")
+
+        else:
+            progress = range(max_its)
+
+        for i in progress:
             grad = obj_grad(params)
-            updates, opt_state = optimizer.update(grad, opt_state)
+            updates, opt_state = optimizer.update(
+                grad, opt_state, params=params)
             params = optax.apply_updates(params, updates)
             # params = optax.projections.projection_box(params, lower, upper)
+            llprev = ll
+            ll = -objective(params)
+            if eps is not None and (jnp.isclose(ll, llprev, atol=eps)):
+                print("Likelihood stopped improving. Stopping early...")
+                break
+            if ll > target_ll:
+                print("Achieved target likelihood. Stopping early...")
+                break
+            if loading_bar:
+                progress.set_postfix_str(
+                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}")
+            if debug & loading_bar:
+                progress.write(f"\nIteration: {i}")
+                progress.write(format_params(params))
+                progress.write(f"Current log-likelihood {ll.tolist()}")
+            elif debug:
+                print(f"\nIteration: {i}")
+                print(format_params(params))
+                print(f"Current log-likelihood {ll.tolist()}")
 
-        # please make sure this is all the arguments necessary
-        kernel_params = (jnp.exp(params[4][0]),
-                         jnp.exp(params[4][1]),
-                         params[4][2],
-                         params[4][3])
+        logks1, logks2, ks3, ks4 = params[2]
 
-        new_fitted_model = IDEM_Model(
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+
+        new_kernel_params = (ks1, ks2, ks3, ks4)
+
+        new_fitted_model = IDEM(
             process_basis=self.process_basis,
-            kernel=param_exp_kernel(self.kernel.basis, kernel_params),
+            kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
             process_grid=self.process_grid,
-            sigma2_eta=jnp.exp(params[2]),
-            sigma2_eps=jnp.exp(params[3]),
-            beta=params[5],
-            m_0=params[0],
-            sigma2_0=jnp.exp(params[1]),
+            sigma2_eta=jnp.exp(params[0]),
+            sigma2_eps=jnp.exp(params[1]),
+            beta=params[3],
         )
 
         init_ll = -objective(params0)
@@ -654,44 +731,40 @@ class IDEM_Model:
         )
 
         print(
-            f"""\nthe final offset parameters are {params[4][2]} and
-               {params[4][3]}\n\n"""
+            f"""\nthe final offset parameters are {params[2][2]} and
+               {params[2][3]}\n\n"""
         )
 
-        return new_fitted_model
+        return (new_fitted_model, params)
 
-    def fit_information_filter(
+    def fit_sqrt_filter(
         self,
         obs_data: st_data,
-        X_obs_tuple: ArrayLike,
+        X_obs: ArrayLike,
         fixed_ind: list = [],
         lower=None,
         upper=None,
         optimizer=optax.adam(1e-3),
-        nits: int = 10,
-        nu_0=None,
-        Q_0=None,
+        m_0=None,
+        U_0=None,
+        debug=False,
+        max_its: int = 100,
+        target_ll: ArrayLike = jnp.inf,
+        likelihood: str = 'partial',
+        eps=None,
+        loading_bar=True
     ):
+        obs_data_wide = obs_data.as_wide()
+        obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
+        PHI_obs = self.process_basis.mfun(obs_locs)
+        nbasis = self.process_basis.nbasis
 
-        unique_times = jnp.unique(obs_data.t)
-        zs_tuple = tuple([obs_data.z[obs_data.t == t] for t in unique_times])
-
-        obs_locs = jnp.column_stack(
-            jnp.column_stack((obs_data.x, obs_data.y))).T
-        obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:]
-                                for t in unique_times])
-
-        PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
+        if m_0 is None:
+            m_0 = jnp.zeros(nbasis)
+        if U_0 is None:
+            U_0 = 10 * jnp.eye(nbasis)
 
         bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
-
-        nbasis = self.process_basis.nbasis
-        nobs = obs_locs.shape[0]
-
-        if nu_0 is None:
-            nu_0 = jnp.zeros(nbasis)
-        if Q_0 is None:
-            Q_0 = 0.01 * jnp.eye(nbasis)
 
         if upper is None:
             upper = (
@@ -747,7 +820,217 @@ class IDEM_Model:
             self.beta,
         )
 
-        print(f"Initial Params are {params0}")
+        print(f"Initial Parameters:\n\n{format_params(params0)}\n")
+
+        @jax.jit
+        def objective(params):
+            (log_sigma2_eta, log_sigma2_eps, ks, beta, ) = params
+
+            logks1, logks2, ks3, ks4 = ks
+
+            ks1 = jnp.exp(logks1)
+            ks2 = jnp.exp(logks2)
+
+            sigma2_eta = jnp.exp(log_sigma2_eta)
+            sigma2_eps = jnp.exp(log_sigma2_eps)
+
+            # yes, this looks bad BUT after jit-compilation,
+            # these ifs will be compiled away.
+            if "sigma2_eta" in fixed_ind:
+                sigma2_eta = self.sigma2_eta
+            if "sigma2_eps" in fixed_ind:
+                sigma2_eps = self.sigma2_eps
+            if "ks1" in fixed_ind:
+                ks1 = self.kernel.params[0]
+            if "ks2" in fixed_ind:
+                ks2 = self.kernel.params[1]
+            if "ks3" in fixed_ind:
+                ks3 = self.kernel.params[2]
+            if "ks4" in fixed_ind:
+                ks4 = self.kernel.params[3]
+            if "beta" in fixed_ind:
+                beta = self.beta
+
+            M = self.con_M((ks1, ks2, ks3, ks4))
+
+            # CHECK BELOW
+            ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
+
+            ll, _, _, _, _, _ = fsf.sqrt_filter_indep(
+                m_0,
+                U_0,
+                M,
+                PHI_obs,
+                sigma2_eta,
+                sigma2_eps,
+                ztildes,
+                likelihood=likelihood)
+            return -ll
+
+        obj_grad = jax.grad(objective)
+
+        ll = -objective(params0)
+        params = params0
+        opt_state = optimizer.init(params)
+
+        if loading_bar:
+            progress = tqdm(range(max_its), desc="Optimising")
+
+        else:
+            progress = range(max_its)
+
+        for i in progress:
+            grad = obj_grad(params)
+            updates, opt_state = optimizer.update(
+                grad, opt_state, params=params)
+            params = optax.apply_updates(params, updates)
+            # params = optax.projections.projection_box(params, lower, upper)
+            llprev = ll
+            ll = -objective(params)
+            if eps is not None and (jnp.isclose(ll, llprev, atol=eps)):
+                print("Likelihood stopped improving. Stopping early...")
+                break
+            if ll > target_ll:
+                print("Achieved target likelihood. Stopping early...")
+                break
+            if loading_bar:
+                progress.set_postfix_str(
+                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}")
+            if debug & loading_bar:
+                progress.write(f"\nIteration: {i}")
+                progress.write(format_params(params))
+                progress.write(f"Current log-likelihood {ll.tolist()}")
+            elif debug:
+                print(f"\nIteration: {i}")
+                print(format_params(params))
+                print(f"Current log-likelihood {ll.tolist()}")
+
+        logks1, logks2, ks3, ks4 = params[2]
+
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+
+        new_kernel_params = (ks1, ks2, ks3, ks4)
+
+        new_fitted_model = IDEM(
+            process_basis=self.process_basis,
+            kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
+            process_grid=self.process_grid,
+            sigma2_eta=jnp.exp(params[0]),
+            sigma2_eps=jnp.exp(params[1]),
+            beta=params[3],
+        )
+
+        init_ll = -objective(params0)
+
+        print(
+            f"""The log likelihood (up to a constant) of the initial model is
+               {init_ll}"""
+        )
+        print(
+            f"""The final log likelihood (up to a constant) of the fit model is
+               {-objective(params)}"""
+        )
+
+        print(
+            f"""\nthe final offset parameters are {params[2][2]} and
+               {params[2][3]}\n\n"""
+        )
+
+        return (new_fitted_model, params)
+
+    def fit_information_filter(
+        self,
+        obs_data: st_data,
+        X_obs_tuple: ArrayLike,
+        fixed_ind: list = [],
+        lower=None,
+        upper=None,
+        optimizer=optax.adam(1e-3),
+        nu_0=None,
+        Q_0=None,
+        debug=False,
+        max_its: int = 100,
+        target_ll: ArrayLike = jnp.inf,
+        likelihood: str = 'partial',
+        eps=None,
+        loading_bar=True
+    ):
+
+        unique_times = jnp.unique(obs_data.t)
+        zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
+
+        obs_locs = jnp.column_stack(
+            jnp.column_stack((obs_data.x, obs_data.y))).T
+        obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:]
+                                for t in unique_times])
+
+        PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
+
+        bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
+
+        nbasis = self.process_basis.nbasis
+
+        if nu_0 is None:
+            nu_0 = jnp.zeros(nbasis)
+        if Q_0 is None:
+            Q_0 = 100 * jnp.eye(nbasis)
+
+        if upper is None:
+            upper = (
+                jnp.array(jnp.log(1000)),
+                jnp.array(jnp.log(1000)),
+                (
+                    jnp.full(
+                        self.kernel.params[0].shape,
+                        150 / (self.process_grid.area *
+                               self.process_grid.ngrid) * 10,
+                    ),
+                    jnp.full(self.kernel.params[1].shape,
+                             ((bound_di / 2) ** 2) / 10),
+                    jnp.full(self.kernel.params[2].shape, jnp.inf),
+                    jnp.full(self.kernel.params[3].shape, jnp.inf),
+                ),
+                jnp.full(self.beta.shape, jnp.inf),
+            )
+
+        # trying to match these bounds with andrewzm's,
+        # but this is messy. Clean these up later please
+        if lower is None:
+            lower = (
+                jnp.array(jnp.log(0.0001)),
+                jnp.array(jnp.log(0.0001)),
+                (
+                    jnp.full(
+                        self.kernel.params[0].shape,
+                        150
+                        / (self.process_grid.area * self.process_grid.ngrid)
+                        * 0.01
+                        / 1000,
+                    ),
+                    jnp.full(self.kernel.params[1].shape,
+                             (bound_di / 2) ** 2 * 0.001),
+                    jnp.full(self.kernel.params[2].shape, -jnp.inf),
+                    jnp.full(self.kernel.params[3].shape, -jnp.inf),
+                ),
+                jnp.full(self.beta.shape, -jnp.inf),
+            )
+
+        ks0 = (
+            jnp.log(self.kernel.params[0]),
+            jnp.log(self.kernel.params[1]),
+            self.kernel.params[2],
+            self.kernel.params[3],
+        )
+
+        params0 = (
+            jnp.log(self.sigma2_eta),
+            jnp.log(self.sigma2_eps),
+            ks0,
+            self.beta,
+        )
+
+        print(f"Initial Parameters:\n\n{format_params(params0)}\n")
 
         @jax.jit
         def tildify(z, X_obs, beta):
@@ -798,21 +1081,47 @@ class IDEM_Model:
                 sigma2_eta,
                 sigma2_eps,
                 ztildes,
-                likelihood='full'
+                likelihood=likelihood
             )
             return -ll
 
         obj_grad = jax.grad(objective)
-
+        
+        ll = -objective(params0)
         params = params0
         opt_state = optimizer.init(params)
+        
+        if loading_bar:
+            progress = tqdm(range(max_its), desc="Optimising")
 
-        for i in range(nits):
+        else:
+            progress = range(max_its)
+
+        for i in progress:
             grad = obj_grad(params)
-            updates, opt_state = optimizer.update(grad, opt_state)
+            updates, opt_state = optimizer.update(
+                grad, opt_state, params=params)
             params = optax.apply_updates(params, updates)
-            print(params)
-            print(objective(params))
+            # params = optax.projections.projection_box(params, lower, upper)
+            llprev = ll
+            ll = -objective(params)
+            if eps is not None and (jnp.isclose(ll, llprev, atol=eps)):
+                print("Likelihood stopped improving. Stopping early...")
+                break
+            if ll > target_ll:
+                print("Achieved target likelihood. Stopping early...")
+                break
+            if loading_bar:
+                progress.set_postfix_str(
+                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}")
+            if debug & loading_bar:
+                progress.write(f"\nIteration: {i}")
+                progress.write(format_params(params))
+                progress.write(f"Current log-likelihood {ll.tolist()}")
+            elif debug:
+                print(f"\nIteration: {i}")
+                print(format_params(params))
+                print(f"Current log-likelihood {ll.tolist()}")
 
         logks1, logks2, ks3, ks4 = params[2]
 
@@ -821,8 +1130,7 @@ class IDEM_Model:
 
         new_kernel_params = (ks1, ks2, ks3, ks4)
 
-        # please make sure this is all the arguments necessary
-        new_fitted_model = IDEM_Model(
+        new_fitted_model = IDEM(
             process_basis=self.process_basis,
             kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
             process_grid=self.process_grid,
@@ -835,27 +1143,23 @@ class IDEM_Model:
 
         print(
             f"""The log likelihood (up to a constant) of the initial model is
-             {init_ll}"""
+               {init_ll}"""
         )
         print(
-            f"""The final log likelihood (up to a constant) of the fit model
-               is {-objective(params)}"""
+            f"""The final log likelihood (up to a constant) of the fit model is
+               {-objective(params)}"""
         )
 
         print(
             f"""\nthe final offset parameters are {params[2][2]} and
-             {params[2][3]}\n\n"""
-        )
-        print(
-            f"""\nthe final variance parameters are {jnp.exp(params[0])},
-             {jnp.exp(params[1])}.\n\n"""
+               {params[2][3]}\n\n"""
         )
 
-        return new_fitted_model
+        return (new_fitted_model, params)
 
 
 @partial(jax.jit, static_argnames=["T"])
-def simIDEM(
+def sim_idem(
     key: ArrayLike,
     T: int,
     M: ArrayLike,
@@ -1002,6 +1306,7 @@ def gen_example_idem(
     process_basis: Basis = None,
     sigma2_eta=0.5**2,
     sigma2_eps=0.1**2,
+    beta=jnp.array([0.0, 0.0, 0.0])
 ):
     """
     Creates an example IDE model, with randomly generated kernel on the
@@ -1068,9 +1373,7 @@ def gen_example_idem(
         )
         kernel = param_exp_kernel(K_basis, k)
 
-    beta = jnp.array([0.0, 0.0, 0.0])
-
-    return IDEM_Model(
+    return IDEM(
         process_basis=process_basis,
         kernel=kernel,
         process_grid=process_grid,
@@ -1123,6 +1426,13 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     data = st_data(x=pdata[:, 1], y=pdata[:, 2],
                    t=pdata[:, 0], z=pdata[:, 3])
     return data
+
+
+def format_params(params):
+    kernel_string = f"Kernel Parameters: \n\t shape:{jnp.exp(params[2][0]).tolist()}\n\t scale: {jnp.exp(params[2][1]).tolist()}\n\t offsets {params[2][2].tolist()}, {params[2][3].tolist()}"
+    var_string = f"Variance Parameters: {jnp.exp(params[0]).tolist()}, {jnp.exp(params[1]).tolist()}"
+    coeff_string = f"Coefficient Parameters: {params[3].tolist()}"
+    return "\n".join([kernel_string, var_string, coeff_string])
 
 
 if __name__ == "__main__":

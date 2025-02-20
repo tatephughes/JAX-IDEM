@@ -1,0 +1,31 @@
+library("plyr")
+library("dplyr")
+library("IDE")
+library("FRK")
+library("ggplot2")
+library("sp")
+library("spacetime")
+library("readr")
+
+setwd("../data")
+
+SIM1 <- simIDE(T = 10, nobs = 100, k_spat_invariant = 1)
+
+print(SIM1$g_truth)
+print(SIM1$g_obs)
+
+IDEmodel <- IDE(f = z ~ s1 + s2,
+         data = SIM1$z_STIDF,
+         dt = as.difftime(1, units = "days"),
+         grid_size = 41)
+
+start.time <- Sys.time()
+
+fit_results_sim1 <- fit.IDE(IDEmodel,
+                            parallelType = 1)
+
+end.time <- Sys.time()
+time.taken <- round(end.time - start.time,2)
+
+write_csv(SIM1$z_df, file = "obs_data_r-ide.csv")
+save.image(file = "R-IDErun.RData")

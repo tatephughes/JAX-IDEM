@@ -1,0 +1,152 @@
+---
+title: "Testing against R-IDE"
+author: "Evan Tate Paterson Hughes"
+format:
+    html:
+        code-fold: true
+        toc: true
+        include-in -header: header.html
+        mathjax:
+            extensions: ["breqn", "bm", "ams"]
+jupyter: python3
+engine: knitr
+bibliography: Bibliography.bib
+---
+
+:::{.content-visible unless-format = "pdf"}
+[Index](../index.html)
+:::
+
+# Loading the data from R-IDE
+
+I have run code from Andrew ZM's IDE package, available in the file `R-IDErun.RData`. 
+Here are the results of that run on my machine;
+
+```{r}
+#| output: false
+
+library("plyr")
+library("dplyr")
+library("IDE")
+library("FRK")
+library("ggplot2")
+library("sp")
+library("spacetime")
+library("readr")
+```
+
+
+```{r}
+load("../data/R-IDErun.RData")
+
+# Extract the values
+sigma2_eta <- fit_results_sim1$IDEmodel$get("sigma2_eta")["par6"]
+sigma2_eps <- fit_results_sim1$IDEmodel$get("sigma2_eps")["par5"]
+
+# Combine them into a data frame
+variances_df <- data.frame(par5 = sigma2_eps, par6 = sigma2_eta)
+
+print(fit_results_sim1$IDEmodel$get("k") %>% unlist())
+print(variances_df)
+print(coef(fit_results_sim1$IDEmodel)) 
+print(fit_results_sim1$IDEmodel$negloglik())
+
+print(time.taken)
+```
+
+# Re-creating the environment in jax_idem
+
+We will fit to the same data, using as much the same as possible, fitting to target the same likelihood as a stopping rule, where we can then compare the time and parameters between the two implementations.
+
+```{python}
+# | output: false
+
+import jax
+jax.config.update('jax_platform_name', 'gpu')
+jax.config.update('jax_enable_x64', True)
+import jax.random as rand
+import jax.numpy as jnp
+
+                             
+import matplotlib.pyplot as plt
+
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jaxidem'))
+import idem
+import utilities
+import filter_smoother_functions as fsf
+import csv
+import pandas as pd
+
+
+df = pd.read_csv('../data/obs_data_r-ide.csv')
+df['time'] = pd.to_datetime(df['time'])
+reference_date = pd.to_datetime('2017-12-01')
+df['t'] = (df['time'] - reference_date).dt.days+1
+
+obs_data = utilities.st_data(x = jnp.array(df['s1']),
+                             y = jnp.array(df['s2']),
+                             t = jnp.array(df['t']),
+                             z = jnp.array(df['z']))
+
+obs_locs = jnp.column_stack((obs_data.x, obs_data.y))
+X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
+
+betahat = jnp.linalg.solve(X_obs.T @ X_obs, X_obs.T) @ obs_data.z
+
+ztilde = obs_data.z - X_obs @ betahat
+
+const_basis = utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1)
+                                                
+K_basis = (
+            const_basis,
+            const_basis,
+            const_basis,
+            const_basis,
+        )
+k = (
+            jnp.array([150.0]),
+            jnp.array([0.002]),
+            jnp.array([0.0]),
+            jnp.array([0.0]),
+        )
+
+kernel = idem.param_exp_kernel(K_basis, k)
+                                               
+process_basis = utilities.place_basis(nres=2, min_knot_num=3)
+
+
+
+model0 = idem.IDEM(
+                    process_basis = process_basis,
+                    kernel=kernel,
+                    process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
+                                               jnp.array([41, 41])),
+                    sigma2_eta = jnp.var(ztilde),
+                    sigma2_eps = jnp.var(ztilde),
+                    beta = betahat,)
+```
+
+```{python}
+import optax
+import time
+
+obs_data_wide = obs_data.as_wide()
+X_obs = jnp.column_stack([jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['x'], obs_data_wide['y']])
+start_time = time.time()
+model1, params = model0.fit_kalman_filter(obs_data=obs_data,
+                                       X_obs=X_obs, 
+                                       optimizer=optax.adamax(1e-2),
+                                       debug=False,
+                                       max_its = 1000,
+                                       fixed_ind = ['ks1', 'ks2'],
+                                       target_ll = jnp.array(3217.945),
+                                       likelihood = 'partial',
+                                       loading_bar=False)
+end_time = time.time()
+print(f"\nTime Elapsed is {end_time - start_time}")
+
+print("\nFitted parameters are: \n", idem.format_params(params))
+print(f"with ll {model1.filter(obs_data, X_obs=X_obs, likelihood = 'partial')[0].tolist()}")
+```
