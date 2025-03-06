@@ -726,7 +726,7 @@ $$\begin{split}
 \end{split}
 $$
 
-Taking the QR decomposition of the verticle block yields QR, and since $(QR)^\intercal\ (QR) = R^\intercal Q^\intercal Q R = R^\intercal R$, so $R$ is a square root of $X+Y$.
+Taking the QR decomposition of the vertical block yields QR, and since $(QR)^\intercal\ (QR) = R^\intercal Q^\intercal Q R = R^\intercal R$, so $R$ is a square root of $X+Y$.
 This motivates the following 'QR operator'
 
 $$\begin{split}

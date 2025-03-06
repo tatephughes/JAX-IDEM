@@ -294,10 +294,9 @@ class IDEM:
             alpha_0=alpha_0,
             obs_locs=obs_locs,
             process_grid=process_grid,
-            int_grid=int_grid,
+            Sigma_eta=sigma2_eta*jnp.eye(nbasis),
             sigma2_eps=sigma2_eps,
-            sigma2_eta=sigma2_eta,
-        )
+        ) 
 
         # Create st_data object
         process_grids = jnp.tile(process_grid.coords, (T, 1, 1))
@@ -1297,7 +1296,7 @@ def sim_idem(
     obs_locs: ArrayLike,
     beta: ArrayLike,
     alpha_0: ArrayLike,
-    sigma2_eta: float = 0.01**2,
+    Sigma_eta: float,
     sigma2_eps: float = 0.01**2,
     process_grid: Grid = create_grid(bounds, ngrids),
     int_grid: Grid = create_grid(bounds, ngrids),
@@ -1351,9 +1350,11 @@ def sim_idem(
 
     # times = jnp.unique(obs_locs[:, 0], size=T)
 
+    U_eta = jnp.linalg.cholesky(Sigma_eta)
+    
     @jax.jit
     def step(carry, key):
-        nextstate = M @ carry + jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
+        nextstate = M @ carry + U_eta @ rand.normal(key, shape=(nbasis,))
         return (nextstate, nextstate)
 
     alpha_keys = rand.split(keys[3], T)

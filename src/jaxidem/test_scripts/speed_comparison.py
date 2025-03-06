@@ -29,12 +29,14 @@ with open(csv_filename, "w", newline="") as f:
 
 key = jax.random.PRNGKey(3)
 
-for n in range(2, 100):
+
+process_basis = utilities.place_cosine_basis(N=10)
+
+for n in range(50, 150):
 
     print(f"\n\n\n n={n}")
     
     keys = rand.split(key, 3)
-    process_basis = utilities.random_basis(key, n)
     nbasis = process_basis.nbasis
 
     model = idem.gen_example_idem(
@@ -48,7 +50,7 @@ for n in range(2, 100):
     alpha_0 = jax.random.normal(keys[1], shape=(nbasis,))
 
     process_data, obs_data = model.simulate(
-        nobs=50, T=9, key=keys[2], alpha_0=alpha_0)
+        nobs=n, T=9, key=keys[2], alpha_0=alpha_0)
 
     unique_times = jnp.unique(obs_data.t)
     

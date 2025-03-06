@@ -288,22 +288,20 @@ def random_basis(
     return Basis(basis_vfun, eval_basis, params, nbasis)
 
 
-def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
+def place_cosine_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
     """Not currently fully implemented."""
-
-    # Note that the (N**2/2 + N/2)th coefficient must be real
-
-    if N % 2 != 0:
-        raise Exception("Only even N for convenience")
-
+    
     N = float(N)
 
-    @jax.jit
-    def phi(k, s):
-        return jnp.sqrt(1 / (2 * N)) * jnp.exp(2 * jnp.pi * 1.0j * (jnp.dot(k, s)))
+    L_1 = jnp.abs(data[0,0] - data[1,0])
+    L_2 = jnp.abs(data[0,1] - data[1,1])
 
-    x, y = jnp.meshgrid(jnp.arange(N + 1) - N / 2, jnp.arange(N + 1) - N / 2)
-    pairs = jnp.stack([x.flatten(), y.flatten()], axis=-1)
+    @jax.jit
+    def phi(ks, s):
+        return jnp.cos(ks[0] * jnp.pi * s[0] / L_1) * jnp.cos(ks[1] * jnp.pi * s[1] / L_1)
+
+    k1s, k2s = jnp.meshgrid(jnp.arange(N), jnp.arange(N))
+    pairs = jnp.stack([k1s.flatten(), k2s.flatten()], axis=-1)
 
     @jax.jit
     def basis_vfun(s):

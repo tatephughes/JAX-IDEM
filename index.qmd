@@ -35,11 +35,15 @@ seed = 4
 key = jax.random.PRNGKey(seed)
 keys = rand.split(key, 2)
 
-model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]))
+process_basis = place_cosine_basis(N = 30)
+#process_basis = place_basis()
+
+model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]), process_basis = process_basis, sigma2_eta=1)
 
 # Simulation
 T = 35
-process_data, obs_data = model.simulate(key, T=T, nobs=50)
+alpha_0 = jnp.ones(process_basis.nbasis).at[1].set(30.0).at[0].set(15.0)
+process_data, obs_data = model.simulate(key, T=T, nobs=50,alpha_0=alpha_0)
 
 dpi = 200
 width = 576 / dpi
@@ -49,7 +53,7 @@ height = 480 / dpi
 gif_st_grid(process_data, "site/process.gif", width=width, height=height)
 gif_st_pts(obs_data, "site/obs.gif", width=width, height=height)
 model.kernel.save_plot("site/kernel.png", width=width, height=height)
-
+ 
 from PIL import Image, ImageSequence
 
 gif1 = Image.open('site/process.gif')

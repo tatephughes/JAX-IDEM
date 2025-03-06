@@ -30,11 +30,11 @@ We will start by simulating from a simple IDEM with only three time steps. We ca
 # | output: false
 
 import jax
+jax.config.update('jax_platform_name', 'cpu')
 import jax.random as rand
 import jax.numpy as jnp
 
 jax.config.update('jax_enable_x64', True)
-
 import matplotlib.pyplot as plt
 
 import sys
@@ -58,6 +58,7 @@ key = jax.random.PRNGKey(2)
 keys = rand.split(key, 3)
 
 process_basis = utilities.place_basis(nres=2, min_knot_num=3)
+#process_basis = utilities.place_cosine_basis(N=9)
 nbasis = process_basis.nbasis
 truemodel = idem.gen_example_idem(
     keys[0], k_spat_inv=True,
@@ -69,7 +70,7 @@ truemodel = idem.gen_example_idem(
 
 alpha_0 = jnp.zeros(nbasis).at[81].set(10)
 
-process_data, obs_data = truemodel.simulate(nobs=100, T=9, key=keys[1], alpha_0 = alpha_0)
+process_data, obs_data = truemodel.simulate(nobs=200, T=9, key=keys[1], alpha_0 = alpha_0)
 
 process_data.save_plot("true_process.png")
 obs_data.save_plot("synthetic_data.png")
@@ -105,7 +106,9 @@ k = (
 # This is the kind of kernel used by ```gen_example_idem```
 kernel = idem.param_exp_kernel(K_basis, k)
 
-model0 = idem.IDEM(process_basis = process_basis,
+process_basis0 = utilities.place_cosine_basis(N=9)
+
+model0 = idem.IDEM(process_basis = process_basis0,
                    kernel=kernel,
                    process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
                                                         jnp.array([41, 41])),
@@ -136,17 +139,17 @@ model1, params = model0.fit_kalman_filter(obs_data=obs_data,
                                        X_obs=X_obs, 
                                        optimizer=optax.adamax(1e-1),
                                        debug=False,
-                                       max_its=1000,
+                                       max_its=100,
                                        eps = 1e-5)
 print(model1.kernel.params)
 print(truemodel.kernel.params)
 ```
 
 ```{python}
-ll, ms, Ps, _, _ = model1.filter(obs_data, X_obs=X_obs)
+ll, ms, Ps, _, _ = model1.kalman_filter(obs_data, X_obs=X_obs)
 #ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
 
-data = idem.basis_params_to_st_data(ms, truemodel.process_basis, truemodel.process_grid)
+data = idem.basis_params_to_st_data(ms, model0.process_basis, model0.process_grid)
 
 data.show_plot()
 print(ll)

@@ -65,7 +65,9 @@ k = (
 )
 kernel = idem.param_exp_kernel(K_basis, k)
 
-model0 = idem.IDEM(process_basis=process_basis,
+process_basis0 = utilities.place_cosine_basis(N=15)
+
+model0 = idem.IDEM(process_basis=process_basis0,
                    kernel=kernel,
                    process_grid=utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
                                                       jnp.array([41, 41])),
@@ -81,22 +83,26 @@ X_obs_tuple = [X_obs for _ in range(len(obs_data.z))]
 start_time = time.time()
 model1, params = model0.fit_sqrt_filter(obs_data=obs_data,
                                         X_obs=X_obs,
-                                        optimizer=optax.adamax(1e-2),
+                                        optimizer=optax.adam(1e-2),
                                         debug=False,
-                                        max_its=100,
+                                        max_its=1000,
                                         likelihood='full',
                                         loading_bar=True,
                                         eps=None)
 end_time = time.time()
 print(f"Time Elapsed is {end_time - start_time}")
 
-ll, ms, Ps, _, _ = truemodel.filter(obs_data, X_obs=X_obs)
+ll, ms, Ps, _, _ = model1.sqrt_filter(obs_data, X_obs=X_obs)
 # ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
 
+filt_data = idem.basis_params_to_st_data(ms, model1.process_basis, model1.process_grid)
+process_data.save_plot('true_proc.png')
+filt_data.save_plot('filt_proc.png')
+
 print("\nFitted parameters are: \n", idem.format_params(params))
-print(f"with likelihood {model1.filter(obs_data, X_obs=X_obs)[0].tolist()}")
+print(f"with likelihood {model1.sqrt_filter(obs_data, X_obs=X_obs)[0].tolist()}")
 print("\nTrue parameters are: \n", idem.format_params(trueparams))
-print(f"with likelihood {truemodel.filter(obs_data, X_obs=X_obs)[0].tolist()}")
+print(f"with likelihood {truemodel.sqrt_filter(obs_data, X_obs=X_obs)[0].tolist()}")
 
 truemodel.kernel.save_plot('truekernel.png')
 model1.kernel.save_plot('fitkernel.png')
