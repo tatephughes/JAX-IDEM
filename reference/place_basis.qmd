@@ -1,4 +1,4 @@
-# place_basis { #jax_idem.utilities.place_basis }
+# place_basis { #jaxidem.utilities.place_basis }
 
 ```python
 utilities.place_basis(

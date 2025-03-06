@@ -1,45 +1,63 @@
-# information_filter { #jax_idem.filter_smoother_functions.information_filter }
+# information_filter { #jaxidem.filter_smoother_functions.information_filter }
 
 ```python
 filter_smoother_functions.information_filter(
     nu_0,
     Q_0,
     M,
-    PHI_obs_tuple,
+    PHI_tree,
     Sigma_eta,
-    Sigma_eps_tuple,
-    ztildes,
-    full_likelihood=False,
+    Sigma_eps_tree,
+    zs_tree,
+    likelihood='partial',
 )
 ```
 
-    Applies the Information Filter to a PyTree of data.
+WARNING: CURRENTLY NOT WORKING CORRECTLY
 
-##     Parameters {.doc-section .doc-section-----parameters}
+Applies the information Filter (inverse-Kalman filter) to a PyTree of data points at a number of times.
+Unlike the Kalman filters, this allows for missing data and data changing shape, by taking a PyTree (most likely a list) of observations at each time (which can be jagged).
+For the standard Kalman filter with uncorrelated errors, see [`kalman_filter`](/reference/kalman_filter.qmd).
+For the square-root Kalman filter, [`sqrt_filter_indep`](/reference/sqrt_filter_indep.qmd).
 
-    nu_0: ArrayLike (r,)
-        The initial information of the process vector
-    Q_0: ArrayLike (r,r)
-        The initial information matrix of the process vector
-    M: ArrayLike (r,r)
-        The transition matrix of the process
-    PHI_obs_tuple: Pytree[ArrayLike (r,n)]
-        The process-to-data matrix
-    Sigma_eta: ArrayLike (r,r)
-        The Covariance matrix of the process noise
-    sigma2_eps_tuple: Pytree[ArrayLike (n_t,n_t)]
-        The Covariance matrix of the observation noise
-    ztildes: ArrayLike
-        The observed data to be filtered, in matrix format
-    full_likelihood: bool
-        Whether to include constant terms in the likelihood computation
+Computes posterior information vectors and information matrices for a system
+$$\begin{split}
+    \mathbf Z_t &= \Phi \boldsymbol\alpha_t + \boldsymbol \epsilon_t, \quad t = 1,\dots, T,\\
+    \boldsymbol \alpha_{t+1} &= M\boldsymbol \alpha_t + \boldsymbol\eta_t,\quad t = 0,2,\dots, T-1,\\
+\end{split}
+$$
+with initial 'priors'
+$$\begin{split}
+    \boldsymbol \alpha_{0} \sim \mathcal N(\mathbf m_0, \mathbf P_0),\\
+\end{split}
+$$
+where
+$$\begin{split}
+    \boldsymbol \epsilon_t \overset{\mathrm{iid}}{\sim} \mathcal N(0, \Sigma_\epsilon),
+    \boldsymbol \eta_t \overset{\mathrm{iid}}{\sim} \mathcal N(0, \Sigma_\eta).
+\end{split}
+$$
 
-##     Returns {.doc-section .doc-section-----returns}
+## Parameters {.doc-section .doc-section-parameters}
 
-    A tuple containing:
-        ll: The log (data) likelihood of the data
-        nus: (T,r) The posterior information vectors $
-u_{t \mid t}$ of the
-    process given the data 1:t
-        Qs: (T,r,r) The posterior information matrices $Q_{t \mid t}$ of
-    the process given the data 1:t
+| Name           | Type      | Description                                                                                                            | Default     |
+|----------------|-----------|------------------------------------------------------------------------------------------------------------------------|-------------|
+| nu_0           | ArrayLike | The initial information vector of the process vector                                                                   | _required_  |
+| Q_0            | ArrayLike | The initial information matrix of the process vector                                                                   | _required_  |
+| M              | ArrayLike | The transition matrix of the process                                                                                   | _required_  |
+| PHI_tree       | tuple     | The process-to-data matrices at each time                                                                              | _required_  |
+| Sigma_eta      | ArrayLike | The variance of the process noise                                                                                      | _required_  |
+| Sigma_eps_tree | tuple     | The variance matrices of the observation noise                                                                         | _required_  |
+| zs_tree        | tuple     | The observed data to be filtered                                                                                       | _required_  |
+| likelihood     | str       | (STATIC) The mode to compute the likelihood ('full' with constant terms, 'partial' without constant terms, or 'none'.) | `'partial'` |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name    | Type                   | Description                                                                              |
+|---------|------------------------|------------------------------------------------------------------------------------------|
+| ll      | ArrayLike(1)           | The log (data) likelihood of the data                                                    |
+| nus     | ArrayLike(T, r)        | The posterior means $m_{t \mid t}$ of the process given the data 1:t                     |
+| Qs      | ArrayLike(T, r, r)     | The posterior covariance matrices $P_{t \mid t}$ of the process given the data 1:t       |
+| nupreds | ArrayLike(T - 1, r)    | The predicted next-step means $m_{t \mid t-1}$ of the process given the data 1:t-1       |
+| Qpreds  | ArrayLike(T - 1, r, r) | The predicted next-step covariances $P_{t \mid t-1}$ of the process given the data 1:t-1 |
+| Ks      | ArrayLike(T, n, r)     | The Kalman Gains at each time step                                                       |

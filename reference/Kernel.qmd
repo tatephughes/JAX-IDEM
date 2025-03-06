@@ -1,7 +1,7 @@
-# Kernel { #jax_idem.IDEM.Kernel }
+# Kernel { #jaxidem.idem.Kernel }
 
 ```python
-IDEM.Kernel(self, function, basis=None, params=None, form='expansion')
+idem.Kernel(self, function, basis=None, params=None, form='expansion')
 ```
 
 Generic class defining a kernel, or a basis expansion of a kernel with
@@ -11,21 +11,21 @@ its parameters.
 
 | Name | Description |
 | --- | --- |
-| [save_fig](#jax_idem.IDEM.Kernel.save_fig) | Saves a plot of the direction of the kernel. |
-| [show_plot](#jax_idem.IDEM.Kernel.show_plot) | Shows a plot of the direction of the kernel. |
+| [save_plot](#jaxidem.idem.Kernel.save_plot) | Saves a plot of the direction of the kernel. |
+| [show_plot](#jaxidem.idem.Kernel.show_plot) | Shows a plot of the direction of the kernel. |
 
-### save_fig { #jax_idem.IDEM.Kernel.save_fig }
+### save_plot { #jaxidem.idem.Kernel.save_plot }
 
 ```python
-IDEM.Kernel.save_fig(name='kernel.png', width=5, height=4, dpi=300)
+idem.Kernel.save_plot(filename, width=6, height=4, dpi=300, title=None)
 ```
 
 Saves a plot of the direction of the kernel.
 
-### show_plot { #jax_idem.IDEM.Kernel.show_plot }
+### show_plot { #jaxidem.idem.Kernel.show_plot }
 
 ```python
-IDEM.Kernel.show_plot(width=5, height=4)
+idem.Kernel.show_plot(width=5, height=4)
 ```
 
 Shows a plot of the direction of the kernel.

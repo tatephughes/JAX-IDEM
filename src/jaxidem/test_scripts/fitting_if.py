@@ -93,7 +93,7 @@ model1, params = model0.fit_information_filter(obs_data=obs_data,
 end_time = time.time()
 print(f"Time Elapsed is {end_time - start_time}")
 
-ll, ms, Ps, _, _ = truemodel.filter(obs_data, X_obs=X_obs)
+ll, ms, Ps, _, _ = truemodel.kalman_filter(obs_data, X_obs=X_obs)
 # ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
 
 print("\nFitted parameters are: \n", idem.format_params(params))

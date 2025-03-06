@@ -1,4 +1,4 @@
-# bisquare { #jax_idem.utilities.bisquare }
+# bisquare { #jaxidem.utilities.bisquare }
 
 ```python
 utilities.bisquare(s, params)

@@ -158,23 +158,23 @@ ul.task-list li input[type="checkbox"] {
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
-<td><a href="../reference/kalman_filter.html#jax_idem.filter_smoother_functions.kalman_filter">kalman_filter</a></td>
+<td><a href="../reference/kalman_filter.html#jaxidem.filter_smoother_functions.kalman_filter">kalman_filter</a></td>
 <td>Applies the Kalman Filter to a wide-format matrix of data.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/kalman_filter_indep.html#jax_idem.filter_smoother_functions.kalman_filter_indep">kalman_filter_indep</a></td>
+<td><a href="../reference/kalman_filter_indep.html#jaxidem.filter_smoother_functions.kalman_filter_indep">kalman_filter_indep</a></td>
 <td>Applies the Kalman Filter to a wide-format matrix of data.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/information_filter.html#jax_idem.filter_smoother_functions.information_filter">information_filter</a></td>
-<td>Applies the Information Filter to a PyTree of data.</td>
+<td><a href="../reference/information_filter.html#jaxidem.filter_smoother_functions.information_filter">information_filter</a></td>
+<td>WARNING: CURRENTLY NOT WORKING CORRECTLY</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/information_filter_indep.html#jax_idem.filter_smoother_functions.information_filter_indep">information_filter_indep</a></td>
-<td>Applies the Information Filter to a PyTree of data.</td>
+<td><a href="../reference/information_filter_indep.html#jaxidem.filter_smoother_functions.information_filter_indep">information_filter_indep</a></td>
+<td>Applies the information Filter (inverse-Kalman filter) to a PyTree of data points at a number of times.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/kalman_smoother.html#jax_idem.filter_smoother_functions.kalman_smoother">kalman_smoother</a></td>
+<td><a href="../reference/kalman_smoother.html#jaxidem.filter_smoother_functions.kalman_smoother">kalman_smoother</a></td>
 <td>NOT FULLY IMPLEMENTED</td>
 </tr>
 </tbody>
@@ -186,27 +186,27 @@ ul.task-list li input[type="checkbox"] {
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
-<td><a href="../reference/Kernel.html#jax_idem.IDEM.Kernel">Kernel</a></td>
+<td><a href="../reference/Kernel.html#jaxidem.idem.Kernel">Kernel</a></td>
 <td>Generic class defining a kernel, or a basis expansion of a kernel with</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/IDEM_Model.html#jax_idem.IDEM.IDEM_Model">IDEM_Model</a></td>
+<td><a href="../reference/IDEM.html#jaxidem.idem.IDEM">IDEM</a></td>
 <td>The Integro-differential Equation Model.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/param_exp_kernel.html#jax_idem.IDEM.param_exp_kernel">param_exp_kernel</a></td>
+<td><a href="../reference/param_exp_kernel.html#jaxidem.idem.param_exp_kernel">param_exp_kernel</a></td>
 <td>Creates a kernel in the style of AZM’s R-IDE package</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/simIDEM.html#jax_idem.IDEM.simIDEM">simIDEM</a></td>
+<td><a href="../reference/sim_idem.html#jaxidem.idem.sim_idem">sim_idem</a></td>
 <td>Simulates from a IDE model.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/gen_example_idem.html#jax_idem.IDEM.gen_example_idem">gen_example_idem</a></td>
+<td><a href="../reference/gen_example_idem.html#jaxidem.idem.gen_example_idem">gen_example_idem</a></td>
 <td>Creates an example IDE model, with randomly generated kernel on the</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/basis_params_to_st_data.html#jax_idem.IDEM.basis_params_to_st_data">basis_params_to_st_data</a></td>
+<td><a href="../reference/basis_params_to_st_data.html#jaxidem.idem.basis_params_to_st_data">basis_params_to_st_data</a></td>
 <td>Converts the process expansion coefficients back into the original process</td>
 </tr>
 </tbody>
@@ -218,31 +218,31 @@ ul.task-list li input[type="checkbox"] {
 <table class="caption-top table">
 <tbody>
 <tr class="odd">
-<td><a href="../reference/Grid.html#jax_idem.utilities.Grid">Grid</a></td>
+<td><a href="../reference/Grid.html#jaxidem.utilities.Grid">Grid</a></td>
 <td>A simple grid class to store (currently exclusively regular) grids, along</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/Basis.html#jax_idem.utilities.Basis">Basis</a></td>
+<td><a href="../reference/Basis.html#jaxidem.utilities.Basis">Basis</a></td>
 <td>A simple class for spatial basis expansions.</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/create_grid.html#jax_idem.utilities.create_grid">create_grid</a></td>
+<td><a href="../reference/create_grid.html#jaxidem.utilities.create_grid">create_grid</a></td>
 <td>Creates an n-dimensional grid based on the given bounds and deltas.</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/outer_op.html#jax_idem.utilities.outer_op">outer_op</a></td>
+<td><a href="../reference/outer_op.html#jaxidem.utilities.outer_op">outer_op</a></td>
 <td>Computes the outer operation of two vectors, a generalisation of the outer</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/bisquare.html#jax_idem.utilities.bisquare">bisquare</a></td>
+<td><a href="../reference/bisquare.html#jaxidem.utilities.bisquare">bisquare</a></td>
 <td>Generic bisquare function</td>
 </tr>
 <tr class="even">
-<td><a href="../reference/place_basis.html#jax_idem.utilities.place_basis">place_basis</a></td>
+<td><a href="../reference/place_basis.html#jaxidem.utilities.place_basis">place_basis</a></td>
 <td>Distributes knots (centroids) and scales for basis functions over a</td>
 </tr>
 <tr class="odd">
-<td><a href="../reference/st_data.html#jax_idem.utilities.st_data">st_data</a></td>
+<td><a href="../reference/st_data.html#jaxidem.utilities.st_data">st_data</a></td>
 <td>For storing spatio-temporal data and appropriate methods for plotting such</td>
 </tr>
 </tbody>

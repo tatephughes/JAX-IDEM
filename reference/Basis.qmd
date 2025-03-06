@@ -1,4 +1,4 @@
-# Basis { #jax_idem.utilities.Basis }
+# Basis { #jaxidem.utilities.Basis }
 
 ```python
 utilities.Basis()

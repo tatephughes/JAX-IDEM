@@ -6,11 +6,11 @@ Functions to apply Kalman/information filters, smoothers and so on.
 
 | | |
 | --- | --- |
-| [kalman_filter](kalman_filter.qmd#jax_idem.filter_smoother_functions.kalman_filter) | Applies the Kalman Filter to a wide-format matrix of data. |
-| [kalman_filter_indep](kalman_filter_indep.qmd#jax_idem.filter_smoother_functions.kalman_filter_indep) | Applies the Kalman Filter to a wide-format matrix of data. |
-| [information_filter](information_filter.qmd#jax_idem.filter_smoother_functions.information_filter) |     Applies the Information Filter to a PyTree of data. |
-| [information_filter_indep](information_filter_indep.qmd#jax_idem.filter_smoother_functions.information_filter_indep) |     Applies the Information Filter to a PyTree of data. |
-| [kalman_smoother](kalman_smoother.qmd#jax_idem.filter_smoother_functions.kalman_smoother) | NOT FULLY IMPLEMENTED |
+| [kalman_filter](kalman_filter.qmd#jaxidem.filter_smoother_functions.kalman_filter) | Applies the Kalman Filter to a wide-format matrix of data. |
+| [kalman_filter_indep](kalman_filter_indep.qmd#jaxidem.filter_smoother_functions.kalman_filter_indep) | Applies the Kalman Filter to a wide-format matrix of data. |
+| [information_filter](information_filter.qmd#jaxidem.filter_smoother_functions.information_filter) | WARNING: CURRENTLY NOT WORKING CORRECTLY |
+| [information_filter_indep](information_filter_indep.qmd#jaxidem.filter_smoother_functions.information_filter_indep) | Applies the information Filter (inverse-Kalman filter) to a PyTree of data points at a number of times. |
+| [kalman_smoother](kalman_smoother.qmd#jaxidem.filter_smoother_functions.kalman_smoother) | NOT FULLY IMPLEMENTED |
 
 ## Integro-Difference Models in JAX
 
@@ -18,12 +18,12 @@ Classes and functions to perform simulation, fitting, filtering and prediction o
 
 | | |
 | --- | --- |
-| [Kernel](Kernel.qmd#jax_idem.IDEM.Kernel) | Generic class defining a kernel, or a basis expansion of a kernel with |
-| [IDEM_Model](IDEM_Model.qmd#jax_idem.IDEM.IDEM_Model) | The Integro-differential Equation Model. |
-| [param_exp_kernel](param_exp_kernel.qmd#jax_idem.IDEM.param_exp_kernel) | Creates a kernel in the style of AZM's R-IDE package |
-| [simIDEM](simIDEM.qmd#jax_idem.IDEM.simIDEM) | Simulates from a IDE model. |
-| [gen_example_idem](gen_example_idem.qmd#jax_idem.IDEM.gen_example_idem) | Creates an example IDE model, with randomly generated kernel on the |
-| [basis_params_to_st_data](basis_params_to_st_data.qmd#jax_idem.IDEM.basis_params_to_st_data) | Converts the process expansion coefficients back into the original process |
+| [Kernel](Kernel.qmd#jaxidem.idem.Kernel) | Generic class defining a kernel, or a basis expansion of a kernel with |
+| [IDEM](IDEM.qmd#jaxidem.idem.IDEM) | The Integro-differential Equation Model. |
+| [param_exp_kernel](param_exp_kernel.qmd#jaxidem.idem.param_exp_kernel) | Creates a kernel in the style of AZM's R-IDE package |
+| [sim_idem](sim_idem.qmd#jaxidem.idem.sim_idem) | Simulates from a IDE model. |
+| [gen_example_idem](gen_example_idem.qmd#jaxidem.idem.gen_example_idem) | Creates an example IDE model, with randomly generated kernel on the |
+| [basis_params_to_st_data](basis_params_to_st_data.qmd#jaxidem.idem.basis_params_to_st_data) | Converts the process expansion coefficients back into the original process |
 
 ## Utilties
 
@@ -31,10 +31,10 @@ General classes and functions used to supplement the main package
 
 | | |
 | --- | --- |
-| [Grid](Grid.qmd#jax_idem.utilities.Grid) | A simple grid class to store (currently exclusively regular) grids, along |
-| [Basis](Basis.qmd#jax_idem.utilities.Basis) | A simple class for spatial basis expansions. |
-| [create_grid](create_grid.qmd#jax_idem.utilities.create_grid) | Creates an n-dimensional grid based on the given bounds and deltas. |
-| [outer_op](outer_op.qmd#jax_idem.utilities.outer_op) | Computes the outer operation of two vectors, a generalisation of the outer |
-| [bisquare](bisquare.qmd#jax_idem.utilities.bisquare) | Generic bisquare function |
-| [place_basis](place_basis.qmd#jax_idem.utilities.place_basis) | Distributes knots (centroids) and scales for basis functions over a |
-| [st_data](st_data.qmd#jax_idem.utilities.st_data) | For storing spatio-temporal data and appropriate methods for plotting such |
+| [Grid](Grid.qmd#jaxidem.utilities.Grid) | A simple grid class to store (currently exclusively regular) grids, along |
+| [Basis](Basis.qmd#jaxidem.utilities.Basis) | A simple class for spatial basis expansions. |
+| [create_grid](create_grid.qmd#jaxidem.utilities.create_grid) | Creates an n-dimensional grid based on the given bounds and deltas. |
+| [outer_op](outer_op.qmd#jaxidem.utilities.outer_op) | Computes the outer operation of two vectors, a generalisation of the outer |
+| [bisquare](bisquare.qmd#jaxidem.utilities.bisquare) | Generic bisquare function |
+| [place_basis](place_basis.qmd#jaxidem.utilities.place_basis) | Distributes knots (centroids) and scales for basis functions over a |
+| [st_data](st_data.qmd#jaxidem.utilities.st_data) | For storing spatio-temporal data and appropriate methods for plotting such |

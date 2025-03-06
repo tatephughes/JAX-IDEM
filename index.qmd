@@ -22,19 +22,13 @@ bibliography: site/Bibliography.bib
 import sys
 import os
 sys.path.append(os.path.abspath('src/jaxidem'))
-
 import jax
-import importlib
+jax.config.update('jax_platform_name', 'cpu')
 import utilities
 import idem
-
-importlib.reload(utilities)
-importlib.reload(idem)
-
 from utilities import *
 from idem import *
 import warnings
-
 import matplotlib.pyplot as plt
 
 seed = 4

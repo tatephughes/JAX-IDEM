@@ -1,4 +1,4 @@
-# st_data { #jax_idem.utilities.st_data }
+# st_data { #jaxidem.utilities.st_data }
 
 ```python
 utilities.st_data(self, x, y, t, z)
@@ -11,9 +11,10 @@ data, and converting between long and wide formats.
 
 | Name | Description |
 | --- | --- |
-| [as_wide](#jax_idem.utilities.st_data.as_wide) | Gives the data in wide format. Any missing data will be represented in |
+| [as_wide](#jaxidem.utilities.st_data.as_wide) | Gives the data in wide format. Any missing data will be represented in |
+| [save_gif](#jaxidem.utilities.st_data.save_gif) | UNIMPLEMENTED |
 
-### as_wide { #jax_idem.utilities.st_data.as_wide }
+### as_wide { #jaxidem.utilities.st_data.as_wide }
 
 ```python
 utilities.st_data.as_wide()
@@ -29,3 +30,11 @@ the returned matris as NaN.
 |        | A dictionary containing the x coordinates and y coordinates as JAX |               |
 |        | arrays, and a matrix corresponding to the value of the process at  |               |
 |        | each time point (columns) and spatial point (rows).                |               |
+
+### save_gif { #jaxidem.utilities.st_data.save_gif }
+
+```python
+utilities.st_data.save_gif()
+```
+
+UNIMPLEMENTED

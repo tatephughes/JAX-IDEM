@@ -1,21 +1,18 @@
 import os
 import sys
-import matplotlib.pyplot as plt
 import jax.numpy as jnp
 import jax.random as rand
 import time
 import optax
-import numpy as np
-import timeit
 import importlib
 import jax
-jax.config.update('jax_enable_x64', False)
-jax.config.update('jax_platform_name', 'gpu')
 sys.path.append(os.path.abspath('../'))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import filter_smoother_functions as fsf
 import utilities
 import idem
+jax.config.update('jax_enable_x64', False)
+jax.config.update('jax_platform_name', 'gpu')
 
 print(f"Current working directory: {os.getcwd()}")
 

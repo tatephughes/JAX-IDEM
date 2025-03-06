@@ -24,11 +24,13 @@ dependencies = [
     "optax>=0.2.4",
     "plotly>=5.24.1",
     "pyqt5>=5.15.11",
+    "pytest>=8.3.5",
     "quarto-cli==1.6.39",
     "quartodoc>=0.9.1",
     "ruff>=0.9.0",
     "seaborn>=0.13.2",
     "setuptools>=75.3.0",
+    "tensorflow>=2.18.0",
     "tqdm>=4.67.1",
 ]
 

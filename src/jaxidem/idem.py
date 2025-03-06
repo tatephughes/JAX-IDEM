@@ -21,14 +21,7 @@ from functools import partial
 import warnings
 
 # In-Module imports
-from utilities import (
-    create_grid,
-    place_basis,
-    outer_op,
-    Basis,
-    Grid,
-    st_data
-)
+from utilities import create_grid, place_basis, outer_op, Basis, Grid, st_data
 
 from filter_smoother_functions import (
     kalman_filter,
@@ -52,23 +45,21 @@ class Kernel:
         function: Callable,
         basis: tuple = None,
         params: tuple = None,
-        form: str = "expansion"
+        form: str = "expansion",
     ):
         self.basis = basis
         self.params = params
         self.function = function
         self.form = form
 
-    def show_plot(self,
-                  width=5,
-                  height=4):
+    def show_plot(self, width=5, height=4):
         """Shows a plot of the direction of the kernel."""
 
         if self.form != "expansion":
             raise Exception("""Kernel graphs only available for kernels formed
                               with knot-based basis functions""")
         else:
-            with plt.style.context('seaborn-v0_8-dark-palette'):
+            with plt.style.context("seaborn-v0_8-dark-palette"):
                 fig, axes = plt.subplots(figsize=(width, height))
                 bounds = jnp.array([[0, 1], [0, 1]])
                 grid = create_grid(bounds, jnp.array([10, 10])).coords
@@ -85,8 +76,7 @@ class Kernel:
 
                 offsets = vecoffset(grid)
 
-                axes.quiver(grid[:, 0], grid[:, 1],
-                            offsets[:, 0], offsets[:, 1])
+                axes.quiver(grid[:, 0], grid[:, 1], offsets[:, 0], offsets[:, 1])
                 # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
 
                 axes.set_xticks([])
@@ -96,15 +86,10 @@ class Kernel:
 
                 fig.show()
 
-    def save_plot(self,
-                  filename,
-                  width=6,
-                  height=4,
-                  dpi=300,
-                  title=None):
+    def save_plot(self, filename, width=6, height=4, dpi=300, title=None):
         """Saves a plot of the direction of the kernel."""
 
-        with plt.style.context('seaborn-v0_8-dark-palette'):
+        with plt.style.context("seaborn-v0_8-dark-palette"):
             fig, axes = plt.subplots(figsize=(width, height))
             bounds = jnp.array([[0, 1], [0, 1]])
             grid = create_grid(bounds, jnp.array([10, 10])).coords
@@ -121,14 +106,13 @@ class Kernel:
 
             offsets = vecoffset(grid)
 
-            axes.quiver(grid[:, 0], grid[:, 1],
-                        offsets[:, 0], offsets[:, 1])
+            axes.quiver(grid[:, 0], grid[:, 1], offsets[:, 0], offsets[:, 1])
             # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
 
             axes.set_xticks([])
             axes.set_yticks([])
 
-            if title != None:
+            if title is not None:
                 axes.set_title(title)
 
             fig.savefig(filename, dpi=dpi)
@@ -154,8 +138,7 @@ def param_exp_kernel(K_basis: tuple, k: tuple):
             ),
         )
 
-        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2))
-                                  / theta[1])
+        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
 
     return Kernel(basis=K_basis, params=k, function=kernel)
 
@@ -195,7 +178,7 @@ class IDEM:
         nobs=100,
         T=9,
         int_grid: Grid = create_grid(bounds, ngrids),
-        alpha_0=None
+        alpha_0=None,
     ):
         """
         Simulates from the model, using the jit-able function sim_idem.
@@ -254,7 +237,7 @@ class IDEM:
             if fixed_data:
                 obs_locs = jnp.column_stack(
                     [
-                        jnp.repeat(jnp.arange(T), nobs)+1,
+                        jnp.repeat(jnp.arange(T), nobs) + 1,
                         jnp.tile(
                             rand.uniform(
                                 keys[0],
@@ -269,7 +252,7 @@ class IDEM:
             else:
                 obs_locs = jnp.column_stack(
                     [
-                        jnp.repeat(jnp.arange(T), nobs)+1,
+                        jnp.repeat(jnp.arange(T), nobs) + 1,
                         rand.uniform(
                             keys[0],
                             shape=(T * nobs, 2),
@@ -287,19 +270,19 @@ class IDEM:
             raise ValueError("The times in obs_locs does not match inputted T")
 
         obs_locs_tree = jax.tree.map(
-            lambda t: obs_locs[jnp.where(
-                obs_locs[:, 0] == t)][:, 1:], list(times)
+            lambda t: obs_locs[jnp.where(obs_locs[:, 0] == t)][:, 1:], list(times)
         )
         PHI_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
+        # really should consider exploring a sparse matrix solution!
+        PHI_obs = jax.scipy.linalg.block_diag(*PHI_tree)
 
         nbasis = self.process_basis.nbasis
 
         if alpha_0 is None:
             alpha_0 = jax.random.multivariate_normal(
-                keys[1], jnp.zeros(nbasis), 0.1*jnp.eye(nbasis))
+                keys[1], jnp.zeros(nbasis), 0.1 * jnp.eye(nbasis)
+            )
 
-        # really should consider exploring a sparse matrix solution!
-        PHI_obs = jax.scipy.linalg.block_diag(*PHI_tree)
 
         process_vals, obs_vals = sim_idem(
             key=keys[2],
@@ -313,7 +296,7 @@ class IDEM:
             process_grid=process_grid,
             int_grid=int_grid,
             sigma2_eps=sigma2_eps,
-            sigma2_eta=sigma2_eta
+            sigma2_eta=sigma2_eta,
         )
 
         # Create st_data object
@@ -324,12 +307,11 @@ class IDEM:
                 lambda i: jnp.column_stack(
                     [jnp.tile(i, process_grids[i].shape[0]), process_grids[i]]
                 ),
-                jnp.arange(T)+1,
+                jnp.arange(T) + 1,
             )
         )
 
-        pdata = jnp.column_stack(
-            [t_process_locs, jnp.concatenate(process_vals)])
+        pdata = jnp.column_stack([t_process_locs, jnp.concatenate(process_vals)])
 
         process_data = st_data(
             x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3]
@@ -341,13 +323,13 @@ class IDEM:
 
         return (process_data, obs_data)
 
-    def filter(self, obs_data: st_data, X_obs, m_0=None, P_0=None, likelihood='full'):
+    def kalman_filter(self, obs_data: st_data, X_obs, m_0=None, P_0=None, likelihood="full"):
         """
         Runs the Kalman filter on the inputted data.
         """
 
         obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
+        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
 
         nbasis = self.process_basis.nbasis
 
@@ -359,35 +341,29 @@ class IDEM:
         M = self.M
         PHI_obs = self.process_basis.mfun(obs_locs)
         nbasis = self.process_basis.nbasis
-        nobs = obs_locs.shape[0]
 
         sigma2_eta = self.sigma2_eta
         sigma2_eps = self.sigma2_eps
 
         beta = self.beta
 
-        ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
+        ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
         ll, ms, Ps, mpreds, Ppreds, Ks = fsf.kalman_filter_indep(
-            m_0,
-            P_0,
-            M,
-            PHI_obs,
-            sigma2_eta,
-            sigma2_eps,
-            ztildes,
-            likelihood=likelihood
+            m_0, P_0, M, PHI_obs, sigma2_eta, sigma2_eps, ztildes, likelihood=likelihood
         )
 
         return (ll, ms, Ps, mpreds, Ppreds)
 
-    def sqrt_filter(self, obs_data: st_data, X_obs, m_0=None, U_0=None, likelihood='full'):
+    def sqrt_filter(
+        self, obs_data: st_data, X_obs, m_0=None, U_0=None, likelihood="full"
+    ):
         """
         Runs the Kalman filter on the inputted data.
         """
 
         obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
+        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
 
         nbasis = self.process_basis.nbasis
 
@@ -399,35 +375,26 @@ class IDEM:
         M = self.M
         PHI_obs = self.process_basis.mfun(obs_locs)
         nbasis = self.process_basis.nbasis
-        nobs = obs_locs.shape[0]
 
         sigma2_eta = self.sigma2_eta
         sigma2_eps = self.sigma2_eps
 
         beta = self.beta
 
-        ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
+        ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
         ll, ms, Us, mpreds, Upreds, Ks = fsf.sqrt_filter_indep(
-            m_0,
-            U_0,
-            M,
-            PHI_obs,
-            sigma2_eta,
-            sigma2_eps,
-            ztildes,
-            likelihood=likelihood
+            m_0, U_0, M, PHI_obs, sigma2_eta, sigma2_eps, ztildes, likelihood=likelihood
         )
 
         return (ll, ms, Us, mpreds, Upreds)
 
-    def filter_information(
+    def information_filter(
         self,
         obs_data: st_data,
         nu_0=None,
         Q_0=None,
     ):
-
         nbasis = self.process_basis.nbasis
 
         if nu_0 is None:
@@ -437,14 +404,12 @@ class IDEM:
 
         unique_times = jnp.unique(obs_data.t)
 
-        obs_locs = jnp.column_stack(
-            jnp.column_stack((obs_data.x, obs_data.y))).T
-        obs_locs_tuple = [obs_locs[obs_data.t == t][:, 0:]
-                          for t in unique_times]
+        obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
+        obs_locs_tuple = [obs_locs[obs_data.t == t][:, 0:] for t in unique_times]
 
-        X_obs_tuple = jax.tree.map(lambda locs:
-                                   jnp.column_stack((jnp.ones(len(locs)),
-                                                     locs)), obs_locs_tuple)
+        X_obs_tuple = jax.tree.map(
+            lambda locs: jnp.column_stack((jnp.ones(len(locs)), locs)), obs_locs_tuple
+        )
 
         if unique_times.shape[0] <= 1:
             raise ValueError(
@@ -454,8 +419,10 @@ class IDEM:
 
         PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
 
-        ztildes = [obs_data.z[obs_data.t == t] -
-                   X_obs_tuple[i] @ self.beta for i, t in enumerate(unique_times)]
+        ztildes = [
+            obs_data.z[obs_data.t == t] - X_obs_tuple[i] @ self.beta
+            for i, t in enumerate(unique_times)
+        ]
 
         ll, nus, Qs, nupreds, Qpreds = fsf.information_filter_indep(
             nu_0,
@@ -465,13 +432,13 @@ class IDEM:
             self.sigma2_eta,
             self.sigma2_eps,
             ztildes,
-            likelihood='full'
+            likelihood="full",
         )
 
         return (ll, nus, Qs, nupreds, Qpreds)
 
     def smooth(self, ms, Ps, mpreds, Ppreds):
-        """Runs the Kalman smoother on the """
+        """Runs the Kalman smoother on the"""
         M = self.M
         nbasis = ms[-1].shape[0]
 
@@ -480,8 +447,7 @@ class IDEM:
         return (
             jnp.vstack([jnp.flip(seq[0], axis=1), ms[-1]]),
             jnp.concatenate(
-                [jnp.flip(seq[1], axis=1), jnp.reshape(
-                    Ps[-1], (1, nbasis, nbasis))]
+                [jnp.flip(seq[1], axis=1), jnp.reshape(Ps[-1], (1, nbasis, nbasis))]
             ),
             jnp.flip(seq[2], axis=1),
         )
@@ -514,6 +480,7 @@ class IDEM:
         M: ArrayLike (r, r)
             The propegation matrix M.
         """
+
         def kernel(s, r):
             theta = (
                 ks[0] @ self.kernel.basis[0].vfun(s),
@@ -525,11 +492,9 @@ class IDEM:
                     ]
                 ),
             )
-            return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2))
-                                      / theta[1])
+            return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
 
-        K = outer_op(self.process_grid.coords,
-                     self.process_grid.coords, kernel)
+        K = outer_op(self.process_grid.coords, self.process_grid.coords, kernel)
         return (
             solve(self.GRAM, self.PHI_proc.T @ K @ self.PHI_proc)
             * self.process_grid.area**2
@@ -548,12 +513,63 @@ class IDEM:
         debug=False,
         max_its: int = 100,
         target_ll: ArrayLike = jnp.inf,
-        likelihood: str = 'partial',
+        likelihood: str = "partial",
         eps=None,
-        loading_bar=True
+        loading_bar=True,
     ):
+        """
+        Fits a new model by maximum likelihood estimation, maximizing the
+        data likelihood, computed by the standard Kalman filter, using a given
+        OPTAX optimiser.
+
+        Params
+        ----------
+        obs_data: st_data
+          The observed data, as an st_data object containing the data to be fit
+          to.
+        X_obs: ArrayLike (nobs, p)
+          Matrix of covariate data, where p is the number of covariates
+          (including a column of 1s)
+        fixed_ind: list = []
+          List of strings representing the variables to keep fixed at the value
+          in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
+          "ks2", "ks3", "ks4", "beta".
+        lower: tuple = None
+          Lower bounds on the parameters
+        upper:tuple = None
+          Upper bounds on the parameters
+        optimizer: Callable = optax.adam(1e-3)
+          Optimiser to use
+          (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
+          for available options)
+        m_0: ArrayLike = None (r,)
+          Initial mean vector for Kalman filter
+        P_0: ArrayLike = None (r,r)
+          Initial Variance matrix for Kalman filter
+        debug: bool = False
+          Whether to print diagnostics during the fitting
+        max_its: int = 100
+          Maximum number of iterations to perform (if other stopping rules
+          don't stop the loop early)
+        target_ll: ArrayLike = jnp.inf
+          Target log likelihood which, once reached, the main loop will stop
+          early
+        likelihood: str = 'partial'
+          Type of likelihood for computation ('full' or 'partial').
+        eps: float = None
+          How close two loops should be before the loop is stopped early (None
+          removes this stopping rule
+        loading_bar:bool = True
+          Displays a tqdm bar during the main loop.
+
+        Returns: tuple
+        ----------
+        A tuple containing a new, fitted idem.IDEM object and the corresponding
+        parameters.
+        """
+
         obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
+        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
         PHI_obs = self.process_basis.mfun(obs_locs)
         nbasis = self.process_basis.nbasis
 
@@ -571,11 +587,9 @@ class IDEM:
                 (
                     jnp.full(
                         self.kernel.params[0].shape,
-                        150 / (self.process_grid.area *
-                               self.process_grid.ngrid) * 10,
+                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
                     ),
-                    jnp.full(self.kernel.params[1].shape,
-                             ((bound_di / 2) ** 2) / 10),
+                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
                     jnp.full(self.kernel.params[2].shape, jnp.inf),
                     jnp.full(self.kernel.params[3].shape, jnp.inf),
                 ),
@@ -596,8 +610,7 @@ class IDEM:
                         * 0.01
                         / 1000,
                     ),
-                    jnp.full(self.kernel.params[1].shape,
-                             (bound_di / 2) ** 2 * 0.001),
+                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
                     jnp.full(self.kernel.params[2].shape, -jnp.inf),
                     jnp.full(self.kernel.params[3].shape, -jnp.inf),
                 ),
@@ -622,7 +635,12 @@ class IDEM:
 
         @jax.jit
         def objective(params):
-            (log_sigma2_eta, log_sigma2_eps, ks, beta, ) = params
+            (
+                log_sigma2_eta,
+                log_sigma2_eps,
+                ks,
+                beta,
+            ) = params
 
             logks1, logks2, ks3, ks4 = ks
 
@@ -652,7 +670,7 @@ class IDEM:
             M = self.con_M((ks1, ks2, ks3, ks4))
 
             # CHECK BELOW
-            ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
+            ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
             ll, _, _, _, _, _ = fsf.kalman_filter_indep(
                 m_0,
@@ -662,7 +680,8 @@ class IDEM:
                 sigma2_eta,
                 sigma2_eps,
                 ztildes,
-                likelihood=likelihood)
+                likelihood=likelihood,
+            )
             return -ll
 
         obj_grad = jax.grad(objective)
@@ -679,8 +698,7 @@ class IDEM:
 
         for i in progress:
             grad = obj_grad(params)
-            updates, opt_state = optimizer.update(
-                grad, opt_state, params=params)
+            updates, opt_state = optimizer.update(grad, opt_state, params=params)
             params = optax.apply_updates(params, updates)
             # params = optax.projections.projection_box(params, lower, upper)
             llprev = ll
@@ -693,7 +711,8 @@ class IDEM:
                 break
             if loading_bar:
                 progress.set_postfix_str(
-                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}")
+                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}"
+                )
             if debug & loading_bar:
                 progress.write(f"\nIteration: {i}")
                 progress.write(format_params(params))
@@ -750,12 +769,66 @@ class IDEM:
         debug=False,
         max_its: int = 100,
         target_ll: ArrayLike = jnp.inf,
-        likelihood: str = 'partial',
+        likelihood: str = "partial",
         eps=None,
-        loading_bar=True
+        loading_bar=True,
     ):
+        """
+        Fits a new model by maximum likelihood estimation, maximizing the
+        data likelihood, computed by the square-root Kalman filter, using a given
+        OPTAX optimiser.
+
+        This can be more stable than the standard Kalman, and in some situations
+        can be run in Single-precision mode
+
+        Params
+        ----------
+        obs_data: st_data
+          The observed data, as an st_data object containing the data to be fit
+          to.
+        X_obs: ArrayLike (nobs, p)
+          Matrix of covariate data, where p is the number of covariates
+          (including a column of 1s)
+        fixed_ind: list = []
+          List of strings representing the variables to keep fixed at the value
+          in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
+          "ks2", "ks3", "ks4", "beta".
+        lower: tuple = None
+          Lower bounds on the parameters
+        upper:tuple = None
+          Upper bounds on the parameters
+        optimizer: Callable = optax.adam(1e-3)
+          Optimiser to use
+          (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
+          for available options)
+        m_0: ArrayLike = None (r,)
+          Initial mean vector for Kalman filter
+        U_0: ArrayLike = None (r,r)
+          Initial square-root Variance matrix for square root filter
+        debug: bool = False
+          Whether to print diagnostics during the fitting
+        max_its: int = 100
+          Maximum number of iterations to perform (if other stopping rules
+          don't stop the loop early)
+        target_ll: ArrayLike = jnp.inf
+          Target log likelihood which, once reached, the main loop will stop
+          early
+        likelihood: str = 'partial'
+          Type of likelihood for computation ('full' or 'partial').
+        eps: float = None
+          How close two loops should be before the loop is stopped early (None
+          removes this stopping rule
+        loading_bar:bool = True
+          Displays a tqdm bar during the main loop.
+
+        Returns: tuple
+        ----------
+        A tuple containing a new, fitted idem.IDEM object and the corresponding
+        parameters.
+        """
+
         obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide['x'], obs_data_wide['y']])
+        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
         PHI_obs = self.process_basis.mfun(obs_locs)
         nbasis = self.process_basis.nbasis
 
@@ -773,11 +846,9 @@ class IDEM:
                 (
                     jnp.full(
                         self.kernel.params[0].shape,
-                        150 / (self.process_grid.area *
-                               self.process_grid.ngrid) * 10,
+                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
                     ),
-                    jnp.full(self.kernel.params[1].shape,
-                             ((bound_di / 2) ** 2) / 10),
+                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
                     jnp.full(self.kernel.params[2].shape, jnp.inf),
                     jnp.full(self.kernel.params[3].shape, jnp.inf),
                 ),
@@ -798,8 +869,7 @@ class IDEM:
                         * 0.01
                         / 1000,
                     ),
-                    jnp.full(self.kernel.params[1].shape,
-                             (bound_di / 2) ** 2 * 0.001),
+                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
                     jnp.full(self.kernel.params[2].shape, -jnp.inf),
                     jnp.full(self.kernel.params[3].shape, -jnp.inf),
                 ),
@@ -824,7 +894,12 @@ class IDEM:
 
         @jax.jit
         def objective(params):
-            (log_sigma2_eta, log_sigma2_eps, ks, beta, ) = params
+            (
+                log_sigma2_eta,
+                log_sigma2_eps,
+                ks,
+                beta,
+            ) = params
 
             logks1, logks2, ks3, ks4 = ks
 
@@ -854,7 +929,7 @@ class IDEM:
             M = self.con_M((ks1, ks2, ks3, ks4))
 
             # CHECK BELOW
-            ztildes = obs_data_wide['z'] - (X_obs @ beta)[:, None]
+            ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
             ll, _, _, _, _, _ = fsf.sqrt_filter_indep(
                 m_0,
@@ -864,7 +939,8 @@ class IDEM:
                 sigma2_eta,
                 sigma2_eps,
                 ztildes,
-                likelihood=likelihood)
+                likelihood=likelihood,
+            )
             return -ll
 
         obj_grad = jax.grad(objective)
@@ -881,8 +957,7 @@ class IDEM:
 
         for i in progress:
             grad = obj_grad(params)
-            updates, opt_state = optimizer.update(
-                grad, opt_state, params=params)
+            updates, opt_state = optimizer.update(grad, opt_state, params=params)
             params = optax.apply_updates(params, updates)
             # params = optax.projections.projection_box(params, lower, upper)
             llprev = ll
@@ -895,7 +970,8 @@ class IDEM:
                 break
             if loading_bar:
                 progress.set_postfix_str(
-                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}")
+                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}"
+                )
             if debug & loading_bar:
                 progress.write(f"\nIteration: {i}")
                 progress.write(format_params(params))
@@ -952,18 +1028,66 @@ class IDEM:
         debug=False,
         max_its: int = 100,
         target_ll: ArrayLike = jnp.inf,
-        likelihood: str = 'partial',
+        likelihood: str = "partial",
         eps=None,
-        loading_bar=True
+        loading_bar=True,
     ):
+        """
+        Fits a new model by maximum likelihood estimation, maximizing the
+        data likelihood, computed by the information filter (inverse Kalman
+        filter), using a given OPTAX optimiser.
+
+        Params
+        ----------
+        obs_data: st_data
+          The observed data, as an st_data object containing the data to be fit
+          to.
+        X_obs_tuple: tuple
+          Tuple of matrices of covariate data, where p is the number of covariates
+          (including a column of 1s)
+        fixed_ind: list = []
+          List of strings representing the variables to keep fixed at the value
+          in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
+          "ks2", "ks3", "ks4", "beta".
+        lower: tuple = None
+          Lower bounds on the parameters
+        upper:tuple = None
+          Upper bounds on the parameters
+        optimizer: Callable = optax.adam(1e-3)
+          Optimiser to use
+          (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
+          for available options)
+        nu_0: ArrayLike = None (r,)
+          Initial information vector for information filter
+        Q_0: ArrayLike = None (r,r)
+          Initial Information matrix for information filter
+        debug: bool = False
+          Whether to print diagnostics during the fitting
+        max_its: int = 100
+          Maximum number of iterations to perform (if other stopping rules
+          don't stop the loop early)
+        target_ll: ArrayLike = jnp.inf
+          Target log likelihood which, once reached, the main loop will stop
+          early
+        likelihood: str = 'partial'
+          Type of likelihood for computation ('full' or 'partial').
+        eps: float = None
+          How close two loops should be before the loop is stopped early (None
+          removes this stopping rule
+        loading_bar:bool = True
+          Displays a tqdm bar during the main loop.
+
+        Returns: tuple
+        ----------
+        A tuple containing a new, fitted idem.IDEM object and the corresponding
+        parameters.
+        """
 
         unique_times = jnp.unique(obs_data.t)
         zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
 
-        obs_locs = jnp.column_stack(
-            jnp.column_stack((obs_data.x, obs_data.y))).T
-        obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:]
-                                for t in unique_times])
+        obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
+        obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:] for t in unique_times])
 
         PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
 
@@ -983,11 +1107,9 @@ class IDEM:
                 (
                     jnp.full(
                         self.kernel.params[0].shape,
-                        150 / (self.process_grid.area *
-                               self.process_grid.ngrid) * 10,
+                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
                     ),
-                    jnp.full(self.kernel.params[1].shape,
-                             ((bound_di / 2) ** 2) / 10),
+                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
                     jnp.full(self.kernel.params[2].shape, jnp.inf),
                     jnp.full(self.kernel.params[3].shape, jnp.inf),
                 ),
@@ -1008,8 +1130,7 @@ class IDEM:
                         * 0.01
                         / 1000,
                     ),
-                    jnp.full(self.kernel.params[1].shape,
-                             (bound_di / 2) ** 2 * 0.001),
+                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
                     jnp.full(self.kernel.params[2].shape, -jnp.inf),
                     jnp.full(self.kernel.params[3].shape, -jnp.inf),
                 ),
@@ -1036,17 +1157,25 @@ class IDEM:
         def tildify(z, X_obs, beta):
             return z - X_obs @ beta
 
-        mapping_elts = tuple([[zs_tuple[i], X_obs_tuple[i]]
-                             for i in range(len(zs_tuple))])
+        mapping_elts = tuple(
+            [[zs_tuple[i], X_obs_tuple[i]] for i in range(len(zs_tuple))]
+        )
 
-        def is_leaf(node): return jax.tree.structure(node).num_leaves == 2
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 2
 
         @jax.jit
         def objective(params):
-            (log_sigma2_eta, log_sigma2_eps, ks, beta, ) = params
+            (
+                log_sigma2_eta,
+                log_sigma2_eps,
+                ks,
+                beta,
+            ) = params
 
-            ztildes = jax.tree.map(lambda tup: tildify(
-                tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf)
+            ztildes = jax.tree.map(
+                lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf
+            )
 
             logks1, logks2, ks3, ks4 = ks
 
@@ -1081,16 +1210,16 @@ class IDEM:
                 sigma2_eta,
                 sigma2_eps,
                 ztildes,
-                likelihood=likelihood
+                likelihood=likelihood,
             )
             return -ll
 
         obj_grad = jax.grad(objective)
-        
+
         ll = -objective(params0)
         params = params0
         opt_state = optimizer.init(params)
-        
+
         if loading_bar:
             progress = tqdm(range(max_its), desc="Optimising")
 
@@ -1099,8 +1228,7 @@ class IDEM:
 
         for i in progress:
             grad = obj_grad(params)
-            updates, opt_state = optimizer.update(
-                grad, opt_state, params=params)
+            updates, opt_state = optimizer.update(grad, opt_state, params=params)
             params = optax.apply_updates(params, updates)
             # params = optax.projections.projection_box(params, lower, upper)
             llprev = ll
@@ -1113,7 +1241,8 @@ class IDEM:
                 break
             if loading_bar:
                 progress.set_postfix_str(
-                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}")
+                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}"
+                )
             if debug & loading_bar:
                 progress.write(f"\nIteration: {i}")
                 progress.write(format_params(params))
@@ -1198,7 +1327,7 @@ def sim_idem(
         matrix in the future)
     sigma2_eps: float
         The variance of the observation noise
-    alpha0: ArrayLike (r,)
+    alpha_0: ArrayLike (r,)
         The initial value for the process basis coefficients
     process_grid: Grid
         The grid at which to expand the process basis coefficients to the
@@ -1224,8 +1353,7 @@ def sim_idem(
 
     @jax.jit
     def step(carry, key):
-        nextstate = M @ carry + \
-            jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
+        nextstate = M @ carry + jnp.sqrt(sigma2_eta) * rand.normal(key, shape=(nbasis,))
         return (nextstate, nextstate)
 
     alpha_keys = rand.split(keys[3], T)
@@ -1302,11 +1430,10 @@ def gen_example_idem(
     k_spat_inv: bool = True,
     ngrid: ArrayLike = jnp.array([41, 41]),
     nints: ArrayLike = jnp.array([100, 100]),
-    nobs: int = 50,
     process_basis: Basis = None,
     sigma2_eta=0.5**2,
     sigma2_eps=0.1**2,
-    beta=jnp.array([0.0, 0.0, 0.0])
+    beta=jnp.array([0.0, 0.0, 0.0]),
 ):
     """
     Creates an example IDE model, with randomly generated kernel on the
@@ -1320,15 +1447,13 @@ def gen_example_idem(
     key: ArrayLike
         PRNG key
     k_spat_inv: Bool
-        Whether or not the generated kernel should be spatially invariant.
+        Whether or not the generated kernel should be spatially invarian.
     ngrid: ArrayLike
         The resolution of the grid at which the process is computed.
         Should have shape (2,).
     nints: ArrayLike
         The resolution of the grid at which Riemann integrals are computed.
         Should have shape (2,)
-    nobs: int
-        The number of observations per time interval.
 
     Returns
     ----------
@@ -1341,9 +1466,6 @@ def gen_example_idem(
 
     if process_basis is None:
         process_basis = place_basis()
-
-    nbasis = process_basis.nbasis
-
     if k_spat_inv:
         K_basis = (
             place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
@@ -1418,13 +1540,13 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     t_locs = jnp.vstack(
         jl.map(
             lambda i: jnp.column_stack(
-                [jnp.tile(times[i], grids[i].shape[0]), grids[i]]),
+                [jnp.tile(times[i], grids[i].shape[0]), grids[i]]
+            ),
             jnp.arange(T),
         )
     )
     pdata = jnp.column_stack([t_locs, jnp.concatenate(vals)])
-    data = st_data(x=pdata[:, 1], y=pdata[:, 2],
-                   t=pdata[:, 0], z=pdata[:, 3])
+    data = st_data(x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3])
     return data
 
 

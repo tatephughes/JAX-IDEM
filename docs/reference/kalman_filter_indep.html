@@ -198,7 +198,7 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#jax_idem.filter_smoother_functions.kalman_filter_indep" id="toc-jax_idem.filter_smoother_functions.kalman_filter_indep" class="nav-link active" data-scroll-target="#jax_idem.filter_smoother_functions.kalman_filter_indep"><span class="header-section-number">1</span> kalman_filter_indep</a>
+  <li><a href="#jaxidem.filter_smoother_functions.kalman_filter_indep" id="toc-jaxidem.filter_smoother_functions.kalman_filter_indep" class="nav-link active" data-scroll-target="#jaxidem.filter_smoother_functions.kalman_filter_indep"><span class="header-section-number">1</span> kalman_filter_indep</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters"><span class="header-section-number">1.1</span> Parameters</a></li>
   <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns"><span class="header-section-number">1.2</span> Returns</a></li>
@@ -212,27 +212,39 @@ window.Quarto = {
 
 
 
-<section id="jax_idem.filter_smoother_functions.kalman_filter_indep" class="level1" data-number="1">
+<section id="jaxidem.filter_smoother_functions.kalman_filter_indep" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> kalman_filter_indep</h1>
 <div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>filter_smoother_functions.kalman_filter_indep(</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    m_0,</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    P_0,</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    M,</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    PHI_obs,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    PHI,</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    sigma2_eta,</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    sigma2_eps,</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    ztildes,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    full_likelihood<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    zs,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    likelihood<span class="op">=</span><span class="st">'partial'</span>,</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Applies the Kalman Filter to a wide-format matrix of data. Includes some optimisation for uncorrelated errors. For jit-ability, this only allows full (no missing) data in a wide format. For changing data locations or changing data dimension, see information_filter_indep.</p>
+<p>Applies the Kalman Filter to a wide-format matrix of data. Additionally assumes that both the error terms <span class="math display">\[\boldsymbol \epsilon_t\]</span> and the noise terms <span class="math display">\[\boldsymbol \eta_t\]</span> both have uncorrelated componants. For jit-ability, this only allows full (no missing) data in a wide format. For changing data locations or changing data dimension, see <a href="../reference/information_filter_indep.html"><code>information_filter_inder</code></a>. For the Kalman filter with correlated errors, see <a href="../reference/kalman_filter.html"><code>kalman_filter</code></a>. For the square-root Kalman filter, <a href="../reference/sqrt_filter_indep.qmd"><code>sqrt_filter_indep</code></a>.</p>
+<p>Computes posterior means and variances for a system <span class="math display">\[\begin{split}
+    \mathbf Z_t &amp;= \Phi \boldsymbol\alpha_t + \boldsymbol \epsilon_t, \quad t = 1,\dots, T,\\
+    \boldsymbol \alpha_{t+1} &amp;= M\boldsymbol \alpha_t + \boldsymbol\eta_t,\quad t = 0,2,\dots, T-1,\\
+\end{split}
+\]</span> with initial ‘priors’ <span class="math display">\[\begin{split}
+    \boldsymbol \alpha_{0} \sim \mathcal N(\mathbf m_0, \mathbf P_0),\\
+\end{split}
+\]</span> where <span class="math display">\[\begin{split}
+    \boldsymbol \epsilon_t \overset{\mathrm{iid}}{\sim} \mathcal N(0, \sigma^2_\epsilon I),
+    \boldsymbol \eta_t \overset{\mathrm{iid}}{\sim} \mathcal N(0, \sigma^2_\eta I).
+\end{split}
+\]</span></p>
 <section id="parameters" class="level2 doc-section doc-section-parameters" data-number="1.1">
 <h2 class="doc-section doc-section-parameters anchored" data-number="1.1" data-anchor-id="parameters"><span class="header-section-number">1.1</span> Parameters</h2>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 13%">
-<col style="width: 12%">
-<col style="width: 60%">
-<col style="width: 13%">
+<col style="width: 7%">
+<col style="width: 7%">
+<col style="width: 76%">
+<col style="width: 8%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -262,7 +274,7 @@ window.Quarto = {
 <td><em>required</em></td>
 </tr>
 <tr class="even">
-<td>PHI_obs</td>
+<td>PHI</td>
 <td>ArrayLike</td>
 <td>The process-to-data matrix</td>
 <td><em>required</em></td>
@@ -270,20 +282,26 @@ window.Quarto = {
 <tr class="odd">
 <td>sigma2_eta</td>
 <td>float</td>
-<td>The Covariance matrix of the process noise</td>
+<td>The variance of the process noise</td>
 <td><em>required</em></td>
 </tr>
 <tr class="even">
 <td>sigma2_eps</td>
 <td>float</td>
-<td>The Covariance matrix of the observation noise</td>
+<td>The variance of the observation noise</td>
 <td><em>required</em></td>
 </tr>
 <tr class="odd">
-<td>ztildes</td>
+<td>zs</td>
 <td>ArrayLike</td>
 <td>The observed data to be filtered, in matrix format</td>
 <td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>likelihood</td>
+<td>str</td>
+<td>(STATIC) The mode to compute the likelihood (‘full’ with constant terms, ‘partial’ without constant terms, or ‘none’.)</td>
+<td><code>'partial'</code></td>
 </tr>
 </tbody>
 </table>
@@ -292,9 +310,9 @@ window.Quarto = {
 <h2 class="doc-section doc-section-returns anchored" data-number="1.2" data-anchor-id="returns"><span class="header-section-number">1.2</span> Returns</h2>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 4%">
-<col style="width: 31%">
-<col style="width: 63%">
+<col style="width: 6%">
+<col style="width: 19%">
+<col style="width: 73%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -305,29 +323,34 @@ window.Quarto = {
 </thead>
 <tbody>
 <tr class="odd">
-<td></td>
-<td>A tuple containing:</td>
-<td>ll: The log (data) likelihood of the data ms: (T,r) The posterior means <span class="math inline">\(m_{t \mid t}\)</span> of the process given</td>
+<td>ll</td>
+<td>ArrayLike(1)</td>
+<td>The log (data) likelihood of the data</td>
 </tr>
 <tr class="even">
-<td></td>
-<td>the data 1:t</td>
-<td>Ps: (T,r,r) The posterior covariance matrices <span class="math inline">\(P_{t \mid t}\)</span> of</td>
+<td>ms</td>
+<td>ArrayLike(T, r)</td>
+<td>The posterior means <span class="math inline">\(m_{t \mid t}\)</span> of the process given the data 1:t</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td>the process given the data 1:t</td>
-<td>mpreds: (T-1,r) The predicted next-step means <span class="math inline">\(m_{t \mid t-1}\)</span></td>
+<td>Ps</td>
+<td>ArrayLike(T, r, r)</td>
+<td>The posterior covariance matrices <span class="math inline">\(P_{t \mid t}\)</span> of the process given the data 1:t</td>
 </tr>
 <tr class="even">
-<td></td>
-<td>of the process given the data 1:t-1</td>
-<td>Ppreds: (T-1,r,r) The predicted next-step covariances</td>
+<td>mpreds</td>
+<td>ArrayLike(T - 1, r)</td>
+<td>The predicted next-step means <span class="math inline">\(m_{t \mid t-1}\)</span> of the process given the data 1:t-1</td>
 </tr>
 <tr class="odd">
-<td></td>
-<td><span class="math inline">\(P_{t \mid t-1}\)</span> of the process given the data 1:t-1</td>
-<td>Ks: (n,r) The Kalman Gains at each time step</td>
+<td>Ppreds</td>
+<td>ArrayLike(T - 1, r, r)</td>
+<td>The predicted next-step covariances <span class="math inline">\(P_{t \mid t-1}\)</span> of the process given the data 1:t-1</td>
+</tr>
+<tr class="even">
+<td>Ks</td>
+<td>ArrayLike(T, n, r)</td>
+<td>The Kalman Gains at each time step</td>
 </tr>
 </tbody>
 </table>

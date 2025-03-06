@@ -1,0 +1,326 @@
+# IDEM { #jaxidem.idem.IDEM }
+
+```python
+idem.IDEM(
+    self,
+    process_basis,
+    kernel,
+    process_grid,
+    sigma2_eta,
+    sigma2_eps,
+    beta,
+    int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
+)
+```
+
+The Integro-differential Equation Model.
+I'm really going back and forth on what to name this clas
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [con_M](#jaxidem.idem.IDEM.con_M) | Creates the propegation matrix, M, with a given set of kernel parameters. |
+| [filter](#jaxidem.idem.IDEM.filter) | Runs the Kalman filter on the inputted data. |
+| [fit_information_filter](#jaxidem.idem.IDEM.fit_information_filter) | Fits a new model by maximum likelihood estimation, maximizing the |
+| [fit_kalman_filter](#jaxidem.idem.IDEM.fit_kalman_filter) | Fits a new model by maximum likelihood estimation, maximizing the |
+| [fit_sqrt_filter](#jaxidem.idem.IDEM.fit_sqrt_filter) | Fits a new model by maximum likelihood estimation, maximizing the |
+| [lag1smooth](#jaxidem.idem.IDEM.lag1smooth) | NOT FULLY IMPLEMENTED OR TESTED |
+| [simulate](#jaxidem.idem.IDEM.simulate) | Simulates from the model, using the jit-able function sim_idem. |
+| [smooth](#jaxidem.idem.IDEM.smooth) | Runs the Kalman smoother on the |
+| [sqrt_filter](#jaxidem.idem.IDEM.sqrt_filter) | Runs the Kalman filter on the inputted data. |
+
+### con_M { #jaxidem.idem.IDEM.con_M }
+
+```python
+idem.IDEM.con_M(ks)
+```
+
+Creates the propegation matrix, M, with a given set of kernel parameters.
+
+#### Params {.doc-section .doc-section-params}
+
+ks: PyTree(ArrayLike)
+    The kernel parameters used to construct the matrix (must match the
+    structure of self.kernel.params).
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type            | Description               |
+|--------|-----------------|---------------------------|
+| M      | ArrayLike(r, r) | The propegation matrix M. |
+
+### filter { #jaxidem.idem.IDEM.filter }
+
+```python
+idem.IDEM.filter(obs_data, X_obs, m_0=None, P_0=None, likelihood='full')
+```
+
+Runs the Kalman filter on the inputted data.
+
+### fit_information_filter { #jaxidem.idem.IDEM.fit_information_filter }
+
+```python
+idem.IDEM.fit_information_filter(
+    obs_data,
+    X_obs_tuple,
+    fixed_ind=[],
+    lower=None,
+    upper=None,
+    optimizer=optax.adam(0.001),
+    nu_0=None,
+    Q_0=None,
+    debug=False,
+    max_its=100,
+    target_ll=jnp.inf,
+    likelihood='partial',
+    eps=None,
+    loading_bar=True,
+)
+```
+
+Fits a new model by maximum likelihood estimation, maximizing the
+data likelihood, computed by the information filter (inverse Kalman
+filter), using a given OPTAX optimiser.
+
+#### Params {.doc-section .doc-section-params}
+
+obs_data: st_data
+  The observed data, as an st_data object containing the data to be fit
+  to.
+X_obs_tuple: tuple
+  Tuple of matrices of covariate data, where p is the number of covariates
+  (including a column of 1s)
+fixed_ind: list = []
+  List of strings representing the variables to keep fixed at the value
+  in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
+  "ks2", "ks3", "ks4", "beta".
+lower: tuple = None
+  Lower bounds on the parameters
+upper:tuple = None
+  Upper bounds on the parameters
+optimizer: Callable = optax.adam(1e-3)
+  Optimiser to use
+  (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
+  for available options)
+nu_0: ArrayLike = None (r,)
+  Initial information vector for information filter
+Q_0: ArrayLike = None (r,r)
+  Initial Information matrix for information filter
+debug: bool = False
+  Whether to print diagnostics during the fitting
+max_its: int = 100
+  Maximum number of iterations to perform (if other stopping rules
+  don't stop the loop early)
+target_ll: ArrayLike = jnp.inf
+  Target log likelihood which, once reached, the main loop will stop
+  early
+likelihood: str = 'partial'
+  Type of likelihood for computation ('full' or 'partial').
+eps: float = None
+  How close two loops should be before the loop is stopped early (None
+  removes this stopping rule
+loading_bar:bool = True
+  Displays a tqdm bar during the main loop.
+
+#### Returns: tuple {.doc-section .doc-section-returns-tuple}
+
+A tuple containing a new, fitted idem.IDEM object and the corresponding
+parameters.
+
+### fit_kalman_filter { #jaxidem.idem.IDEM.fit_kalman_filter }
+
+```python
+idem.IDEM.fit_kalman_filter(
+    obs_data,
+    X_obs,
+    fixed_ind=[],
+    lower=None,
+    upper=None,
+    optimizer=optax.adam(0.001),
+    m_0=None,
+    P_0=None,
+    debug=False,
+    max_its=100,
+    target_ll=jnp.inf,
+    likelihood='partial',
+    eps=None,
+    loading_bar=True,
+)
+```
+
+Fits a new model by maximum likelihood estimation, maximizing the
+data likelihood, computed by the standard Kalman filter, using a given
+OPTAX optimiser.
+
+#### Params {.doc-section .doc-section-params}
+
+obs_data: st_data
+  The observed data, as an st_data object containing the data to be fit
+  to.
+X_obs: ArrayLike (nobs, p)
+  Matrix of covariate data, where p is the number of covariates
+  (including a column of 1s)
+fixed_ind: list = []
+  List of strings representing the variables to keep fixed at the value
+  in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
+  "ks2", "ks3", "ks4", "beta".
+lower: tuple = None
+  Lower bounds on the parameters
+upper:tuple = None
+  Upper bounds on the parameters
+optimizer: Callable = optax.adam(1e-3)
+  Optimiser to use
+  (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
+  for available options)
+m_0: ArrayLike = None (r,)
+  Initial mean vector for Kalman filter
+P_0: ArrayLike = None (r,r)
+  Initial Variance matrix for Kalman filter
+debug: bool = False
+  Whether to print diagnostics during the fitting
+max_its: int = 100
+  Maximum number of iterations to perform (if other stopping rules
+  don't stop the loop early)
+target_ll: ArrayLike = jnp.inf
+  Target log likelihood which, once reached, the main loop will stop
+  early
+likelihood: str = 'partial'
+  Type of likelihood for computation ('full' or 'partial').
+eps: float = None
+  How close two loops should be before the loop is stopped early (None
+  removes this stopping rule
+loading_bar:bool = True
+  Displays a tqdm bar during the main loop.
+
+#### Returns: tuple {.doc-section .doc-section-returns-tuple}
+
+A tuple containing a new, fitted idem.IDEM object and the corresponding
+parameters.
+
+### fit_sqrt_filter { #jaxidem.idem.IDEM.fit_sqrt_filter }
+
+```python
+idem.IDEM.fit_sqrt_filter(
+    obs_data,
+    X_obs,
+    fixed_ind=[],
+    lower=None,
+    upper=None,
+    optimizer=optax.adam(0.001),
+    m_0=None,
+    U_0=None,
+    debug=False,
+    max_its=100,
+    target_ll=jnp.inf,
+    likelihood='partial',
+    eps=None,
+    loading_bar=True,
+)
+```
+
+Fits a new model by maximum likelihood estimation, maximizing the
+data likelihood, computed by the square-root Kalman filter, using a given
+OPTAX optimiser.
+
+This can be more stable than the standard Kalman, and in some situations
+can be run in Single-precision mode
+
+#### Params {.doc-section .doc-section-params}
+
+obs_data: st_data
+  The observed data, as an st_data object containing the data to be fit
+  to.
+X_obs: ArrayLike (nobs, p)
+  Matrix of covariate data, where p is the number of covariates
+  (including a column of 1s)
+fixed_ind: list = []
+  List of strings representing the variables to keep fixed at the value
+  in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
+  "ks2", "ks3", "ks4", "beta".
+lower: tuple = None
+  Lower bounds on the parameters
+upper:tuple = None
+  Upper bounds on the parameters
+optimizer: Callable = optax.adam(1e-3)
+  Optimiser to use
+  (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
+  for available options)
+m_0: ArrayLike = None (r,)
+  Initial mean vector for Kalman filter
+U_0: ArrayLike = None (r,r)
+  Initial square-root Variance matrix for square root filter
+debug: bool = False
+  Whether to print diagnostics during the fitting
+max_its: int = 100
+  Maximum number of iterations to perform (if other stopping rules
+  don't stop the loop early)
+target_ll: ArrayLike = jnp.inf
+  Target log likelihood which, once reached, the main loop will stop
+  early
+likelihood: str = 'partial'
+  Type of likelihood for computation ('full' or 'partial').
+eps: float = None
+  How close two loops should be before the loop is stopped early (None
+  removes this stopping rule
+loading_bar:bool = True
+  Displays a tqdm bar during the main loop.
+
+#### Returns: tuple {.doc-section .doc-section-returns-tuple}
+
+A tuple containing a new, fitted idem.IDEM object and the corresponding
+parameters.
+
+### lag1smooth { #jaxidem.idem.IDEM.lag1smooth }
+
+```python
+idem.IDEM.lag1smooth(Ps, Js, K_T, PHI_obs)
+```
+
+NOT FULLY IMPLEMENTED OR TESTED
+
+### simulate { #jaxidem.idem.IDEM.simulate }
+
+```python
+idem.IDEM.simulate(
+    key,
+    obs_locs=None,
+    fixed_data=True,
+    nobs=100,
+    T=9,
+    int_grid=create_grid(bounds, ngrids),
+    alpha_0=None,
+)
+```
+
+Simulates from the model, using the jit-able function sim_idem.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name     | Type   | Description                                                                                                                                                                                                                                            | Default                       |
+|----------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| key      |        | PRNG key                                                                                                                                                                                                                                               | _required_                    |
+| obs_locs |        | the observation locations in long format. This should be a (3, n) array where the first column corresponds to time, and the last two to spatial coordinates. If this is not provided, 50 random points per time are chosen in the domain of interest.d | `None`                        |
+| int_grid | Grid   | The grid over which to compute the Riemann integral.                                                                                                                                                                                                   | `create_grid(bounds, ngrids)` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                                                                                                         |
+|--------|--------|-------------------------------------------------------------------------------------------------------------------------------------|
+|        | tuple  | A tuple containing the Process data and the Observed data, both in long format in the st_data type (see [utilities](/.env.example)) |
+
+### smooth { #jaxidem.idem.IDEM.smooth }
+
+```python
+idem.IDEM.smooth(ms, Ps, mpreds, Ppreds)
+```
+
+Runs the Kalman smoother on the
+
+### sqrt_filter { #jaxidem.idem.IDEM.sqrt_filter }
+
+```python
+idem.IDEM.sqrt_filter(obs_data, X_obs, m_0=None, U_0=None, likelihood='full')
+```
+
+Runs the Kalman filter on the inputted data.

@@ -169,12 +169,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#jax_idem.IDEM.Kernel" id="toc-jax_idem.IDEM.Kernel" class="nav-link active" data-scroll-target="#jax_idem.IDEM.Kernel"><span class="header-section-number">1</span> Kernel</a>
+  <li><a href="#jaxidem.idem.Kernel" id="toc-jaxidem.idem.Kernel" class="nav-link active" data-scroll-target="#jaxidem.idem.Kernel"><span class="header-section-number">1</span> Kernel</a>
   <ul class="collapse">
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods"><span class="header-section-number">1.1</span> Methods</a>
   <ul class="collapse">
-  <li><a href="#jax_idem.IDEM.Kernel.save_fig" id="toc-jax_idem.IDEM.Kernel.save_fig" class="nav-link" data-scroll-target="#jax_idem.IDEM.Kernel.save_fig"><span class="header-section-number">1.1.1</span> save_fig</a></li>
-  <li><a href="#jax_idem.IDEM.Kernel.show_plot" id="toc-jax_idem.IDEM.Kernel.show_plot" class="nav-link" data-scroll-target="#jax_idem.IDEM.Kernel.show_plot"><span class="header-section-number">1.1.2</span> show_plot</a></li>
+  <li><a href="#jaxidem.idem.Kernel.save_plot" id="toc-jaxidem.idem.Kernel.save_plot" class="nav-link" data-scroll-target="#jaxidem.idem.Kernel.save_plot"><span class="header-section-number">1.1.1</span> save_plot</a></li>
+  <li><a href="#jaxidem.idem.Kernel.show_plot" id="toc-jaxidem.idem.Kernel.show_plot" class="nav-link" data-scroll-target="#jaxidem.idem.Kernel.show_plot"><span class="header-section-number">1.1.2</span> show_plot</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -186,9 +186,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="jax_idem.IDEM.Kernel" class="level1" data-number="1">
+<section id="jaxidem.idem.Kernel" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Kernel</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>IDEM.Kernel(<span class="va">self</span>, function, basis<span class="op">=</span><span class="va">None</span>, params<span class="op">=</span><span class="va">None</span>, form<span class="op">=</span><span class="st">'expansion'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>idem.Kernel(<span class="va">self</span>, function, basis<span class="op">=</span><span class="va">None</span>, params<span class="op">=</span><span class="va">None</span>, form<span class="op">=</span><span class="st">'expansion'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Generic class defining a kernel, or a basis expansion of a kernel with its parameters.</p>
 <section id="methods" class="level2" data-number="1.1">
 <h2 data-number="1.1" class="anchored" data-anchor-id="methods"><span class="header-section-number">1.1</span> Methods</h2>
@@ -201,23 +201,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#jax_idem.IDEM.Kernel.save_fig">save_fig</a></td>
+<td><a href="#jaxidem.idem.Kernel.save_plot">save_plot</a></td>
 <td>Saves a plot of the direction of the kernel.</td>
 </tr>
 <tr class="even">
-<td><a href="#jax_idem.IDEM.Kernel.show_plot">show_plot</a></td>
+<td><a href="#jaxidem.idem.Kernel.show_plot">show_plot</a></td>
 <td>Shows a plot of the direction of the kernel.</td>
 </tr>
 </tbody>
 </table>
-<section id="jax_idem.IDEM.Kernel.save_fig" class="level3" data-number="1.1.1">
-<h3 data-number="1.1.1" class="anchored" data-anchor-id="jax_idem.IDEM.Kernel.save_fig"><span class="header-section-number">1.1.1</span> save_fig</h3>
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>IDEM.Kernel.save_fig(name<span class="op">=</span><span class="st">'kernel.png'</span>, width<span class="op">=</span><span class="dv">5</span>, height<span class="op">=</span><span class="dv">4</span>, dpi<span class="op">=</span><span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="jaxidem.idem.Kernel.save_plot" class="level3" data-number="1.1.1">
+<h3 data-number="1.1.1" class="anchored" data-anchor-id="jaxidem.idem.Kernel.save_plot"><span class="header-section-number">1.1.1</span> save_plot</h3>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>idem.Kernel.save_plot(filename, width<span class="op">=</span><span class="dv">6</span>, height<span class="op">=</span><span class="dv">4</span>, dpi<span class="op">=</span><span class="dv">300</span>, title<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Saves a plot of the direction of the kernel.</p>
 </section>
-<section id="jax_idem.IDEM.Kernel.show_plot" class="level3" data-number="1.1.2">
-<h3 data-number="1.1.2" class="anchored" data-anchor-id="jax_idem.IDEM.Kernel.show_plot"><span class="header-section-number">1.1.2</span> show_plot</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>IDEM.Kernel.show_plot(width<span class="op">=</span><span class="dv">5</span>, height<span class="op">=</span><span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="jaxidem.idem.Kernel.show_plot" class="level3" data-number="1.1.2">
+<h3 data-number="1.1.2" class="anchored" data-anchor-id="jaxidem.idem.Kernel.show_plot"><span class="header-section-number">1.1.2</span> show_plot</h3>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>idem.Kernel.show_plot(width<span class="op">=</span><span class="dv">5</span>, height<span class="op">=</span><span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Shows a plot of the direction of the kernel.</p>
 
 

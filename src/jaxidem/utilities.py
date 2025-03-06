@@ -4,7 +4,6 @@
 import jax
 import jax.numpy as jnp
 import jax.lax as jl
-
 # Typing imports
 from jax.typing import ArrayLike
 from typing import Callable, NamedTuple  # , Union
@@ -16,9 +15,7 @@ import seaborn as sns
 from PIL import Image
 import io
 
-
 class Grid(NamedTuple):
-
     """
     A simple grid class to store (currently exclusively regular) grids, along
     with some key quantities such as the lenth between grid points, the
@@ -56,6 +53,7 @@ class Basis(NamedTuple):
     nbasis: int
         The number of basis functions in the expansion.
     """
+
     vfun: Callable
     mfun: Callable
     params: ArrayLike
@@ -91,8 +89,7 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
     # it should be fine for now, and it won't run inside of loops.
     axis_linspaces = [gen_range(i) for i in range(dimension)]
 
-    grid = jnp.stack(jnp.meshgrid(*axis_linspaces,
-                                  indexing="ij"), axis=-1).reshape(
+    grid = jnp.stack(jnp.meshgrid(*axis_linspaces, indexing="ij"), axis=-1).reshape(
         -1, dimension
     )
 
@@ -108,9 +105,9 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
     )
 
 
-def outer_op(a: ArrayLike,
-             b: ArrayLike,
-             op: Callable = lambda x, y: x * y) -> ArrayLike:
+def outer_op(
+    a: ArrayLike, b: ArrayLike, op: Callable = lambda x, y: x * y
+) -> ArrayLike:
     """
     Computes the outer operation of two vectors, a generalisation of the outer
     product.
@@ -223,8 +220,68 @@ def place_basis(
 
     @jax.jit
     def eval_basis(s_array):
-        return jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)),
-                        in_axes=(0, None))(
+        return jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)), in_axes=(0, None))(
+            s_array, params
+        )
+
+    return Basis(basis_vfun, eval_basis, params, nbasis)
+
+def random_basis(
+        key,
+        knot_num=3,
+        data=jnp.array([[0, 0], [1, 1]]),
+        aperture=1.25,
+        basis_fun=bisquare,
+):
+    """
+    Randomly distributes knots (centroids) and scales for basis functions.
+    This function must be run outside of a jit loop, since it involves
+    varying the length of arrays.
+
+    Parameters
+    ----------
+    key: ArrayLike
+        PRNG key
+    knot_num: Int
+        The number of knots at which to place basis functions
+    data: Arraylike (ndim, npoints)
+        Array of 2D points defining the space on which to put the basis functions
+    aperture: Double
+        Scaling factor for the scale parameter (scale parameter will be
+        w=aperture * d, where d is the minimum distance between any two of the
+        knots)
+    basis_fun: ArrayLike (ndim,), ArrayLike (nparams) -> Double
+        The basis functions being used. The basis function's second argument must
+        be an array with three doubles; the first coordinate for the centre, the
+        second coordinate for the centre, and the scale/aperture of the function.
+    Returns
+    ----------
+    A Basis object (NamedTuple) with the vector and matrix functions, and the
+    parameters associated to the basis functions.
+    """
+
+    xmin = jnp.min(data[:, 0])
+    xmax = jnp.max(data[:, 0])
+    ymin = jnp.min(data[:, 1])
+    ymax = jnp.max(data[:, 1])
+
+    keys = jax.random.split(key, 2)
+
+    w = ((xmax - xmin) * (ymax - ymin)) / knot_num
+    
+    params=jnp.hstack([jax.random.uniform(keys[0], shape=(knot_num,1), minval=xmin, maxval=xmax),
+                       jax.random.uniform(keys[1], shape=(knot_num,1), minval=ymin, maxval=ymax),
+                       jnp.full((knot_num, 1), w)])
+    
+    nbasis = params.shape[0]
+
+    @jax.jit
+    def basis_vfun(s):
+        return jax.vmap(basis_fun, in_axes=(None, 0))(s, params)
+
+    @jax.jit
+    def eval_basis(s_array):
+        return jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)), in_axes=(0, None))(
             s_array, params
         )
 
@@ -243,8 +300,7 @@ def place_fourier_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
 
     @jax.jit
     def phi(k, s):
-        return (jnp.sqrt(1 / (2 * N))
-                * jnp.exp(2 * jnp.pi * 1.0j * (jnp.dot(k, s))))
+        return jnp.sqrt(1 / (2 * N)) * jnp.exp(2 * jnp.pi * 1.0j * (jnp.dot(k, s)))
 
     x, y = jnp.meshgrid(jnp.arange(N + 1) - N / 2, jnp.arange(N + 1) - N / 2)
     pairs = jnp.stack([x.flatten(), y.flatten()], axis=-1)
@@ -294,7 +350,6 @@ def plot_kernel(kernel, output_file="kernel.png"):
 
 
 class st_data:
-
     """
     For storing spatio-temporal data and appropriate methods for plotting such
     data, and converting between long and wide formats.
@@ -312,7 +367,7 @@ class st_data:
     def as_wide(self):
         """
         Gives the data in wide format. Any missing data will be represented in
-        the returned matris as NaN.
+        the returned matrix as NaN.
 
         Returns
         ----------
@@ -336,22 +391,25 @@ class st_data:
         def getval(xy, t):
             xyt = jnp.hstack((xy, t))
             mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
-            masked = jnp.where(
-                mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
+            masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
             return jl.cond(
-                jnp.all(jnp.isnan(masked)), lambda x: jnp.nan,
-                lambda x: extract(masked), 0
+                jnp.all(jnp.isnan(masked)),
+                lambda x: jnp.nan,
+                lambda x: extract(masked),
+                0,
             )
 
-        return {'x': xycoords[:, 0], 'y': xycoords[:, 1],
-                'z': outer_op(xycoords, times, getval)}
+        return {
+            "x": xycoords[:, 0],
+            "y": xycoords[:, 1],
+            "z": outer_op(xycoords, times, getval),
+        }
 
     def show_plot(self):
-
         nrows = int(jnp.ceil(self.T / 3))
 
         # Create a figure and axes for the subplots
-        with plt.style.context('seaborn-v0_8-dark-palette'):
+        with plt.style.context("seaborn-v0_8-dark-palette"):
             fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
             axes = axes.flatten()
 
@@ -389,16 +447,11 @@ class st_data:
             fig.tight_layout()
             fig.show()
 
-    def save_plot(self,
-                  filename,
-                  width=6,
-                  height=1.5,
-                  dpi=300):
-
+    def save_plot(self, filename, width=6, height=1.5, dpi=300):
         nrows = int(jnp.ceil(self.T / 3))
 
         # Create a figure and axes for the subplots
-        with plt.style.context('seaborn-v0_8-dark-palette'):
+        with plt.style.context("seaborn-v0_8-dark-palette"):
             fig, axes = plt.subplots(nrows, 3, figsize=(width, nrows * height))
             axes = axes.flatten()
 
@@ -440,12 +493,15 @@ class st_data:
         """UNIMPLEMENTED"""
         return None
 
-def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
-                interval=100,
-                width=5,
-                height=4,
-                dpi=300):
 
+def gif_st_grid(
+    data: st_data,
+    output_file="spatio_temporal.gif",
+    interval=100,
+    width=5,
+    height=4,
+    dpi=300,
+):
     data_array = jnp.column_stack([data.x, data.y, data.t, data.z])
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
@@ -453,8 +509,6 @@ def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
     frames = []
 
     grid = int(jnp.sqrt(data_array[data_array[:, 2] == jnp.min(data.times)].shape[0]))
-
-    T = int(jnp.max(data.times) - jnp.min(data.times)) + 1
 
     for t in data.times:
         time_data = data_array[data_array[:, 2] == t]
@@ -478,26 +532,24 @@ def gif_st_grid(data: st_data, output_file="spatio_temporal.gif",
         # plt.set_xlabel(data.x)
         # plt.set_ylabel(data.y)
 
-        plt.savefig(buf,
-                    format="png",
-                    dpi=dpi)
+        plt.savefig(buf, format="png", dpi=dpi)
         plt.close()
 
         frames.append(Image.open(buf))
 
     frames[0].save(
-        output_file, save_all=True,
-        append_images=frames[1:], duration=interval, loop=0
+        output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
     )
 
 
-def gif_st_pts(data: st_data,
-               output_file="spatio_temporal.gif",
-               interval=100,
-               width=5,
-               height=4,
-               dpi=300):
-
+def gif_st_pts(
+    data: st_data,
+    output_file="spatio_temporal.gif",
+    interval=100,
+    width=5,
+    height=4,
+    dpi=300,
+):
     data_array = jnp.column_stack([data.x, data.y, data.t, data.z])
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
@@ -544,63 +596,11 @@ def gif_st_pts(data: st_data,
         sm.set_array([])
         fig.colorbar(sm, ax=ax)
 
-        plt.savefig(buf,
-                    format="png",
-                    dpi=dpi)
+        plt.savefig(buf, format="png", dpi=dpi)
         plt.close()
 
         frames.append(Image.open(buf))
 
     frames[0].save(
-        output_file, save_all=True, append_images=frames[1:],
-        duration=interval, loop=0
+        output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
     )
-
-
-@jax.jit
-def mat_sq(A: ArrayLike):
-    """
-      Doesnt really work.
-    Computes the 'outer square' of a A, A@A.T, in a stable way.
-
-    Simply doing A@A.T can cause the result to not be symmetric
-
-    Parameters
-    ----------
-    A: ArrayLike (n,m)
-
-    Returns
-    ----------
-    ArrayLike (n,n), the 'outer square' of A.
-    """
-    sq = A@A.T
-    return sq
-
-@jax.jit
-def mat_hug(A:ArrayLike,Sigma:ArrayLike):
-    """
-      Doesnt really work.
-    Computes A@Sigma@A.T using a cholesky decomposition followed by a mat_sq.
-    Sigma must be symmetric.
-    Particularly useful for variances, since, unlike directly calling  A@Sigma@A.T, the result is guaranteed to be symmetric.
-    Uses that if Sigma = L@L.T, then A@Sigma@A.T=(A@L)@(A@L).T.
-    I call this a matrix 'hug' because variances need hugs too.
-
-    Parameters
-    ----------
-    A: ArrayLike (n,m)
-      The hug-giver
-    Sigma: ArrayLike (m,m)
-      The hug-reciever
-
-    Returns
-    ----------
-    ArrayLike (n,n), the 'hugged' matrix.
-    """
-    chol_sigma = jnp.linalg.cholesky(Sigma)
-    return mat_sq(A@chol_sigma)
-
-@jax.jit # not differentiable!
-def brute_abs(Sigma):
-    eig = jnp.linalg.eigh(Sigma)
-    return eig[1] @ jnp.diag(jnp.sqrt(eig[0]**2)) @ eig[1].T

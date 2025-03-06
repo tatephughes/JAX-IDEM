@@ -1,7 +1,7 @@
-# basis_params_to_st_data { #jax_idem.IDEM.basis_params_to_st_data }
+# basis_params_to_st_data { #jaxidem.idem.basis_params_to_st_data }
 
 ```python
-IDEM.basis_params_to_st_data(alphas, process_basis, process_grid, times=None)
+idem.basis_params_to_st_data(alphas, process_basis, process_grid, times=None)
 ```
 
 Converts the process expansion coefficients back into the original process

@@ -1,17 +1,16 @@
-# gen_example_idem { #jax_idem.IDEM.gen_example_idem }
+# gen_example_idem { #jaxidem.idem.gen_example_idem }
 
 ```python
-IDEM.gen_example_idem(
+idem.gen_example_idem(
     key,
     k_spat_inv=True,
     ngrid=jnp.array([41, 41]),
     nints=jnp.array([100, 100]),
     nobs=50,
-    m_0=None,
-    sigma2_0=None,
     process_basis=None,
     sigma2_eta=0.5 ** 2,
     sigma2_eps=0.1 ** 2,
+    beta=jnp.array([0.0, 0.0, 0.0]),
 )
 ```
 

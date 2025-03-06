@@ -1,4 +1,4 @@
-# outer_op { #jax_idem.utilities.outer_op }
+# outer_op { #jaxidem.utilities.outer_op }
 
 ```python
 utilities.outer_op(a, b, op=lambda x, y: x * y)

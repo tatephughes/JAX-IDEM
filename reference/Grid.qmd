@@ -1,4 +1,4 @@
-# Grid { #jax_idem.utilities.Grid }
+# Grid { #jaxidem.utilities.Grid }
 
 ```python
 utilities.Grid()

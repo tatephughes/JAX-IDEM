@@ -1,4 +1,4 @@
-# create_grid { #jax_idem.utilities.create_grid }
+# create_grid { #jaxidem.utilities.create_grid }
 
 ```python
 utilities.create_grid(bounds, ngrids)

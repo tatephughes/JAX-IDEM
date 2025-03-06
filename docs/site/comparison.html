@@ -376,12 +376,12 @@ Coefficient Parameters: [0.23190200783831588, 0.18107646486427417, 0.19504882542
 
 Achieved target likelihood. Stopping early...
 The log likelihood (up to a constant) of the initial model is
-               1650.0392919085284
+               1650.0392919224535
 The final log likelihood (up to a constant) of the fit model is
-               3218.1511166829446
+               3218.1490209223116
 
-the final offset parameters are [-0.09861604] and
-               [0.10126115]</code></pre>
+the final offset parameters are [-0.09861706] and
+               [0.10126254]</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -390,7 +390,7 @@ the final offset parameters are [-0.09861604] and
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>
-Time Elapsed is 31.753804683685303</code></pre>
+Time Elapsed is 29.055315017700195</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -402,16 +402,16 @@ Fitted parameters are:
  Kernel Parameters: 
      shape:[149.99999999999997]
      scale: [0.0020000000000000005]
-     offsets [-0.09861603834112512], [0.10126114812950107]
-Variance Parameters: 0.00021915690586025107, 0.00020488287556980953
-Coefficient Parameters: [0.2043215049172408, 0.18227354744326724, 0.20139286382963814]</code></pre>
+     offsets [-0.09861706168176344], [0.10126254290555678]
+Variance Parameters: 0.00021915736455159092, 0.00020488289860198789
+Coefficient Parameters: [0.20434672139746057, 0.18229834713845597, 0.20142059904272877]</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"with ll </span><span class="sc">{</span>model1<span class="sc">.</span><span class="bu">filter</span>(obs_data, X_obs<span class="op">=</span>X_obs, likelihood <span class="op">=</span> <span class="st">'partial'</span>)[<span class="dv">0</span>]<span class="sc">.</span>tolist()<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>with ll 3218.1511677200033</code></pre>
+<pre><code>with ll 3218.1512444497266</code></pre>
 </div>
 </div>
 

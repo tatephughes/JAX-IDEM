@@ -76,7 +76,7 @@ import plotly.express as px
 import plotly.io as pio
 import plotly.graph_objs as go
 import pandas as pd
-
+jax.config.update('jax_platform_name', 'cpu')
 jax.config.update('jax_enable_x64', True)
 ```
 
@@ -201,7 +201,7 @@ nu_0 = jnp.zeros(2)
 PHI_tuple = tuple([PHI for _ in range(T)])
 zs_tuple = tuple(zs)
 
-ll2, nus, Qs,_ ,_  = fsf.information_filter_indep_experimental(nu_0,
+ll2, nus, Qs,_ ,_  = fsf.information_filter_indep(nu_0,
                                                  Q_0,
                                                  M,
                                                  PHI_tuple,
