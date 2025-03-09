@@ -207,162 +207,130 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="loading-the-data-from-r-ide" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Loading the data from R-IDE</h1>
 <p>I have run code from Andrew ZM’s IDE package, available in the file <code>R-IDErun.RData</code>. Here are the results of that run on my machine;</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"plyr"</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"dplyr"</span>)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"IDE"</span>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"FRK"</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"ggplot2"</span>)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"sp"</span>)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"spacetime"</span>)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"readr"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-</div>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">"../data/R-IDErun.RData"</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract the values</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>sigma2_eta <span class="ot">&lt;-</span> fit_results_sim1<span class="sc">$</span>IDEmodel<span class="sc">$</span><span class="fu">get</span>(<span class="st">"sigma2_eta"</span>)[<span class="st">"par6"</span>]</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>sigma2_eps <span class="ot">&lt;-</span> fit_results_sim1<span class="sc">$</span>IDEmodel<span class="sc">$</span><span class="fu">get</span>(<span class="st">"sigma2_eps"</span>)[<span class="st">"par5"</span>]</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine them into a data frame</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>variances_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">par5 =</span> sigma2_eps, <span class="at">par6 =</span> sigma2_eta)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(fit_results_sim1<span class="sc">$</span>IDEmodel<span class="sc">$</span><span class="fu">get</span>(<span class="st">"k"</span>) <span class="sc">%&gt;%</span> <span class="fu">unlist</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>         par1          par2          par3          par4 
-152.836345912   0.001977115  -0.101601099   0.100368743 </code></pre>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(variances_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>             par5        par6
-par5 0.0001057245 0.001322482</code></pre>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">coef</span>(fit_results_sim1<span class="sc">$</span>IDEmodel)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>Intercept        s1        s2 
-0.2073442 0.1966224 0.1907062 </code></pre>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(fit_results_sim1<span class="sc">$</span>IDEmodel<span class="sc">$</span><span class="fu">negloglik</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] -3217.945</code></pre>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(time.taken)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>Time difference of 18.3 mins</code></pre>
-</div>
-</div>
+<pre class="{r}"><code>#| eval: false
+#| output: false
+
+library("plyr")
+library("dplyr")
+library("IDE")
+library("FRK")
+library("ggplot2")
+library("sp")
+library("spacetime")
+library("readr")</code></pre>
+<pre class="{r}"><code>#| eval: false
+load("../data/R-IDErun.RData")
+
+# Extract the values
+sigma2_eta &lt;- fit_results_sim1$IDEmodel$get("sigma2_eta")["par6"]
+sigma2_eps &lt;- fit_results_sim1$IDEmodel$get("sigma2_eps")["par5"]
+
+# Combine them into a data frame
+variances_df &lt;- data.frame(par5 = sigma2_eps, par6 = sigma2_eta)
+
+print(fit_results_sim1$IDEmodel$get("k") %&gt;% unlist())
+print(variances_df)
+print(coef(fit_results_sim1$IDEmodel)) 
+print(fit_results_sim1$IDEmodel$negloglik())
+
+print(time.taken)</code></pre>
 </section>
 <section id="re-creating-the-environment-in-jax_idem" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Re-creating the environment in jax_idem</h1>
 <p>We will fit to the same data, using as much the same as possible, fitting to target the same likelihood as a stopping rule, where we can then compare the time and parameters between the two implementations.</p>
-<div class="cell">
+<div id="f94f048e" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># | output: false</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">'jax_platform_name'</span>, <span class="st">'gpu'</span>)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">'jax_enable_x64'</span>, <span class="va">True</span>)</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.random <span class="im">as</span> rand</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>                             </span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>sys.path.append(os.path.abspath(<span class="st">'../src/jaxidem'</span>))</span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> idem</span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> utilities</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> filter_smoother_functions <span class="im">as</span> fsf</span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> csv</span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">'../data/obs_data_r-ide.csv'</span>)</span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>df[<span class="st">'time'</span>] <span class="op">=</span> pd.to_datetime(df[<span class="st">'time'</span>])</span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>reference_date <span class="op">=</span> pd.to_datetime(<span class="st">'2017-12-01'</span>)</span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>df[<span class="st">'t'</span>] <span class="op">=</span> (df[<span class="st">'time'</span>] <span class="op">-</span> reference_date).dt.days<span class="op">+</span><span class="dv">1</span></span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>obs_data <span class="op">=</span> utilities.st_data(x <span class="op">=</span> jnp.array(df[<span class="st">'s1'</span>]),</span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>                             y <span class="op">=</span> jnp.array(df[<span class="st">'s2'</span>]),</span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>                             t <span class="op">=</span> jnp.array(df[<span class="st">'t'</span>]),</span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>                             z <span class="op">=</span> jnp.array(df[<span class="st">'z'</span>]))</span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>obs_locs <span class="op">=</span> jnp.column_stack((obs_data.x, obs_data.y))</span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>X_obs <span class="op">=</span> jnp.column_stack([jnp.ones(obs_locs.shape[<span class="dv">0</span>]), obs_locs[:, <span class="op">-</span><span class="dv">2</span>:]])</span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>betahat <span class="op">=</span> jnp.linalg.solve(X_obs.T <span class="op">@</span> X_obs, X_obs.T) <span class="op">@</span> obs_data.z</span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>ztilde <span class="op">=</span> obs_data.z <span class="op">-</span> X_obs <span class="op">@</span> betahat</span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>const_basis <span class="op">=</span> utilities.place_basis(nres<span class="op">=</span><span class="dv">1</span>, min_knot_num<span class="op">=</span><span class="dv">1</span>, basis_fun<span class="op">=</span><span class="kw">lambda</span> s, r: <span class="dv">1</span>)</span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>                                                </span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>K_basis <span class="op">=</span> (</span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>            const_basis,</span>
-<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>            const_basis,</span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>            const_basis,</span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>            const_basis,</span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> (</span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">150.0</span>]),</span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">0.002</span>]),</span>
-<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">0.0</span>]),</span>
-<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">0.0</span>]),</span>
-<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> idem.param_exp_kernel(K_basis, k)</span>
-<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>                                               </span>
-<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>process_basis <span class="op">=</span> utilities.place_basis(nres<span class="op">=</span><span class="dv">2</span>, min_knot_num<span class="op">=</span><span class="dv">3</span>)</span>
-<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>model0 <span class="op">=</span> idem.IDEM(</span>
-<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>                    process_basis <span class="op">=</span> process_basis,</span>
-<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>                    kernel<span class="op">=</span>kernel,</span>
-<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>                    process_grid <span class="op">=</span> utilities.create_grid(jnp.array([[<span class="dv">0</span>, <span class="dv">1</span>], [<span class="dv">0</span>, <span class="dv">1</span>]]),</span>
-<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a>                                               jnp.array([<span class="dv">41</span>, <span class="dv">41</span>])),</span>
-<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a>                    sigma2_eta <span class="op">=</span> jnp.var(ztilde),</span>
-<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a>                    sigma2_eps <span class="op">=</span> jnp.var(ztilde),</span>
-<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a>                    beta <span class="op">=</span> betahat,)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">'jax_platform_name'</span>, <span class="st">'cpu'</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">'jax_enable_x64'</span>, <span class="va">True</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.random <span class="im">as</span> rand</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>                             </span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>sys.path.append(os.path.abspath(<span class="st">'../src/jaxidem'</span>))</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> idem</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> utilities</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> filter_smoother_functions <span class="im">as</span> fsf</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> csv</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">'../data/obs_data_r-ide.csv'</span>)</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>df[<span class="st">'time'</span>] <span class="op">=</span> pd.to_datetime(df[<span class="st">'time'</span>])</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>reference_date <span class="op">=</span> pd.to_datetime(<span class="st">'2017-12-01'</span>)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>df[<span class="st">'t'</span>] <span class="op">=</span> (df[<span class="st">'time'</span>] <span class="op">-</span> reference_date).dt.days<span class="op">+</span><span class="dv">1</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>obs_data <span class="op">=</span> utilities.st_data(x <span class="op">=</span> jnp.array(df[<span class="st">'s1'</span>]),</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>                             y <span class="op">=</span> jnp.array(df[<span class="st">'s2'</span>]),</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>                             t <span class="op">=</span> jnp.array(df[<span class="st">'t'</span>]),</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>                             z <span class="op">=</span> jnp.array(df[<span class="st">'z'</span>]))</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>obs_locs <span class="op">=</span> jnp.column_stack((obs_data.x, obs_data.y))</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>X_obs <span class="op">=</span> jnp.column_stack([jnp.ones(obs_locs.shape[<span class="dv">0</span>]), obs_locs[:, <span class="op">-</span><span class="dv">2</span>:]])</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>betahat <span class="op">=</span> jnp.linalg.solve(X_obs.T <span class="op">@</span> X_obs, X_obs.T) <span class="op">@</span> obs_data.z</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>ztilde <span class="op">=</span> obs_data.z <span class="op">-</span> X_obs <span class="op">@</span> betahat</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>const_basis <span class="op">=</span> utilities.place_basis(nres<span class="op">=</span><span class="dv">1</span>, min_knot_num<span class="op">=</span><span class="dv">1</span>, basis_fun<span class="op">=</span><span class="kw">lambda</span> s, r: <span class="dv">1</span>)</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>                                                </span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>K_basis <span class="op">=</span> (</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>            const_basis,</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>            const_basis,</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>            const_basis,</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>            const_basis,</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> (</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">150.0</span>]),</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">0.002</span>]),</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">0.0</span>]),</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>            jnp.array([<span class="fl">0.0</span>]),</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> idem.param_exp_kernel(K_basis, k)</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>                                               </span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>process_basis <span class="op">=</span> utilities.place_basis(nres<span class="op">=</span><span class="dv">2</span>, min_knot_num<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>model0 <span class="op">=</span> idem.IDEM(</span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>                    process_basis <span class="op">=</span> process_basis,</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>                    kernel<span class="op">=</span>kernel,</span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>                    process_grid <span class="op">=</span> utilities.create_grid(jnp.array([[<span class="dv">0</span>, <span class="dv">1</span>], [<span class="dv">0</span>, <span class="dv">1</span>]]),</span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>                                               jnp.array([<span class="dv">41</span>, <span class="dv">41</span>])),</span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>                    sigma2_eta <span class="op">=</span> jnp.var(ztilde),</span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>                    sigma2_eps <span class="op">=</span> jnp.var(ztilde),</span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>                    beta <span class="op">=</span> betahat,)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell">
+<div id="ae1d90ab" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> optax</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>obs_data_wide <span class="op">=</span> obs_data.as_wide()</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>X_obs <span class="op">=</span> jnp.column_stack([jnp.ones(obs_data_wide[<span class="st">'x'</span>].shape[<span class="dv">0</span>]), obs_data_wide[<span class="st">'x'</span>], obs_data_wide[<span class="st">'y'</span>]])</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>start_time <span class="op">=</span> time.time()</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>model1, params <span class="op">=</span> model0.fit_kalman_filter(obs_data<span class="op">=</span>obs_data,</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>                                       X_obs<span class="op">=</span>X_obs, </span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>                                       optimizer<span class="op">=</span>optax.adamax(<span class="fl">1e-2</span>),</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>                                       debug<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>                                       max_its <span class="op">=</span> <span class="dv">1000</span>,</span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>                                       fixed_ind <span class="op">=</span> [<span class="st">'ks1'</span>, <span class="st">'ks2'</span>],</span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>                                       target_ll <span class="op">=</span> jnp.array(<span class="fl">3217.945</span>),</span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>                                       likelihood <span class="op">=</span> <span class="st">'partial'</span>,</span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>                                       loading_bar<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> optax</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>obs_data_wide <span class="op">=</span> obs_data.as_wide()</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>X_obs <span class="op">=</span> jnp.column_stack([jnp.ones(obs_data_wide[<span class="st">'x'</span>].shape[<span class="dv">0</span>]), obs_data_wide[<span class="st">'x'</span>], obs_data_wide[<span class="st">'y'</span>]])</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>start_time <span class="op">=</span> time.time()</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>model1, params <span class="op">=</span> model0.fit_kalman_filter(obs_data<span class="op">=</span>obs_data,</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>                                       X_obs<span class="op">=</span>X_obs, </span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>                                       optimizer<span class="op">=</span>optax.adamax(<span class="fl">1e-2</span>),</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>                                       debug<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>                                       max_its <span class="op">=</span> <span class="dv">10</span>,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>                                       fixed_ind <span class="op">=</span> [<span class="st">'ks1'</span>, <span class="st">'ks2'</span>],</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                                       target_ll <span class="op">=</span> jnp.array(<span class="fl">3217.945</span>),</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                                       likelihood <span class="op">=</span> <span class="st">'partial'</span>,</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>                                       loading_bar<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>end_time <span class="op">=</span> time.time()</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Time Elapsed is </span><span class="sc">{</span>end_time <span class="op">-</span> start_time<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Fitted parameters are: </span><span class="ch">\n</span><span class="st">"</span>, idem.format_params(params))</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"with ll </span><span class="sc">{</span>model1<span class="sc">.</span>kalman_filter(obs_data, X_obs<span class="op">=</span>X_obs, likelihood <span class="op">=</span> <span class="st">'partial'</span>)[<span class="dv">0</span>]<span class="sc">.</span>tolist()<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Initial Parameters:
@@ -372,46 +340,28 @@ Kernel Parameters:
      scale: [0.0020000000000000005]
      offsets [0.0], [0.0]
 Variance Parameters: 0.009626094370839137, 0.009626094370839137
-Coefficient Parameters: [0.23190200783831588, 0.18107646486427417, 0.1950488254200777]
+Coefficient Parameters: [0.23190200783831602, 0.1810764648642735, 0.19504882542007798]
 
-Achieved target likelihood. Stopping early...
 The log likelihood (up to a constant) of the initial model is
-               1650.0392919224535
+               1650.0392919299302
 The final log likelihood (up to a constant) of the fit model is
-               3218.1490209223116
+               1754.8806947815447
 
-the final offset parameters are [-0.09861706] and
-               [0.10126254]</code></pre>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>end_time <span class="op">=</span> time.time()</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Time Elapsed is </span><span class="sc">{</span>end_time <span class="op">-</span> start_time<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>
-Time Elapsed is 29.055315017700195</code></pre>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Fitted parameters are: </span><span class="ch">\n</span><span class="st">"</span>, idem.format_params(params))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>
+the final offset parameters are [-0.08165712] and
+               [0.07801444]
+
+
+
+Time Elapsed is 5.3776655197143555
+
 Fitted parameters are: 
  Kernel Parameters: 
      shape:[149.99999999999997]
      scale: [0.0020000000000000005]
-     offsets [-0.09861706168176344], [0.10126254290555678]
-Variance Parameters: 0.00021915736455159092, 0.00020488289860198789
-Coefficient Parameters: [0.20434672139746057, 0.18229834713845597, 0.20142059904272877]</code></pre>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"with ll </span><span class="sc">{</span>model1<span class="sc">.</span><span class="bu">filter</span>(obs_data, X_obs<span class="op">=</span>X_obs, likelihood <span class="op">=</span> <span class="st">'partial'</span>)[<span class="dv">0</span>]<span class="sc">.</span>tolist()<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>with ll 3218.1512444497266</code></pre>
+     offsets [-0.08165711911021113], [0.07801443859312673]
+Variance Parameters: 0.008744660926560522, 0.008719234324305818
+Coefficient Parameters: [0.2064789594195213, 0.1810646266028187, 0.1986177606423138]
+with ll 1754.8806956338124</code></pre>
 </div>
 </div>
 

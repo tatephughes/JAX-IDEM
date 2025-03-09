@@ -9,7 +9,6 @@ format:
         mathjax:
             extensions: ["breqn", "bm", "ams"]
 jupyter: python3
-engine: knitr
 bibliography: Bibliography.bib
 ---
 
@@ -23,6 +22,7 @@ I have run code from Andrew ZM's IDE package, available in the file `R-IDErun.RD
 Here are the results of that run on my machine;
 
 ```{r}
+#| eval: false
 #| output: false
 
 library("plyr")
@@ -37,6 +37,7 @@ library("readr")
 
 
 ```{r}
+#| eval: false
 load("../data/R-IDErun.RData")
 
 # Extract the values
@@ -62,7 +63,7 @@ We will fit to the same data, using as much the same as possible, fitting to tar
 # | output: false
 
 import jax
-jax.config.update('jax_platform_name', 'gpu')
+jax.config.update('jax_platform_name', 'cpu')
 jax.config.update('jax_enable_x64', True)
 import jax.random as rand
 import jax.numpy as jnp
@@ -139,7 +140,7 @@ model1, params = model0.fit_kalman_filter(obs_data=obs_data,
                                        X_obs=X_obs, 
                                        optimizer=optax.adamax(1e-2),
                                        debug=False,
-                                       max_its = 1000,
+                                       max_its = 10,
                                        fixed_ind = ['ks1', 'ks2'],
                                        target_ll = jnp.array(3217.945),
                                        likelihood = 'partial',
@@ -148,5 +149,5 @@ end_time = time.time()
 print(f"\nTime Elapsed is {end_time - start_time}")
 
 print("\nFitted parameters are: \n", idem.format_params(params))
-print(f"with ll {model1.filter(obs_data, X_obs=X_obs, likelihood = 'partial')[0].tolist()}")
+print(f"with ll {model1.kalman_filter(obs_data, X_obs=X_obs, likelihood = 'partial')[0].tolist()}")
 ```

@@ -72,7 +72,7 @@ class TestSimIdem:
             process_grid=self.model.process_grid,
             int_grid=self.model.int_grid,
             sigma2_eps=self.model.sigma2_eps,
-            sigma2_eta=self.model.sigma2_eta,
+            Sigma_eta=jnp.eye(self.nbasis)*self.model.sigma2_eta,
         )
     def test_shape(self):
 

@@ -273,10 +273,43 @@ fig5.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), ya
 fig5.show()
 ```
 
+# Square Root Information filter
+
+```{python}
+#| label: fig-isqrt
+#| fig-caption: "The (Square root IF) filtered means"
+
+ll4, nus2, Qs2,_ ,_  = fsf.sqrt_information_filter_indep(nu_0,
+                                                 U_0,
+                                                 M,
+                                                 PHI_tuple,
+                                                 sigma2_eta,
+                                                 sigma2_eps,
+                                                 zs_tuple,
+                                                 likelihood='full'
+    )
+
+ms4 = jnp.linalg.solve(Qs2, nus2[..., None]).squeeze(-1)
+ 
+ms4_df = pd.DataFrame(list(ms4), columns = ["x", "y"])
+
+combined_df_4 = pd.concat([alphas_df.assign(line='True Process'), ms4_df.assign(line='Filtered Process Means')])
+
+# Creating the line plot with custom colors
+fig4 = px.line(combined_df_4, x='x', y='y', color='line',
+               color_discrete_sequence=['blue', 'green'], height=200)  # Specify colors here
+
+fig4.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
+# Show the plot
+fig4.show()
+```
+
+
 ```{python}
 print(ll)
 print(ll2)
 print(ll3)
+print(ll4)
 ```
 
 # Fitting

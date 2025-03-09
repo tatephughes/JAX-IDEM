@@ -371,7 +371,8 @@ def sqrt_filter_indep(
         m_pred = M @ m_tt
 
         # Add sigma2_eps to the diagonal intelligently
-        U_pred = jnp.linalg.qr(jnp.vstack([U_tt @ M.T, U_eta]), mode="r")
+        #U_pred = jnp.linalg.qr(jnp.vstack([U_tt @ M.T, U_eta]), mode="r")
+        U_pred = qr_R(U_tt @ M.T, U_eta)
 
         # Update
 
@@ -379,7 +380,8 @@ def sqrt_filter_indep(
         e_t = z_t - PHI @ m_pred
 
         # Prediction deviation matrix
-        Ui_t = jnp.linalg.qr(jnp.vstack([U_pred @ PHI.T, U_eps]), mode="r")
+        #Ui_t = jnp.linalg.qr(jnp.vstack([U_pred @ PHI.T, U_eps]), mode="r")
+        Ui_t = qr_R(U_pred @ PHI.T, U_eps)
 
         # Kalman Gain (can you work with the qr decomp of K_t? precision seems lost here.)
         K_t = (
@@ -394,10 +396,11 @@ def sqrt_filter_indep(
         m_up = m_pred + K_t @ e_t
 
         #        P_up = (jnp.eye(nbasis) - K_t @ PHI) @ P_pred
-        U_up = jnp.linalg.qr(
-            jnp.vstack([U_pred @ (jnp.eye(nbasis) - K_t @ PHI).T, U_eps @ K_t.T]),
-            mode="r",
-        )
+        #U_up = jnp.linalg.qr(
+     #       jnp.vstack([U_pred @ (jnp.eye(nbasis) - K_t @ PHI).T, U_eps @ K_t.T]),
+     #       mode="r",
+     #   )
+        U_up = qr_R(U_pred @ (jnp.eye(nbasis) - K_t @ PHI).T, U_eps @ K_t.T)
 
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = Ui_t
@@ -880,7 +883,7 @@ def information_filter_indep(
 @partial(jax.jit, static_argnames=["likelihood"])
 def sqrt_information_filter_indep(
     nu_0: ArrayLike, 
-    L_0: ArrayLike, 
+    R_0: ArrayLike, 
     M: ArrayLike,
     PHI_tree: tuple,
     sigma2_eta: float,
@@ -917,8 +920,8 @@ def sqrt_information_filter_indep(
     ----------
     nu_0: ArrayLike (r,)
         The initial information vector of the process vector
-    L_0: ArrayLike (r,r)
-        The lower-triangular root of the initial information matrix of the process vector
+    R_0: ArrayLike (r,r)
+        The upper-triangular root of the initial information matrix of the process vector
     M: ArrayLike (r,r)
         The transition matrix of the process
     PHI_tree: PyTree of ArrayLike (r,n_t)
@@ -962,8 +965,8 @@ def sqrt_information_filter_indep(
         z_k = tup[0]
         PHI_k = tup[1]
         i_k = PHI_k.T @ z_k / sigma2_eps
-        L_k = jnp.linalg.cholesky(PHI_k.T @ PHI_k) / sigma2_eps
-        return jnp.vstack((i_k, L_k))
+        R_k = jnp.linalg.cholesky(PHI_k.T @ PHI_k, upper=True) / jnp.sqrt(sigma2_eps)
+        return jnp.vstack((i_k, R_k))
 
     def is_leaf(node): return jax.tree.structure(node).num_leaves == 2
 
@@ -976,26 +979,26 @@ def sqrt_information_filter_indep(
 
     
     def step(carry, scan_elt):
-        nu_tt, L_tt, _, _ = carry
+        nu_tt, R_tt, _, _ = carry
 
         i_tp = scan_elt[0, :]
-        L_tp = scan_elt[1:, :]
+        R_tp = scan_elt[1:, :]
 
-        U_pred = qr_R(st(L_tt.T, M.T, lower=False), sigma_eta*jnp.eye(nbasis))
-        L_pred = st(U_pred, jnp.eye(nbasis), lower=False)
-        nu_pred = L_pred.T @ L_pred @ M @ st(L_tt, 
-                      st(L_tt.T,
+        U_pred = qr_R(st(R_tt.T, M.T, lower=True), sigma_eta*jnp.eye(nbasis))
+        R_pred = st(U_pred, jnp.eye(nbasis), lower=False)
+        nu_pred = R_pred.T @ R_pred @ M @ st(R_tt, 
+                      st(R_tt.T,
                          nu_tt,
-                         lower=False), lower=True)
+                         lower=True), lower=False)
 
         nu_up = nu_pred + i_tp
-        L_up = ql_L(L_pred, L_tp)
+        R_up = qr_R(R_pred, R_tp)
 
-        return (nu_up, L_up, nu_pred, L_pred), (nu_up, L_up, nu_pred, L_pred)
+        return (nu_up, R_up, nu_pred, R_pred), (nu_up, R_up, nu_pred, R_pred)
 
     carry, seq = jl.scan(
         step,
-        (nu_0, L_0, jnp.zeros(r), jnp.eye(r)),
+        (nu_0, R_0, jnp.zeros(r), jnp.eye(r)),
         scan_elts,
     )
 
@@ -1010,9 +1013,9 @@ def sqrt_information_filter_indep(
             nobs = z.shape[0]
             PHI = tree[1]
             nu_pred = tree[2]
-            L_pred = tree[3]
+            R_pred = tree[3]
 
-            Q_pred = L_pred.T@L_pred
+            Q_pred = R_pred.T@R_pred
             e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
 
             P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
@@ -1048,9 +1051,9 @@ def sqrt_information_filter_indep(
             z = tree[0]
             PHI = tree[1]
             nu_pred = tree[2]
-            L_pred = tree[3]
+            R_pred = tree[3]
             
-            Q_pred = L_pred.T@L_pred
+            Q_pred = R_pred.T@R_pred
             e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
 
             P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
@@ -1338,12 +1341,3 @@ def kalman_filter_indep_vd(
 def qr_R(A,B):
     """Wrapper for the stacked-QR decompositon"""
     return jnp.linalg.qr(jnp.vstack([A, B]), mode="r")
-
-@jax.jit
-def ql_L(A,B):
-    """Computes the QL decomposition of matrix A."""
-    A_flipped = jnp.flip(jnp.vstack([A, B]), axis=1)
-    R = jnp.linalg.qr(A_flipped, mode='r')
-    L = jnp.flip(R, axis=(0, 1))
-    
-    return L

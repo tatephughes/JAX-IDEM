@@ -712,7 +712,7 @@ The Square-root filter and the SVD filter are such algorithms.
 The square-root Kalman filter has it's origins soon after the standard Kalman filter gained popularity [@kaminski1971discrete].
 Of course, computational and memory constraints necessitated stable and memory-efficient approaches, while today the standard Kalman filter (and, more recently, it's parallel counterpart, to be covered in section [TBD]) usually suffice.
 
-As its name suggests, this variant involves carriyng through the square roots of variances ^[A matrix $A$ is said to be a 'square root' of a positive-definate matrix $X$ if $A^\intercal A = X$. Note that these square roots are not unique, but can be 'rotated' by an arbitrary unitary matrix. The 'canonical' square root is the Cholesky factor, the unique upper (or occasionally lower) triangular square root. This can be found for arbitraty square roots by taking the QR decomposition (or LQ decomposition), which effectively computes the upper-triangular square root, $R$, and the unitary transformation $Q^\intercal$ necessary to get there.] instead of the variances themselves.
+As its name suggests, this variant involves carriyng through the square roots of variances ^[A matrix $A$ is said to be a 'square root' of a positive-definate matrix $X$ if $A^\intercal A = X$. Note that these square roots are not unique, but can be 'rotated' by an arbitrary unitary matrix. The 'canonical' square root is the Cholesky factor, the unique upper (or occasionally lower) triangular square root. This can be found for arbitraty square roots by taking the QR decomposition (or RQ decomposition), which effectively computes the upper-triangular square root, $R$, and the unitary transformation $Q^\intercal$ necessary to get there.] instead of the variances themselves.
 This leads to, at least in some sense, an increased precision, and we can always guarentee that, at least analytically, the square of these square roots (the variances) are positive (semi-)definite.
 
 While the square root filter has been known for a long time (even used during NASA's Apollo program), more recently, [@tracy2022square] wrote it neatly in terms of the QR decomposition, and this is what we base the presentation on here.
@@ -785,7 +785,7 @@ which is often simplified further to [@eq-kalman-update], but as discussed that 
 Furthermore, this is also in a form that allows us to easily find the square root with the QR trick;
 
 $$\begin{split}
-U_{t+1\mid t+1} = \sqrt{P_{t+1\mid t+1}} = \mathrm{qr}_R((I - K_{t+1} \Phi_{t+1})U_{t+1\mid t}, U_\epsilon).
+U_{t+1\mid t+1} = \sqrt{P_{t+1\mid t+1}} = \mathrm{qr}_R(U_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^{\intercal}, U_\epsilon).
 \end{split}
 $$
 
@@ -797,43 +797,41 @@ However, running the code in 32-bit causes the Kalman filter likelihood computat
 ### Square-root Information filter
 
 Very similarily, we can write the information filter using the square roots of the information matrices.
-For convenience, we actually carry through the _lower triangular_ square roots of the information matrices.
-As above, any upper triangular matrix will be represented with a $U$, and any lower triangular matrix with an $L$.
-Most implementations of the Cholesky decompositions allow you to work with either.
+We will label roots of 'information-type' matrices with $R$, and 'variance-type' matrices (their inverse) with $U$.
 
-We now carry the data's information matrix's (@eq-obsinfo) square root as well, $L_t^{(I)} = \sqrt(\Phi_t^\intercal\Sigma_\epsilon \Phi_t)$, with the same observation vector.
+We now carry the data's information matrix's (@eq-obsinfo) square root as well, $R_t^{(I)} = \sqrt(\Phi_t^\intercal\Sigma_\epsilon^{-1} \Phi_t)$, with the same observation vector.
 
-So, once again, beginning with the lower-triangular cholesky decomposition $Q_0 = L^\intercal L$, and the upper-triangular $\Sigma_{\eta} = U_{\eta}^\intercal U_{\eta}$ and $\Sigma_\epsilon = U_{\epsilon}^\intercal U_{\epsilon}$.
+So, once again, beginning with the lower-triangular cholesky decomposition $Q_0 = R^\intercal R$, and the upper-triangular $\Sigma_{\eta} = U_{\eta}^\intercal U_{\eta}$ and $\Sigma_\epsilon = U_{\epsilon}^\intercal U_{\epsilon}$.
 
 So, to predict step for the information matrix (@eq-infpred) becomes
 
 $$\begin{split}
   Q_{t+1\mid t} &= (M Q_{t\mid t}^{-1} M^\intercal + \Sigma_\eta)^{-1}\\
-  &= (M L_{t\mid t}^{-1}L_{t\mid t}^{-\intercal} M^\intercal + U_\eta^\intercal U_\eta)^{-1}\\
-  &= \left[(M L_{t\mid t}^{-1}, U_\eta^\intercal)\left(\begin{matrix}L_{t\mid t}^{-\intercal} M^\intercal\\U_\eta\end{matrix}\right)\right]^{-1}\\
-  L_{t+1\mid t}^{-1} &= \mathrm{qr}_R(L_{t\mid t}^{-\intercal} M^\intercal, U_\eta)
+  &= (M R_{t\mid t}^{-1}R_{t\mid t}^{-\intercal} M^\intercal + U_\eta^\intercal U_\eta)^{-1}\\
+  &= \left[(M R_{t\mid t}^{-1}, U_\eta^\intercal)\left(\begin{matrix}R_{t\mid t}^{-\intercal} M^\intercal\\U_\eta\end{matrix}\right)\right]^{-1}\\
+  R_{t+1\mid t}^{-1} &= \mathrm{qr}_R(R_{t\mid t}^{-\intercal} M^\intercal, U_\eta)
 \end{split}
 $$ {#eq-sqrtinfpred}
 
-This must now be explicitelly inverted, which isn't a big problem since it is upper-triangular (the inverse, $L_{t+1\mid t}$, will be lower triangular).
+This must now be explicitly inverted, which isn't a big problem since it is upper-triangular.
 
-The update on the information matrix is now
+The update on the information vector is now
 
 $$\begin{split}
 \bv\nu_{t+1\mid t} &= Q_{t+1\mid t} M Q_{t\mid t}^{-1} \bv \nu_{t\mid t}\\
-&= L_{t+1\mid t}^\intercal L_{t+1\mid t} M L_{t\mid t}^{-1}L_{t\mid t}^{-\intercal} \bv \nu_{t\mid t},
+&= R_{t+1\mid t}^\intercal R_{t+1\mid t} M R_{t\mid t}^{-1}R_{t\mid t}^{-\intercal} \bv \nu_{t\mid t}, 
 \end{split}
 $$ {#eq-sqrtinfopred2}
 
 which can be done, as in the square-root Kalman filter's Kalman gain computation, using forward-solves.
 
- Now the update step is
+Now the update step is
  
 $$\begin{split}
   \bv\nu_{t+1\mid t+1} &= \bv\nu_{t+1\mid t} + i_{t+1}\\
   Q_{t+1\mid t+1} &= Q_{t+1\mid t} + I_{t+1}\\
-  &= L_{t+1\mid t}^\intercal L_{t+1\mid t} + L^{(I)\intercal}_{t+1}L^{(I)}_{t+1}\\
-  L_{t+1\mid t+1}  &= \mathrm{ql}_L(L_{t+1\mid t}, L^{(I)}_{t+1}). 
+  &= R_{t+1\mid t}^\intercal R_{t+1\mid t} + R^{(I)\intercal}_{t+1}R^{(I)}_{t+1}\\
+  R_{t+1\mid t+1}  &= \mathrm{qr}_R(R_{t+1\mid t}, R^{(I)}_{t+1}). 
 \end{split}
 $$ {#eq-sqrtinfup}
 

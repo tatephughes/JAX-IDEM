@@ -229,11 +229,11 @@
 \newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
 \usepackage{amsthm}
 \theoremstyle{plain}
-\newtheorem{lemma}{Lemma}[section]
-\theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
 \theoremstyle{plain}
 \newtheorem{proposition}{Proposition}[section]
+\theoremstyle{plain}
+\newtheorem{lemma}{Lemma}[section]
 \theoremstyle{remark}
 \AtBeginDocument{\renewcommand*{\proofname}{Proof}}
 \newtheorem*{remark}{Remark}
@@ -1083,7 +1083,7 @@ roots of variances \footnote{A matrix \(A\) is said to be a `square
   an arbitrary unitary matrix. The `canonical' square root is the
   Cholesky factor, the unique upper (or occasionally lower) triangular
   square root. This can be found for arbitraty square roots by taking
-  the QR decomposition (or LQ decomposition), which effectively computes
+  the QR decomposition (or RQ decomposition), which effectively computes
   the upper-triangular square root, \(R\), and the unitary
   transformation \(Q^\intercal\) necessary to get there.} instead of the
 variances themselves. This leads to, at least in some sense, an
@@ -1105,7 +1105,7 @@ two equations where a square root is known for both, it can be written
 \end{split}
 \]
 
-Taking the QR decomposition of the verticle block yields QR, and since
+Taking the QR decomposition of the vertical block yields QR, and since
 \((QR)^\intercal\ (QR) = R^\intercal Q^\intercal Q R = R^\intercal R\),
 so \(R\) is a square root of \(X+Y\). This motivates the following `QR
 operator'
@@ -1199,20 +1199,17 @@ computation to fail, the square-root filter succeeds at a time of 7.0ms.
 filter}\label{square-root-information-filter}
 
 Very similarily, we can write the information filter using the square
-roots of the information matrices. For convenience, we actually carry
-through the \emph{lower triangular} square roots of the information
-matrices. As above, any upper triangular matrix will be represented with
-a \(U\), and any lower triangular matrix with an \(L\). Most
-implementations of the Cholesky decompositions allow you to work with
-either.
+roots of the information matrices. We will label roots of
+`information-type' matrices with \(R\), and `variance-type' matrices
+(their inverse) with \(U\).
 
 We now carry the data's information matrix's (Equation~\ref{eq-obsinfo})
 square root as well,
-\(L_t^{(I)} = \sqrt(\Phi_t^\intercal\Sigma_\epsilon \Phi_t)\), withthe
+\(R_t^{(I)} = \sqrt(\Phi_t^\intercal\Sigma_\epsilon \Phi_t)\), with the
 same observation vector.
 
 So, once again, beginning with the lower-triangular cholesky
-decomposition \(Q_0 = L^\intercal L\), and the upper-triangular
+decomposition \(Q_0 = R^\intercal R\), and the upper-triangular
 \(\Sigma_{\eta} = U_{\eta}^\intercal U_{\eta}\) and
 \(\Sigma_\epsilon = U_{\epsilon}^\intercal U_{\epsilon}\).
 
@@ -1221,8 +1218,33 @@ So, to predict step for the information matrix
 
 \begin{equation}\phantomsection\label{eq-sqrtinfpred}{\begin{split}
   Q_{t+1\mid t} &= (M Q_{t\mid t}^{-1} M^\intercal + \Sigma_\eta)^{-1}\\
-  &= (M L_{t\mid t}^{-1}L_{t\mid t}^{-\intercal} M^\intercal + U_\eta^\intercal U_\eta)^{-1}\\
-  L_{t+1\mid t}^{-1} &= 
+  &= (M R_{t\mid t}^{-1}R_{t\mid t}^{-\intercal} M^\intercal + U_\eta^\intercal U_\eta)^{-1}\\
+  &= \left[(M R_{t\mid t}^{-1}, U_\eta^\intercal)\left(\begin{matrix}R_{t\mid t}^{-\intercal} M^\intercal\\U_\eta\end{matrix}\right)\right]^{-1}\\
+  R_{t+1\mid t}^{-1} &= \mathrm{qr}_R(R_{t\mid t}^{-\intercal} M^\intercal, U_\eta)
+\end{split}
+}\end{equation}
+
+This must now be explicitly inverted, which isn't a big problem since it
+is upper-triangular.
+
+The update on the information vector is now
+
+\begin{equation}\phantomsection\label{eq-sqrtinfopred2}{\begin{split}
+\bv\nu_{t+1\mid t} &= Q_{t+1\mid t} M Q_{t\mid t}^{-1} \bv \nu_{t\mid t}\\
+&= R_{t+1\mid t}^\intercal R_{t+1\mid t} M R_{t\mid t}^{-1}R_{t\mid t}^{-\intercal} \bv \nu_{t\mid t}, 
+\end{split}
+}\end{equation}
+
+which can be done, as in the square-root Kalman filter's Kalman gain
+computation, using forward-solves.
+
+Now the update step is
+
+\begin{equation}\phantomsection\label{eq-sqrtinfup}{\begin{split}
+  \bv\nu_{t+1\mid t+1} &= \bv\nu_{t+1\mid t} + i_{t+1}\\
+  Q_{t+1\mid t+1} &= Q_{t+1\mid t} + I_{t+1}\\
+  &= R_{t+1\mid t}^\intercal R_{t+1\mid t} + R^{(I)\intercal}_{t+1}R^{(I)}_{t+1}\\
+  R_{t+1\mid t+1}  &= \mathrm{qr}_R(R_{t+1\mid t}, R^{(I)}_{t+1}). 
 \end{split}
 }\end{equation}
 
