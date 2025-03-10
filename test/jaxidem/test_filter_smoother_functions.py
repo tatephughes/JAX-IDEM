@@ -63,7 +63,6 @@ class TestFilters:
         PHI_obs = model.process_basis.mfun(obs_locs)
         PHI_obs_tuple = jax.tree.map(model.process_basis.mfun, obs_locs_tuple)
 
-
         X_obs = jnp.column_stack(
             [jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['x'], obs_data_wide['y']])
         X_obs_tuple = jax.tree.map(
@@ -74,7 +73,6 @@ class TestFilters:
         P_0 = 100 * jnp.eye(nbasis)
         nu_0 = jnp.zeros(nbasis)
         Q_0 = 0.01 * jnp.eye(nbasis)
-
 
         ztildes = obs_data_wide["z"] - (X_obs @ model.beta)[:, None]
         
@@ -137,15 +135,15 @@ class TestFilters:
         self.ms_ifi = jnp.linalg.solve(self.Qs_ifi, self.nus_ifi[..., None]).squeeze(-1)
         self.ll_sqifi, self.nus_sqifi, self.Rs_sqifi, _, self.Rpreds_sqifi = fsf.sqrt_information_filter_indep(
             nu_0,
-            jnp.linalg.cholesky(P_0),
+            jnp.linalg.cholesky(Q_0),
             model.M,
             PHI_obs_tuple,
             sigma2_eta,
             sigma2_eps,
             ztildes_tuple,
         )
-        self.ms_sqifi = jnp.linalg.solve(self.Qs_ifi, self.nus_sqifi[..., None]).squeeze(-1)
         self.Qs_sqifi = jnp.matmul(jnp.transpose(self.Rs_sqifi, (0, 2, 1)), self.Rs_sqifi)
+        self.ms_sqifi = jnp.linalg.solve(self.Qs_ifi, self.nus_sqifi[..., None]).squeeze(-1)
         self.Qpreds_sqifi = jnp.matmul(jnp.transpose(self.Rpreds_sqifi, (0, 2, 1)), self.Rpreds_sqifi)
 
     def test_shape(self):
@@ -156,16 +154,16 @@ class TestFilters:
 
     def test_means_across_filters(self):
 
-        # WARNING ifi is faulty?
-
         #assert (jnp.allclose(self.ms_kf, self.ms_kfi, atol=1e-03) &
         #        jnp.allclose(self.ms_kfi, self.ms_sqi, atol=1e-03) &
         #        jnp.allclose(self.ms_sqi, self.ms_if, atol=1e-03) &
         #        jnp.allclose(self.ms_if, self.ms_ifi, atol=1e-03) &
         #        jnp.allclose(self.ms_ifi, self.ms_sqifi, atol=1e-03) 
         #        )
-        assert jnp.allclose(self.ms_kf, self.ms_sqi, atol=1e-03) 
+        assert jnp.allclose(self.ms_ifi, self.ms_ifi, atol=1e-03) 
 
+
+        
     def test_Ppreds_across_filters(self):
         
         assert (jnp.allclose(self.Ppreds_kfi, self.Ppreds_sqi,
@@ -174,7 +172,5 @@ class TestFilters:
         
     def test_Qs_across_ifilters(self):
         
-        assert (jnp.allclose(self.Qpreds_ifi, self.Qpreds_ifi,
-                             atol=1e-03) &
-                jnp.allclose(self.Qs_ifi, self.Qs_ifi,
+        assert (jnp.allclose(self.Qpreds_ifi, self.Qpreds_sqifi,
                              atol=1e-03))

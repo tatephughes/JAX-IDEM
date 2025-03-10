@@ -959,8 +959,6 @@ def sqrt_information_filter_indep(
         tuple(range(len(zs_tree))),
     )
 
-    r = nu_0.shape[0]
-
     def informationify(tup: tuple):
         z_k = tup[0]
         PHI_k = tup[1]
@@ -976,7 +974,6 @@ def sqrt_information_filter_indep(
     sigma2_eta_inv = 1 / sigma2_eta
     sigma_eta = jnp.sqrt(sigma2_eta)
     nbasis = nu_0.shape[0]
-
     
     def step(carry, scan_elt):
         nu_tt, R_tt, _, _ = carry
@@ -984,8 +981,8 @@ def sqrt_information_filter_indep(
         i_tp = scan_elt[0, :]
         R_tp = scan_elt[1:, :]
 
-        U_pred = qr_R(st(R_tt.T, M.T, lower=True), sigma_eta*jnp.eye(nbasis))
-        R_pred = st(U_pred, jnp.eye(nbasis), lower=False)
+        U_pred = ql_L(st(R_tt.T, M.T, lower=True), sigma_eta*jnp.eye(nbasis))
+        R_pred = st(U_pred, jnp.eye(nbasis), lower=True).T
         nu_pred = R_pred.T @ R_pred @ M @ st(R_tt, 
                       st(R_tt.T,
                          nu_tt,
@@ -998,7 +995,7 @@ def sqrt_information_filter_indep(
 
     carry, seq = jl.scan(
         step,
-        (nu_0, R_0, jnp.zeros(r), jnp.eye(r)),
+        (nu_0, R_0, jnp.zeros(nbasis), jnp.eye(nbasis)),
         scan_elts,
     )
 
@@ -1341,3 +1338,13 @@ def kalman_filter_indep_vd(
 def qr_R(A,B):
     """Wrapper for the stacked-QR decompositon"""
     return jnp.linalg.qr(jnp.vstack([A, B]), mode="r")
+
+
+@jax.jit
+def ql_L(A,B):
+    """Computes the QL decomposition of matrix A."""
+    A_flipped = jnp.flip(jnp.vstack([A, B]), axis=1)
+    R = jnp.linalg.qr(A_flipped, mode='r')
+    L = jnp.flip(R, axis=(0, 1))
+    
+    return L

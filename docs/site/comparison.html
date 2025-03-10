@@ -238,7 +238,7 @@ print(time.taken)</code></pre>
 <section id="re-creating-the-environment-in-jax_idem" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Re-creating the environment in jax_idem</h1>
 <p>We will fit to the same data, using as much the same as possible, fitting to target the same likelihood as a stopping rule, where we can then compare the time and parameters between the two implementations.</p>
-<div id="f94f048e" class="cell" data-execution_count="1">
+<div id="d1c1c25f" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
@@ -308,7 +308,7 @@ print(time.taken)</code></pre>
 <span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>                    beta <span class="op">=</span> betahat,)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div id="ae1d90ab" class="cell" data-execution_count="2">
+<div id="45180064" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> optax</span>
@@ -343,25 +343,25 @@ Variance Parameters: 0.009626094370839137, 0.009626094370839137
 Coefficient Parameters: [0.23190200783831602, 0.1810764648642735, 0.19504882542007798]
 
 The log likelihood (up to a constant) of the initial model is
-               1650.0392919299302
+               1650.0392919663248
 The final log likelihood (up to a constant) of the fit model is
-               1754.8806947815447
+               1754.8806947555418
 
-the final offset parameters are [-0.08165712] and
+the final offset parameters are [-0.08165711] and
                [0.07801444]
 
 
 
-Time Elapsed is 5.3776655197143555
+Time Elapsed is 5.2577526569366455
 
 Fitted parameters are: 
  Kernel Parameters: 
      shape:[149.99999999999997]
      scale: [0.0020000000000000005]
-     offsets [-0.08165711911021113], [0.07801443859312673]
-Variance Parameters: 0.008744660926560522, 0.008719234324305818
-Coefficient Parameters: [0.2064789594195213, 0.1810646266028187, 0.1986177606423138]
-with ll 1754.8806956338124</code></pre>
+     offsets [-0.08165711498872691], [0.0780144405722481]
+Variance Parameters: 0.008744660924786542, 0.008719234323801497
+Coefficient Parameters: [0.2064789579083786, 0.18106462880051058, 0.19861776134149972]
+with ll 1754.880694369664</code></pre>
 </div>
 </div>
 

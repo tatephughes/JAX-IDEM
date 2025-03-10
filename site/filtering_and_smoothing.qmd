@@ -279,8 +279,10 @@ fig5.show()
 #| label: fig-isqrt
 #| fig-caption: "The (Square root IF) filtered means"
 
-ll4, nus2, Qs2,_ ,_  = fsf.sqrt_information_filter_indep(nu_0,
-                                                 U_0,
+R_0 = 0.1*jnp.eye(2)
+    
+ll4, nus2, Rs2,_ ,_  = fsf.sqrt_information_filter_indep(nu_0,
+                                                 R_0,
                                                  M,
                                                  PHI_tuple,
                                                  sigma2_eta,
@@ -288,6 +290,8 @@ ll4, nus2, Qs2,_ ,_  = fsf.sqrt_information_filter_indep(nu_0,
                                                  zs_tuple,
                                                  likelihood='full'
     )
+
+Qs2 = jnp.matmul(jnp.transpose(Rs2, (0, 2, 1)), Rs2)
 
 ms4 = jnp.linalg.solve(Qs2, nus2[..., None]).squeeze(-1)
  
