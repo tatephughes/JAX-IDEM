@@ -153,7 +153,7 @@ class IDEM:
         process_basis,
         kernel,
         process_grid,
-        sigma2_eta,
+        Sigma_eta,
         sigma2_eps,
         beta,
         int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
@@ -161,7 +161,7 @@ class IDEM:
         self.process_basis = process_basis
         self.kernel = kernel
         self.process_grid = process_grid
-        self.sigma2_eta = sigma2_eta
+        self.Sigma_eta = Sigma_eta
         self.sigma2_eps = sigma2_eps
         self.int_grid = int_grid
         self.PHI_proc = process_basis.mfun(process_grid.coords)
@@ -207,7 +207,7 @@ class IDEM:
         M = self.M
         PHI_proc = self.PHI_proc
         beta = self.beta
-        sigma2_eta = self.sigma2_eta
+        Sigma_eta = self.Sigma_eta
         sigma2_eps = self.sigma2_eps
         process_grid = self.process_grid
 
@@ -294,7 +294,7 @@ class IDEM:
             alpha_0=alpha_0,
             obs_locs=obs_locs,
             process_grid=process_grid,
-            Sigma_eta=sigma2_eta*jnp.eye(nbasis),
+            Sigma_eta=Sigma_eta,
             sigma2_eps=sigma2_eps,
         ) 
 
@@ -339,17 +339,17 @@ class IDEM:
 
         M = self.M
         PHI_obs = self.process_basis.mfun(obs_locs)
-        nbasis = self.process_basis.nbasis
+        nobs = PHI_obs.shape[0]
 
-        sigma2_eta = self.sigma2_eta
+        Sigma_eta = self.Sigma_eta
         sigma2_eps = self.sigma2_eps
 
         beta = self.beta
 
         ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
-        ll, ms, Ps, mpreds, Ppreds, Ks = fsf.kalman_filter_indep(
-            m_0, P_0, M, PHI_obs, sigma2_eta, sigma2_eps, ztildes, likelihood=likelihood
+        ll, ms, Ps, mpreds, Ppreds, Ks = fsf.kalman_filter(
+            m_0, P_0, M, PHI_obs, Sigma_eta, sigma2_eps*jnp.eye(nobs), ztildes, likelihood=likelihood
         )
 
         return (ll, ms, Ps, mpreds, Ppreds)
@@ -624,7 +624,7 @@ class IDEM:
         )
 
         params0 = (
-            jnp.log(self.sigma2_eta),
+            jnp.log(self.Sigma_eta[0,0]),
             jnp.log(self.sigma2_eps),
             ks0,
             self.beta,
@@ -652,7 +652,7 @@ class IDEM:
             # yes, this looks bad BUT after jit-compilation,
             # these ifs will be compiled away.
             if "sigma2_eta" in fixed_ind:
-                sigma2_eta = self.sigma2_eta
+                sigma2_eta = self.Sigma_eta[0,0]
             if "sigma2_eps" in fixed_ind:
                 sigma2_eps = self.sigma2_eps
             if "ks1" in fixed_ind:
@@ -732,7 +732,7 @@ class IDEM:
             process_basis=self.process_basis,
             kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
             process_grid=self.process_grid,
-            sigma2_eta=jnp.exp(params[0]),
+            Sigma_eta=jnp.exp(params[0])*jnp.eye(self.process_basis.nbasis),
             sigma2_eps=jnp.exp(params[1]),
             beta=params[3],
         )
@@ -1432,7 +1432,7 @@ def gen_example_idem(
     ngrid: ArrayLike = jnp.array([41, 41]),
     nints: ArrayLike = jnp.array([100, 100]),
     process_basis: Basis = None,
-    sigma2_eta=0.5**2,
+    Sigma_eta=None,
     sigma2_eps=0.1**2,
     beta=jnp.array([0.0, 0.0, 0.0]),
 ):
@@ -1460,6 +1460,7 @@ def gen_example_idem(
     ----------
     A model of type IDEM.
     """
+
 
     keys = rand.split(key, 2)
 
@@ -1496,11 +1497,19 @@ def gen_example_idem(
         )
         kernel = param_exp_kernel(K_basis, k)
 
+    nbasis = process_basis.nbasis
+        
+    if Sigma_eta is None:
+        Sigma_eta = 0.05**2 * jnp.eye(nbasis)
+    elif Sigma_eta == "random":
+        A = rand.normal(keys[2], shape=(nbasis, nbasis))
+        Sigma_eta = A.T @ A
+        
     return IDEM(
         process_basis=process_basis,
         kernel=kernel,
         process_grid=process_grid,
-        sigma2_eta=sigma2_eta,
+        Sigma_eta=Sigma_eta,
         sigma2_eps=sigma2_eps,
         beta=beta,
     )

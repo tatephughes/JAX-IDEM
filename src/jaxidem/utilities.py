@@ -289,7 +289,6 @@ def random_basis(
 
 
 def place_cosine_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
-    """Not currently fully implemented."""
     
     N = float(N)
 
@@ -298,7 +297,7 @@ def place_cosine_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
 
     @jax.jit
     def phi(ks, s):
-        return jnp.cos(ks[0] * jnp.pi * s[0] / L_1) * jnp.cos(ks[1] * jnp.pi * s[1] / L_1)
+        return jnp.cos(ks[0] * jnp.pi * s[0] / L_1) * jnp.cos(ks[1] * jnp.pi * s[1] / L_2)
 
     k1s, k2s = jnp.meshgrid(jnp.arange(N), jnp.arange(N))
     pairs = jnp.stack([k1s.flatten(), k2s.flatten()], axis=-1)

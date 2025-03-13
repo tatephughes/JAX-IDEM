@@ -81,13 +81,13 @@ jax.config.update('jax_enable_x64', True)
 ```
 
 ```{python}
+#| eval: true
 #| echo: true
-#| output: true
+#| output: false
 #| label: fig-truth
 #| fig-caption: "The true underlying system"
 
 key = jax.random.PRNGKey(1)
-
 
 alpha_0 = jnp.ones(2)  # 2D, easily plottable
 M = jnp.array([[jnp.cos(0.3), -jnp.sin(0.3)],

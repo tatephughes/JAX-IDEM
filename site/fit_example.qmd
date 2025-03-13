@@ -63,7 +63,7 @@ nbasis = process_basis.nbasis
 truemodel = idem.gen_example_idem(
     keys[0], k_spat_inv=True,
     process_basis=process_basis,
-    sigma2_eta=0.02**2,
+    Sigma_eta=0.02**2*jnp.eye(process_basis.nbasis),
     sigma2_eps=0.05**2,
     beta = jnp.array([2.0,2.0,2.0]),
 )
@@ -112,7 +112,7 @@ model0 = idem.IDEM(process_basis = process_basis0,
                    kernel=kernel,
                    process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
                                                         jnp.array([41, 41])),
-                   sigma2_eta = 0.01**2,
+                   Sigma_eta = 0.01**2*jnp.eye(process_basis0.nbasis),
                    sigma2_eps = 0.01**2,
                    beta = jnp.array([0.0, 0.0, 0.0]),)
 ```
@@ -139,7 +139,7 @@ model1, params = model0.fit_kalman_filter(obs_data=obs_data,
                                        X_obs=X_obs, 
                                        optimizer=optax.adamax(1e-1),
                                        debug=False,
-                                       max_its=100,
+                                       max_its=200,
                                        eps = 1e-5)
 print(model1.kernel.params)
 print(truemodel.kernel.params)
@@ -153,5 +153,6 @@ data = idem.basis_params_to_st_data(ms, model0.process_basis, model0.process_gri
 
 data.show_plot()
 print(ll)
+print(model1.beta)
 ```
 

@@ -33,17 +33,21 @@ import matplotlib.pyplot as plt
 
 seed = 4
 key = jax.random.PRNGKey(seed)
-keys = rand.split(key, 2)
+keys = rand.split(key, 10)
 
 process_basis = place_cosine_basis(N = 30)
 #process_basis = place_basis()
 
-model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]), process_basis = process_basis, sigma2_eta=1)
+#Sigma_eta = jnp.diag(0.1*jnp.arange(process_basis.nbasis, dtype="float32"))
+#Sigma_eta = jnp.diag(rand.normal(key, shape=(process_basis.nbasis,))**2)
+Sigma_eta = jnp.diag((0.01*jnp.ones(process_basis.nbasis)).at[1].set(40.0).at[30].set(80.0).at[31].set(60.0))
+
+model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]), process_basis = process_basis, Sigma_eta = Sigma_eta)
 
 # Simulation
 T = 35
-alpha_0 = jnp.ones(process_basis.nbasis).at[1].set(30.0).at[0].set(15.0)
-process_data, obs_data = model.simulate(key, T=T, nobs=50,alpha_0=alpha_0)
+alpha_0 = jnp.ones(process_basis.nbasis)#.at[1].set(30.0).at[0].set(15.0)
+process_data, obs_data = model.simulate(keys[1], T=T, nobs=50,alpha_0=alpha_0)
 
 dpi = 200
 width = 576 / dpi
