@@ -8,8 +8,8 @@ df = pd.read_csv("timing_results_cpu_1.csv")
 
 # Assuming the first column is 'Dimension' and the rest are time results
 dimensions = df.iloc[:, 0]
-time_results = df.iloc[:, 1:]
-#time_results = df.iloc[:, 5:]
+#time_results = df.iloc[:, 1:]
+time_results = df.iloc[:, 5:]
 legend_names = ["Kalman Filter", "Square-root Filter", "Information Filter", "SQRT Inf Filter"]
 
 # Plot each implementation's time results

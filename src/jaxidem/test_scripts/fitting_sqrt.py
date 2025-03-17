@@ -34,7 +34,7 @@ nbasis = process_basis.nbasis
 truemodel = idem.gen_example_idem(
     keys[0], k_spat_inv=True,
     process_basis=process_basis,
-    sigma2_eta=0.01**2,
+    Sigma_eta=0.01**2*jnp.eye(nbasis),
     sigma2_eps=0.01**2,
     beta=jnp.array([.2, .2, .2]),
 )
@@ -47,7 +47,7 @@ truek = (jnp.log(truemodel.kernel.params[0]),
          truemodel.kernel.params[3])
 
 trueparams = (jnp.log(truemodel.sigma2_eps), jnp.log(
-    truemodel.sigma2_eta), truek, truemodel.beta)
+    truemodel.Sigma_eta[0,0]), truek, truemodel.beta)
 
 process_data, obs_data = truemodel.simulate(
     nobs=100, T=9, key=keys[1], alpha_0=alpha_0)
@@ -71,7 +71,7 @@ model0 = idem.IDEM(process_basis=process_basis0,
                    kernel=kernel,
                    process_grid=utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
                                                       jnp.array([41, 41])),
-                   sigma2_eta=0.01**2,
+                   Sigma_eta=0.01**2*jnp.eye(process_basis0.nbasis),
                    sigma2_eps=0.01**2,
                    beta=jnp.array([0.0, 0.0, 0.0]),)
 

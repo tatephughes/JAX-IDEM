@@ -13,8 +13,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import idem
 import utilities
 import filter_smoother_functions as fsf
-jax.config.update("jax_platform_name", "gpu")
-jax.config.update("jax_enable_x64", False)
+jax.config.update("jax_platform_name", "cpu")
+jax.config.update("jax_enable_x64", True)
 df = pd.read_csv(
     os.path.join(os.path.dirname(__file__), "../../../data/obs_data_r-ide.csv")
 )
@@ -57,12 +57,11 @@ model0 = idem.IDEM(
     process_basis=process_basis,
     kernel=kernel,
     process_grid=utilities.create_grid(
-        jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])
-    ),
-    sigma2_eta=jnp.var(ztilde),
+        jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
+    Sigma_eta=jnp.var(ztilde)*jnp.eye(process_basis.nbasis),
     sigma2_eps=jnp.var(ztilde),
     beta=betahat,
-)
+    )
 
 truek = (
     jnp.array([150.0]),
@@ -80,7 +79,7 @@ truemodel = idem.IDEM(
     process_grid=utilities.create_grid(
         jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])
     ),
-    sigma2_eta=0.01**2,
+    Sigma_eta=0.01**2*jnp.eye(process_basis.nbasis),
     sigma2_eps=0.01**2,
     beta=jnp.array([0.2, 0.2, 0.2]),
 )
@@ -94,7 +93,7 @@ truektrans = (
 
 trueparams = (
     jnp.log(truemodel.sigma2_eps),
-    jnp.log(truemodel.sigma2_eta),
+    jnp.log(truemodel.Sigma_eta[0,0]),
     truektrans,
     truemodel.beta,
 )
@@ -105,25 +104,28 @@ X_obs = jnp.column_stack(
     [jnp.ones(obs_data_wide["x"].shape[0]), obs_data_wide["x"], obs_data_wide["y"]]
 )
 start_time = time.time()
-model1, params = model0.fit_sqrt_filter(
-    obs_data=obs_data,
-    X_obs=X_obs,
-    optimizer=optax.adamax(1e-2),
-    max_its=1000,
-    # target_ll=jnp.array(3217.945),
-    # fixed_ind = ['ks1', 'ks2'],
-    likelihood="partial",
-    eps=None,
-    debug=False,
-)
+## model1, params = model0.fit_sqrt_filter(
+##     obs_data=obs_data,
+##     X_obs=X_obs,
+##     optimizer=optax.adamax(1e-2),
+##     max_its=1000,
+##     # target_ll=jnp.array(3217.945),
+##     # fixed_ind = ['ks1', 'ks2'],
+##     likelihood="partial",
+##     eps=None,
+##     debug=False,
+## )
+key = jax.random.PRNGKey(3)
+model1, params = model0.fit_nuts_sqkf(key, obs_data, X_obs, n=100, burnin=100)
+
 end_time = time.time()
 print(f"Time Elapsed is {end_time - start_time}")
 
 print(f"\nFitted parameters are: \n{idem.format_params(params)}")
 print(
-    f"with likelihood {model1.filter(obs_data, X_obs=X_obs, likelihood='partial')[0].tolist()}"
+    f"with likelihood {model1.kalman_filter(obs_data, X_obs=X_obs, likelihood='partial')[0].tolist()}"
 )
 print(f"\nTrue parameters are: \n{idem.format_params(trueparams)}")
 print(
-    f"with likelihood {truemodel.filter(obs_data, X_obs=X_obs, likelihood='partial')[0].tolist()}"
+    f"with likelihood {truemodel.kalman_filter(obs_data, X_obs=X_obs, likelihood='partial')[0].tolist()}"
 )

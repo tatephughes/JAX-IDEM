@@ -9,6 +9,7 @@ from jax.numpy.linalg import solve
 
 from tqdm.auto import tqdm
 import optax
+import blackjax
 
 # Plotting imports
 import matplotlib.pyplot as plt
@@ -56,8 +57,10 @@ class Kernel:
         """Shows a plot of the direction of the kernel."""
 
         if self.form != "expansion":
-            raise Exception("""Kernel graphs only available for kernels formed
-                              with knot-based basis functions""")
+            raise Exception(
+                """Kernel graphs only available for kernels formed
+                              with knot-based basis functions"""
+            )
         else:
             with plt.style.context("seaborn-v0_8-dark-palette"):
                 fig, axes = plt.subplots(figsize=(width, height))
@@ -283,7 +286,6 @@ class IDEM:
                 keys[1], jnp.zeros(nbasis), 0.1 * jnp.eye(nbasis)
             )
 
-
         process_vals, obs_vals = sim_idem(
             key=keys[2],
             T=T,
@@ -296,7 +298,7 @@ class IDEM:
             process_grid=process_grid,
             Sigma_eta=Sigma_eta,
             sigma2_eps=sigma2_eps,
-        ) 
+        )
 
         # Create st_data object
         process_grids = jnp.tile(process_grid.coords, (T, 1, 1))
@@ -322,7 +324,9 @@ class IDEM:
 
         return (process_data, obs_data)
 
-    def kalman_filter(self, obs_data: st_data, X_obs, m_0=None, P_0=None, likelihood="full"):
+    def kalman_filter(
+        self, obs_data: st_data, X_obs, m_0=None, P_0=None, likelihood="full"
+    ):
         """
         Runs the Kalman filter on the inputted data.
         """
@@ -349,7 +353,14 @@ class IDEM:
         ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
         ll, ms, Ps, mpreds, Ppreds, Ks = fsf.kalman_filter(
-            m_0, P_0, M, PHI_obs, Sigma_eta, sigma2_eps*jnp.eye(nobs), ztildes, likelihood=likelihood
+            m_0,
+            P_0,
+            M,
+            PHI_obs,
+            Sigma_eta,
+            sigma2_eps * jnp.eye(nobs),
+            ztildes,
+            likelihood=likelihood,
         )
 
         return (ll, ms, Ps, mpreds, Ppreds)
@@ -375,7 +386,7 @@ class IDEM:
         PHI_obs = self.process_basis.mfun(obs_locs)
         nbasis = self.process_basis.nbasis
 
-        sigma2_eta = self.sigma2_eta
+        sigma2_eta = self.Sigma_eta[0, 0]
         sigma2_eps = self.sigma2_eps
 
         beta = self.beta
@@ -624,7 +635,7 @@ class IDEM:
         )
 
         params0 = (
-            jnp.log(self.Sigma_eta[0,0]),
+            jnp.log(self.Sigma_eta[0, 0]),
             jnp.log(self.sigma2_eps),
             ks0,
             self.beta,
@@ -652,7 +663,7 @@ class IDEM:
             # yes, this looks bad BUT after jit-compilation,
             # these ifs will be compiled away.
             if "sigma2_eta" in fixed_ind:
-                sigma2_eta = self.Sigma_eta[0,0]
+                sigma2_eta = self.Sigma_eta[0, 0]
             if "sigma2_eps" in fixed_ind:
                 sigma2_eps = self.sigma2_eps
             if "ks1" in fixed_ind:
@@ -732,7 +743,7 @@ class IDEM:
             process_basis=self.process_basis,
             kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
             process_grid=self.process_grid,
-            Sigma_eta=jnp.exp(params[0])*jnp.eye(self.process_basis.nbasis),
+            Sigma_eta=jnp.exp(params[0]) * jnp.eye(self.process_basis.nbasis),
             sigma2_eps=jnp.exp(params[1]),
             beta=params[3],
         )
@@ -773,57 +784,99 @@ class IDEM:
         loading_bar=True,
     ):
         """
-        Fits a new model by maximum likelihood estimation, maximizing the
-        data likelihood, computed by the square-root Kalman filter, using a given
-        OPTAX optimiser.
+                Fits a new model by maximum likelihood estimation, maximizing the
+                data likelihood, computed by the square-root Kalman filter, using a given
+                OPTAX optimiser.
 
-        This can be more stable than the standard Kalman, and in some situations
-        can be run in Single-precision mode
+                This can be more stable than the standard Kalman, and in some situations
+                can be run in Single-precision mode
 
-        Params
-        ----------
-        obs_data: st_data
-          The observed data, as an st_data object containing the data to be fit
-          to.
-        X_obs: ArrayLike (nobs, p)
-          Matrix of covariate data, where p is the number of covariates
-          (including a column of 1s)
-        fixed_ind: list = []
-          List of strings representing the variables to keep fixed at the value
-          in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
-          "ks2", "ks3", "ks4", "beta".
-        lower: tuple = None
-          Lower bounds on the parameters
-        upper:tuple = None
-          Upper bounds on the parameters
-        optimizer: Callable = optax.adam(1e-3)
-          Optimiser to use
-          (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
-          for available options)
-        m_0: ArrayLike = None (r,)
-          Initial mean vector for Kalman filter
-        U_0: ArrayLike = None (r,r)
-          Initial square-root Variance matrix for square root filter
-        debug: bool = False
-          Whether to print diagnostics during the fitting
-        max_its: int = 100
-          Maximum number of iterations to perform (if other stopping rules
-          don't stop the loop early)
-        target_ll: ArrayLike = jnp.inf
-          Target log likelihood which, once reached, the main loop will stop
-          early
-        likelihood: str = 'partial'
-          Type of likelihood for computation ('full' or 'partial').
-        eps: float = None
-          How close two loops should be before the loop is stopped early (None
-          removes this stopping rule
-        loading_bar:bool = True
-          Displays a tqdm bar during the main loop.
+                Params
+                ----------
+                obs_data: st_data
+                  The observed data, as an st_data object containing the data to be fit
+                  to.
+                X_obs: ArrayLike (nobs, p)
+                  Matrix of covariate data, where p is the number of covariates
+                  (including a column of 1s)
+                fixed_ind: list = []
+                  List of strings representing the variables to keep fixed at the value
+                  in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
+                  "ks2", "ks3", "ks4", "beta".
+                lower: tuple = None
+                  Lower bounds on the parameters
+        state = nuts.init(params0)
 
-        Returns: tuple
-        ----------
-        A tuple containing a new, fitted idem.IDEM object and the corresponding
-        parameters.
+        # Iterate
+        rng_key = jax.random.key(0)
+        step = jax.jit(nuts.step)
+        for i in range(100):
+            nuts_key = jax.random.fold_in(rng_key, i)
+            state, _ = step(nuts_key, state)
+            print('\n')
+            print(state.position[3])
+            print(state.position[2][2][0], state.position[2][3][0])
+
+        fitparams = state.position
+
+                upper:tuple = None
+                  Upper bounds on the parameters
+        state = nuts.init(params0)
+
+        # Iterate
+        rng_key = jax.random.key(0)
+        step = jax.jit(nuts.step)
+        for i in range(100):
+            nuts_key = jax.random.fold_in(rng_key, i)
+            state, _ = step(nuts_key, state)
+            print('\n')
+            print(state.position[3])
+            print(state.position[2][2][0], state.position[2][3][0])
+
+        fitparams = state.position
+
+                optimizer: Callable = optax.adam(1e-3)
+                  Optimiser to use
+                  (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
+                  for available options)
+                m_0: ArrayLike = None (r,)
+        state = nuts.init(params0)
+
+        # Iterate
+        rng_key = jax.random.key(0)
+        step = jax.jit(nuts.step)
+        for i in range(100):
+            nuts_key = jax.random.fold_in(rng_key, i)
+            state, _ = step(nuts_key, state)
+            print('\n')
+            print(state.position[3])
+            print(state.position[2][2][0], state.position[2][3][0])
+
+        fitparams = state.position
+
+                  Initial mean vector for Kalman filter
+                U_0: ArrayLike = None (r,r)
+                  Initial square-root Variance matrix for square root filter
+                debug: bool = False
+                  Whether to print diagnostics during the fitting
+                max_its: int = 100
+                  Maximum number of iterations to perform (if other stopping rules
+                  don't stop the loop early)
+                target_ll: ArrayLike = jnp.inf
+                  Target log likelihood which, once reached, the main loop will stop
+                  early
+                likelihood: str = 'partial'
+                  Type of likelihood for computation ('full' or 'partial').
+                eps: float = None
+                  How close two loops should be before the loop is stopped early (None
+                  removes this stopping rule
+                loading_bar:bool = True
+                  Displays a tqdm bar during the main loop.
+
+                Returns: tuple
+                ----------
+                A tuple containing a new, fitted idem.IDEM object and the corresponding
+                parameters.
         """
 
         obs_data_wide = obs_data.as_wide()
@@ -883,7 +936,7 @@ class IDEM:
         )
 
         params0 = (
-            jnp.log(self.sigma2_eta),
+            jnp.log(self.Sigma_eta[0, 0]),
             jnp.log(self.sigma2_eps),
             ks0,
             self.beta,
@@ -991,7 +1044,7 @@ class IDEM:
             process_basis=self.process_basis,
             kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
             process_grid=self.process_grid,
-            sigma2_eta=jnp.exp(params[0]),
+            Sigma_eta=jnp.exp(params[0]) * jnp.eye(nbasis),
             sigma2_eps=jnp.exp(params[1]),
             beta=params[3],
         )
@@ -1285,6 +1338,143 @@ class IDEM:
 
         return (new_fitted_model, params)
 
+    def fit_nuts_sqkf(
+        self,
+        key,
+        obs_data: st_data,
+        X_obs: ArrayLike,
+        m_0=None,
+        U_0=None,
+        likelihood="full",
+        fixed_ind=[],
+        burnin=10,
+        n=10,
+    ):
+
+        obs_data_wide = obs_data.as_wide()
+        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
+        PHI_obs = self.process_basis.mfun(obs_locs)
+        nbasis = self.process_basis.nbasis
+
+        if m_0 is None:
+            m_0 = jnp.zeros(nbasis)
+        if U_0 is None:
+            U_0 = 10 * jnp.eye(nbasis)
+
+        ks0 = (
+            jnp.log(self.kernel.params[0]),
+            jnp.log(self.kernel.params[1]),
+            self.kernel.params[2],
+            self.kernel.params[3],
+        )
+
+        params0 = (
+            jnp.log(self.Sigma_eta[0, 0]),
+            jnp.log(self.sigma2_eps),
+            ks0,
+            self.beta,
+        )
+
+        print(f"Initial Parameters:\n\n{format_params(params0)}\n")
+
+        @jax.jit
+        def log_marginal(params):
+            (
+                log_sigma2_eta,
+                log_sigma2_eps,
+                ks,
+                beta,
+            ) = params
+
+            logks1, logks2, ks3, ks4 = ks
+
+            ks1 = jnp.exp(logks1)
+            ks2 = jnp.exp(logks2)
+
+            sigma2_eta = jnp.exp(log_sigma2_eta)
+            sigma2_eps = jnp.exp(log_sigma2_eps)
+
+            # yes, this looks bad BUT after jit-compilation,
+            # these ifs will be compiled away.
+            if "sigma2_eta" in fixed_ind:
+                sigma2_eta = self.Sigma_eta[0, 0]
+            if "sigma2_eps" in fixed_ind:
+                sigma2_eps = self.sigma2_eps
+            if "ks1" in fixed_ind:
+                ks1 = self.kernel.params[0]
+            if "ks2" in fixed_ind:
+                ks2 = self.kernel.params[1]
+            if "ks3" in fixed_ind:
+                ks3 = self.kernel.params[2]
+            if "ks4" in fixed_ind:
+                ks4 = self.kernel.params[3]
+            if "beta" in fixed_ind:
+                beta = self.beta
+
+            M = self.con_M((ks1, ks2, ks3, ks4))
+
+            # CHECK BELOW
+            ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
+
+            ll, _, _, _, _, _ = fsf.sqrt_filter_indep(
+                m_0,
+                U_0,
+                M,
+                PHI_obs,
+                sigma2_eta,
+                sigma2_eps,
+                ztildes,
+                likelihood=likelihood,
+            )
+            return ll
+
+        step_size = 1e-3
+        nparams = sum(leaf.size for leaf in jax.tree.leaves(params0))
+        inverse_mass_matrix = jnp.ones(nparams)
+
+        nuts = blackjax.nuts(log_marginal, step_size, inverse_mass_matrix)
+        init_state = nuts.init(params0)
+
+        step = jax.jit(nuts.step)
+        
+        def body_fn(carry, key):
+            new_state, info = step(key, carry)
+            return new_state, (new_state, info)
+
+        # Burnin
+        keys = rand.split(key, 3)
+        print("Burning in...")
+        burn_keys = rand.split(keys[0], burnin)
+        start_state, _ = jax.lax.scan(body_fn, init_state, burn_keys)
+
+        # Sample
+        print("Sampling...")
+        it_keys = rand.split(keys[1], n)
+        _, (param_post_sample,_) = jl.scan(body_fn, init_state, it_keys)
+        print("Done!")
+
+        
+        post_mean = jax.tree.map(lambda x: jnp.mean(x, axis=0), param_post_sample.position)
+
+        logks1, logks2, ks3, ks4 = post_mean[2]
+
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+
+        new_kernel_params = (ks1, ks2, ks3, ks4)
+        print(new_kernel_params)
+
+        new_fitted_model = IDEM(
+            process_basis=self.process_basis,
+            kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
+            process_grid=self.process_grid,
+            Sigma_eta=jnp.exp(post_mean[0]) * jnp.eye(self.process_basis.nbasis),
+            sigma2_eps=jnp.exp(post_mean[1]),
+            beta=post_mean[3],
+        )
+
+        return new_fitted_model, post_mean
+
 
 @partial(jax.jit, static_argnames=["T"])
 def sim_idem(
@@ -1351,7 +1541,7 @@ def sim_idem(
     # times = jnp.unique(obs_locs[:, 0], size=T)
 
     U_eta = jnp.linalg.cholesky(Sigma_eta)
-    
+
     @jax.jit
     def step(carry, key):
         nextstate = M @ carry + U_eta @ rand.normal(key, shape=(nbasis,))
@@ -1424,7 +1614,6 @@ def Q(
     #    )
     #
     #    xi_z = jnp.sum(obs_locs, axis=0)
-
 
 def gen_example_idem(
     key: ArrayLike,

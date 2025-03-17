@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath('../'))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import idem
 import utilities
+from utilities import time_jit
 import filter_smoother_functions as fsf
 import timeit
 import importlib
@@ -29,47 +30,48 @@ csv_filename = f"timing_results_{platform_name}.csv"
 with open(csv_filename, "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["nobs", "kf",
-                    "sq", "if", "sqif", "grad_kf",
-                    "grad_sq", "grad_if", "grad_sqif"])
+                     "sq", "if", "sqif",
+                     "kf_comp", "sq_comp", "if_comp", "sqif_comp"])
 
 key = jax.random.PRNGKey(3)
 
 
-def timer(func, inp, n, desc):
+#def timer(func, inp, n, desc):
+#
+#    tot_time = 0
+#
+#    result = func(inp) # one run for jit compilation
+#
+#    for _ in tqdm(range(n), desc=desc):
+#        start_time = time.time()
+#        result = func(inp)
+#        elapsed = time.time() - start_time
+#        tot_time = tot_time + elapsed
+#
+#    av_time = tot_time / n
+#
+#    return av_time * 1000
 
-    tot_time = 0
-
-    result = func(inp) # one run for jit compilation
-
-    for _ in tqdm(range(n), desc=desc):
-        start_time = time.time()
-        result = func(inp)
-        elapsed = time.time() - start_time
-        tot_time = tot_time + elapsed
-
-    av_time = tot_time / n
-
-    return av_time * 1000
 
 
 process_basis = utilities.place_cosine_basis(N=5)
 
-for n in tqdm(range(2,200)):
+keys = rand.split(key, 4)
+nbasis = process_basis.nbasis
 
-    #print(f"\n\n\n n={n}")
+model = idem.gen_example_idem(
+    keys[0], k_spat_inv=True,
+    process_basis=process_basis,
+    Sigma_eta=0.01**2*jnp.eye(nbasis),
+    sigma2_eps=0.01**2,
+    beta=jnp.array([.2, .2, .2]),
+)
 
-    keys = rand.split(key, 3)
-    nbasis = process_basis.nbasis
+alpha_0 = jax.random.normal(keys[1], shape=(nbasis,))
 
-    model = idem.gen_example_idem(
-        keys[0], k_spat_inv=True,
-        process_basis=process_basis,
-        sigma2_eta=0.01**2,
-        sigma2_eps=0.01**2,
-        beta=jnp.array([.2, .2, .2]),
-    )
+for n in range(300,302):
 
-    alpha_0 = jax.random.normal(keys[1], shape=(nbasis,))
+    print(f"\n\n\n nobs={n}")
 
     process_data, obs_data = model.simulate(
         nobs=n, T=50, key=keys[2], alpha_0=alpha_0)
@@ -106,7 +108,7 @@ for n in tqdm(range(2,200)):
     beta = model.beta
     M = model.M
     sigma2_eps = model.sigma2_eps
-    sigma2_eta = model.sigma2_eta
+    sigma2_eta = model.Sigma_eta[0,0]
     zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
 
     ztildes = obs_data_wide["z"] - (X_obs @ model.beta)[:, None]
@@ -122,90 +124,186 @@ for n in tqdm(range(2,200)):
     ztildes_tuple = jax.tree.map(
         lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf)
 
-    def kalman_filter(zs):
-        ll_kf, _, _, _, _, _ = fsf.kalman_filter_indep(
+    @jax.jit
+    def kf(params):
+        (
+            log_sigma2_eta,
+            log_sigma2_eps,
+            ks,
+            beta,
+        ) = params
+
+        logks1, logks2, ks3, ks4 = ks
+
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+
+        sigma2_eta = jnp.exp(log_sigma2_eta)
+        sigma2_eps = jnp.exp(log_sigma2_eps)
+        M = model.con_M((ks1, ks2, ks3, ks4))
+        
+        ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
+        
+        #ztildes_tuple = jax.tree.map(
+        #    lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf)
+        
+        ll, _, _, _, _, _ = fsf.kalman_filter_indep(
             m_0,
             P_0,
-            model.M,
+            M,
             PHI_obs,
-            model.sigma2_eta,
-            model.sigma2_eps,
-            zs,
+            sigma2_eta,
+            sigma2_eps,
+            ztildes,
             likelihood="full",
         )
-        return ll_kf
+        return ll
 
-    def sqrt_filter(zs):
-        ll_sq, _, _, _, _, _ = fsf.sqrt_filter_indep(
+    @jax.jit
+    def sqf(params):
+        (
+            log_sigma2_eta,
+            log_sigma2_eps,
+            ks,
+            beta,
+        ) = params
+
+        logks1, logks2, ks3, ks4 = ks
+
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+
+        sigma2_eta = jnp.exp(log_sigma2_eta)
+        sigma2_eps = jnp.exp(log_sigma2_eps)
+        M = model.con_M((ks1, ks2, ks3, ks4))
+        
+        ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
+        
+        #ztildes_tuple = jax.tree.map(
+        #    lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf)
+        
+        ll, _, _, _, _, _ = fsf.sqrt_filter_indep(
             m_0,
             U_0,
-            model.M,
+            M,
             PHI_obs,
-            model.sigma2_eta,
-            model.sigma2_eps,
-            zs,
+            sigma2_eta,
+            sigma2_eps,
+            ztildes,
             likelihood="full",
         )
-        return ll_sq
+        return ll
 
-    def if_filter(zs_tree):
-        ll_if, _, _, _, _ = fsf.information_filter_indep(
+    @jax.jit
+    def inf(params):
+        (
+            log_sigma2_eta,
+            log_sigma2_eps,
+            ks,
+            beta,
+        ) = params
+
+        logks1, logks2, ks3, ks4 = ks
+
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+
+        sigma2_eta = jnp.exp(log_sigma2_eta)
+        sigma2_eps = jnp.exp(log_sigma2_eps)
+        M = model.con_M((ks1, ks2, ks3, ks4))
+        
+        ztildes_tuple = jax.tree.map(
+            lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf)
+        
+        ll, _, _, _, _ = fsf.information_filter_indep(
             nu_0,
             Q_0,
             M,
             PHI_obs_tuple,
             sigma2_eta,
             sigma2_eps,
-            zs_tree,
+            ztildes_tuple,
             likelihood="full",
         )
-        return ll_if
+        return ll
 
-    def sqif_filter(zs_tree):
-        ll_if, _, _, _, _ = fsf.sqrt_information_filter_indep(
+    @jax.jit
+    def sqinf(params):
+        (
+            log_sigma2_eta,
+            log_sigma2_eps,
+            ks,
+            beta,
+        ) = params
+
+        logks1, logks2, ks3, ks4 = ks
+
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+
+        sigma2_eta = jnp.exp(log_sigma2_eta)
+        sigma2_eps = jnp.exp(log_sigma2_eps)
+        M = model.con_M((ks1, ks2, ks3, ks4))
+        
+        ztildes_tuple = jax.tree.map(
+            lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf)
+        
+        ll, _, _, _, _ = fsf.sqrt_information_filter_indep(
             nu_0,
             R_0,
             M,
             PHI_obs_tuple,
             sigma2_eta,
             sigma2_eps,
-            zs_tree,
+            ztildes_tuple,
             likelihood="full",
         )
-        return ll_if
+        return ll
 
-    kf = jax.jit(kalman_filter)
-    sq = jax.jit(sqrt_filter)
-    iff = jax.jit(if_filter)
-    sqif = jax.jit(sqif_filter)
-    gradkf = jax.grad(kalman_filter)
-    gradsq = jax.grad(sqrt_filter)
-    gradiff = jax.grad(if_filter)
-    gradsqif = jax.grad(sqif_filter)
+    kf_vg = jax.value_and_grad(kf)
+    sqf_vg = jax.value_and_grad(sqf)
+    if_vg = jax.value_and_grad(inf)
+    sqif_vg = jax.value_and_grad(sqinf)
 
-    print(f"\nKalman Filter, ll: {kf(ztildes)}")
-    print(f"Sqrt Filter, ll: {sq(ztildes)}")
-    print(f"Inf Filter, ll: {iff(ztildes_tuple)}")
-    print(f"SqInf Filter, ll: {sqif(ztildes_tuple)}")
+    ks0 = (
+        jnp.array([jnp.log(100.0)]),
+        jnp.array([jnp.log(0.002)]),
+        jnp.array([0.0]),
+        jnp.array([0.0]),
+    )
+    params0 = (jnp.log(0.0002), jnp.log(0.0002), ks0, jnp.array([0.0,0.0,0.0]))
+
+    #print(f"\nKalman Filter, ll: {kf_vg(params0)[0]}")
+    #print(f"Sqrt Filter, ll: {sqf_vg(params0)[0]}")
+    #print(f"Inf Filter, ll: {if_vg(params0)[0]}")
+    #print(f"SqInf Filter, ll: {sqif_vg(params0)[0]}")
+
+    time_keys = rand.split(jax.random.fold_in(keys[3], n), 4)
     
-    kf_time = timer(kf, ztildes, n=reps, desc="Kalman Filter...")
-    sq_time = timer(sq, ztildes, n=reps, desc="SQRT Filter...")
-    if_time = timer(iff, ztildes_tuple, n=reps, desc="Information Filter...")
-    sqif_time = timer(sqif, ztildes_tuple, n=reps, desc="SQRT Inf Filter...")
-    grad_kf_time = timer(gradkf, ztildes, n=reps, desc="Kalman Filter Gradient...")
-    grad_sq_time = timer(gradsq, ztildes, n=reps, desc="SQRT Filter Gradient...")
-    grad_if_time = timer(gradiff, ztildes_tuple, n=reps, desc="Information Filter Gradient...")
-    grad_sqif_time = timer(gradsqif, ztildes_tuple, n=reps, desc="SQRT Inf Filter Gradient...")
+    kf_comp_time, kf_run_time = time_jit(time_keys[0], kf_vg, params0, n=reps, desc="Kalman Filter...")
+    sq_comp_time, sq_run_time = time_jit(time_keys[0], sqf_vg, params0, n=reps, desc="SQRT Filter...")
+    if_comp_time, if_run_time = time_jit(time_keys[0], if_vg, params0, n=reps, desc="Information Filter...")
+    sqif_comp_time, sqif_run_time = time_jit(time_keys[0], sqif_vg, params0, n=reps, desc="SQRT Inf Filter...")
+
+    #print(f"\nKalman filter average run time: {kf_run_time}\n",
+    #      f"SQRT filter average run time: {sq_run_time}\n",
+    #      f"Information filter average run time: {if_run_time}\n",
+    #      f"SQ Information filter average run time: {sqif_run_time}\n",
+    #      f"Kalman filter compilation: {kf_comp_time}\n",
+    #      f"SQRT filter compilation: {sq_comp_time}\n",
+    #      f"Information SQ Information filter compilation: {if_comp_time}\n",
+    #      f"SQ Information filter compilation: {sqif_comp_time}\n",
+    #      )
 
     with open(csv_filename, "a", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([n,
-                         kf_time,
-                         sq_time,
-                         if_time,
-                         sqif_time,
-                         grad_kf_time,
-                         grad_sq_time,
-                         grad_if_time,
-                         grad_sqif_time,
+                         kf_run_time,
+                         sq_run_time,
+                         if_run_time,
+                         sqif_run_time,
+                         kf_comp_time,
+                         sq_comp_time,
+                         if_comp_time,
+                         sqif_comp_time,
                          ])

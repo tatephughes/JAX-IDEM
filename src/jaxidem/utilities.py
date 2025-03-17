@@ -4,6 +4,7 @@
 import jax
 import jax.numpy as jnp
 import jax.lax as jl
+import jax.random as rand
 # Typing imports
 from jax.typing import ArrayLike
 from typing import Callable, NamedTuple  # , Union
@@ -14,6 +15,10 @@ from matplotlib.colors import Normalize
 import seaborn as sns
 from PIL import Image
 import io
+
+# nice loading bars
+from tqdm.auto import tqdm
+import time
 
 class Grid(NamedTuple):
     """
@@ -601,3 +606,61 @@ def gif_st_pts(
     frames[0].save(
         output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
     )
+
+
+def noise(key, tree, noise_scale=1e-5):
+    """
+    Adds gaussian noise to each a PyTree.
+    """
+    keys = rand.split(key, num=len(jax.tree_leaves(tree)))
+    return jax.tree.map(
+        lambda x, k: x + noise_scale * jax.random.normal(k, shape=x.shape) if isinstance(x, jnp.ndarray) else x,
+        tree,
+        jax.tree.unflatten(jax.tree.structure(tree), keys)
+    )
+
+def check_nans(tree):
+    def check(x):
+        if isinstance(x, jnp.ndarray) and jnp.any(jnp.isnan(x)):
+            return True
+        else:
+            return False
+    return any(jax.tree_leaves(jax.tree_map(check, tree)))
+
+
+def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
+    """
+    Timer function that uses random noise to properly time jit-compiled functions.
+    Only takes functions with PyTrees of JAX arrays as inputs.
+
+    Returns a tuple containing the compile time and the average run time.
+    """
+
+    func_jit = jax.jit(func)    
+    
+    tot_time = 0
+    #progress_bar = tqdm(range(n+1), desc = desc)
+    print("\n", desc)
+    progress_bar = range(n+1)
+    for i in progress_bar:
+        
+        noise_key = jax.random.fold_in(key, i)
+        inp_noise = noise(noise_key, inp_tree, noise_scale=noise_scale)
+        
+        start_time = time.time()
+        result = func_jit(inp_noise)[0]
+        elapsed = time.time() - start_time
+        print(f"i: {i}, Value: {round(result,5)}, Elapsed: {round(elapsed, 5)}s")
+
+        if i != 0:
+            tot_time = tot_time + elapsed
+        else:
+            compile_time = elapsed
+
+        if check_nans(result):
+            print("WARNING: The function has returned a PyTree/array with nan.")
+        
+    av_time = tot_time / n
+    print(f"Compile time: {compile_time}s")
+    print(f"Average time: {av_time}s")
+    return (compile_time, av_time * 1000)
