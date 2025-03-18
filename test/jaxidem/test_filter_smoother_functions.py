@@ -35,7 +35,7 @@ class TestFilters:
         beta = model.beta
         M = model.M
         sigma2_eps = model.sigma2_eps
-        sigma2_eta = model.sigma2_eta
+        sigma2_eta = model.Sigma_eta[0,0]
         nbasis = model.process_basis.nbasis
         self.nbasis = nbasis
 
@@ -94,7 +94,7 @@ class TestFilters:
             P_0,
             model.M,
             PHI_obs,
-            model.sigma2_eta,
+            model.Sigma_eta[0,0],
             model.sigma2_eps,
             ztildes,
             likelihood="full",
@@ -104,7 +104,7 @@ class TestFilters:
             jnp.linalg.cholesky(P_0),
             model.M,
             PHI_obs,
-            model.sigma2_eta*jnp.eye(nbasis),
+            model.Sigma_eta,
             model.sigma2_eps*jnp.eye(nobs),
             ztildes,
             likelihood="full",
@@ -114,7 +114,7 @@ class TestFilters:
             jnp.linalg.cholesky(P_0),
             model.M,
             PHI_obs,
-            model.sigma2_eta,
+            model.Sigma_eta[0,0],
             model.sigma2_eps,
             ztildes,
             likelihood="full",

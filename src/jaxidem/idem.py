@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import jax.lax as jl
 from jax.numpy.linalg import solve
-
+from jax_tqdm import scan_tqdm
 from tqdm.auto import tqdm
 import optax
 import blackjax
@@ -805,55 +805,6 @@ class IDEM:
                   "ks2", "ks3", "ks4", "beta".
                 lower: tuple = None
                   Lower bounds on the parameters
-        state = nuts.init(params0)
-
-        # Iterate
-        rng_key = jax.random.key(0)
-        step = jax.jit(nuts.step)
-        for i in range(100):
-            nuts_key = jax.random.fold_in(rng_key, i)
-            state, _ = step(nuts_key, state)
-            print('\n')
-            print(state.position[3])
-            print(state.position[2][2][0], state.position[2][3][0])
-
-        fitparams = state.position
-
-                upper:tuple = None
-                  Upper bounds on the parameters
-        state = nuts.init(params0)
-
-        # Iterate
-        rng_key = jax.random.key(0)
-        step = jax.jit(nuts.step)
-        for i in range(100):
-            nuts_key = jax.random.fold_in(rng_key, i)
-            state, _ = step(nuts_key, state)
-            print('\n')
-            print(state.position[3])
-            print(state.position[2][2][0], state.position[2][3][0])
-
-        fitparams = state.position
-
-                optimizer: Callable = optax.adam(1e-3)
-                  Optimiser to use
-                  (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
-                  for available options)
-                m_0: ArrayLike = None (r,)
-        state = nuts.init(params0)
-
-        # Iterate
-        rng_key = jax.random.key(0)
-        step = jax.jit(nuts.step)
-        for i in range(100):
-            nuts_key = jax.random.fold_in(rng_key, i)
-            state, _ = step(nuts_key, state)
-            print('\n')
-            print(state.position[3])
-            print(state.position[2][2][0], state.position[2][3][0])
-
-        fitparams = state.position
-
                   Initial mean vector for Kalman filter
                 U_0: ArrayLike = None (r,r)
                   Initial square-root Variance matrix for square root filter
@@ -1437,23 +1388,24 @@ class IDEM:
 
         step = jax.jit(nuts.step)
         
-        def body_fn(carry, key):
-            new_state, info = step(key, carry)
+        burn_key, it_key = rand.split(key, 2)
+        @scan_tqdm(burnin, desc='Burn-in...')
+        def body_fn_burnin(carry, i):
+            nuts_key = jax.random.fold_in(burn_key, i)
+            new_state, info = step(nuts_key, carry)
+            return new_state, (new_state, info)
+        @scan_tqdm(n, desc='Sampling...')
+        def body_fn_sample(carry, i):
+            nuts_key = jax.random.fold_in(it_key, i)
+            new_state, info = step(nuts_key, carry)
             return new_state, (new_state, info)
 
         # Burnin
-        keys = rand.split(key, 3)
-        print("Burning in...")
-        burn_keys = rand.split(keys[0], burnin)
-        start_state, _ = jax.lax.scan(body_fn, init_state, burn_keys)
-
+        start_state, _ = jax.lax.scan(body_fn_burnin, init_state, jnp.arange(burnin))
         # Sample
-        print("Sampling...")
-        it_keys = rand.split(keys[1], n)
-        _, (param_post_sample,_) = jl.scan(body_fn, init_state, it_keys)
-        print("Done!")
+        _, (param_post_sample,_) = jl.scan(body_fn_sample, start_state, jnp.arange(n))
+        # print("Done!")
 
-        
         post_mean = jax.tree.map(lambda x: jnp.mean(x, axis=0), param_post_sample.position)
 
         logks1, logks2, ks3, ks4 = post_mean[2]
