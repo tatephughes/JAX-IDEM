@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import jax.lax as jl
-from jax.typing import ArrayLike
+from jax.typing import ArrayLike, PyTree
 from typing import Tuple
 from functools import partial
 
@@ -142,7 +142,7 @@ def kalman_filter(
 
 
 @partial(jax.jit, static_argnames=["likelihood"])
-def kalman_filter_indep(
+def kalman_filter_iid(
     m_0: ArrayLike,
     P_0: ArrayLike,
     M: ArrayLike,
@@ -236,6 +236,149 @@ def kalman_filter_indep(
         P_oprop = PHI @ P_pred @ PHI.T
         Sigma_t = jnp.fill_diagonal(
             P_oprop, sigma2_eps + jnp.diag(P_oprop), inplace=False
+        )
+
+        # Kalman Gain
+        K_t = (jnp.linalg.solve(Sigma_t, PHI) @ P_pred.T).T
+
+        m_up = m_pred + K_t @ e_t
+
+        P_up = (jnp.eye(nbasis) - K_t @ PHI) @ P_pred
+
+        # likelihood of epsilon, using cholesky decomposition
+        chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e_t, lower=True)
+        if likelihood == "full":
+            ll_new = (
+                ll
+                - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+                - 0.5 * jnp.dot(z, z)
+                - 0.5 * nobs * jnp.log(2 * jnp.pi)
+            )
+            # ll_new = ll + \
+            #    jax.scipy.stats.multivariate_normal.logpdf(
+            #        z_t, PHI @ m_pred, Sigma_t)
+        elif likelihood == "partial":
+            ll_new = ll - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
+        elif likelihood == "none":
+            ll_new = jnp.nan
+        else:
+            raise ValueError(
+                "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
+            )
+
+        return (m_up, P_up, m_pred, P_pred, ll_new, K_t), (
+            m_up,
+            P_up,
+            m_pred,
+            P_pred,
+            ll_new,
+            K_t,
+        )
+
+    carry, seq = jl.scan(
+        step,
+        (m_0, P_0, m_0, P_0, 0, jnp.zeros((nbasis, nobs))),
+        zs.T,
+    )
+
+    return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
+
+@partial(jax.jit, static_argnames=["likelihood"])
+def kalman_filter_indep(
+    m_0: ArrayLike,
+    P_0: ArrayLike,
+    M: ArrayLike,
+    PHI: ArrayLike,
+    sigma2_etas: ArrayLike,
+    sigma2_epss: ArrayLike,
+    zs: ArrayLike,  # data matrix, with time across columns
+    likelihood: str = "partial",
+) -> tuple:
+    """
+    Applies the Kalman Filter to a wide-format matrix of data.
+    Additionally assumes that both the error terms $$\\boldsymbol \\epsilon_t$$ and the noise terms $$\\boldsymbol \\eta_t$$ both have uncorrelated componants.
+    For jit-ability, this only allows full (no missing) data in a wide format.
+    For changing data locations or changing data dimension, see [`information_filter_inder`](/reference/information_filter_indep.qmd).
+    For the Kalman filter with correlated errors, see [`kalman_filter`](/reference/kalman_filter.qmd).
+    For the square-root Kalman filter, [`sqrt_filter_indep`](/reference/sqrt_filter_indep.qmd).
+
+    Computes posterior means and variances for a system
+    $$\\begin{split}
+        \\mathbf Z_t &= \\Phi \\boldsymbol\\alpha_t + \\boldsymbol \\epsilon_t, \\quad t = 1,\\dots, T,\\\\
+        \\boldsymbol \\alpha_{t+1} &= M\\boldsymbol \\alpha_t + \\boldsymbol\\eta_t,\\quad t = 0,2,\\dots, T-1,\\\\
+    \\end{split}
+    $$
+    with initial 'priors'
+    $$\\begin{split}
+        \\boldsymbol \\alpha_{0} \\sim \\mathcal N(\\mathbf m_0, \\mathbf P_0),\\\\
+    \\end{split}
+    $$
+    where
+    $$\\begin{split}
+        \\boldsymbol \\epsilon_t \\overset{\\mathrm{iid}}{\\sim} \\mathcal N(0, \\sigma^2_\\epsilon I),
+        \\boldsymbol \\eta_t \\overset{\\mathrm{iid}}{\\sim} \\mathcal N(0, \\sigma^2_\\eta I).
+    \\end{split}
+    $$
+
+    Parameters
+    ----------
+    m_0: ArrayLike (r,)
+        The initial means of the process vector
+    P_0: ArrayLike (r,r)
+        The initial Covariance matrix of the process vector
+    M: ArrayLike (r,r)
+        The transition matrix of the process
+    PHI: ArrayLike (r,n)
+        The process-to-data matrix
+    sigma2_etas: ArrayLike
+        The variances of the process noise
+    sigma2_epss: ArrayLike
+        The variances  of the observation noise
+    zs: ArrayLike
+        The observed data to be filtered, in matrix format
+    likelihood: string = 'partial'
+        (STATIC) The mode to compute the likelihood ('full' with constant terms, 'partial' without constant terms, or 'none'.)
+    
+    Returns
+    ----------
+    ll: ArrayLike (1,)
+        The log (data) likelihood of the data
+    ms: ArrayLike (T,r)
+        The posterior means $m_{t \\mid t}$ of the process given the data 1:t
+    Ps: ArrayLike (T,r,r)
+        The posterior covariance matrices $P_{t \\mid t}$ of the process given the data 1:t
+    mpreds: ArrayLike (T-1,r)
+        The predicted next-step means $m_{t \\mid t-1}$ of the process given the data 1:t-1
+    Ppreds: ArrayLike (T-1,r,r)
+        The predicted next-step covariances $P_{t \\mid t-1}$ of the process given the data 1:t-1
+    Ks: ArrayLike (T,n,r)
+        The Kalman Gains at each time step
+    """
+
+    nbasis = m_0.shape[0]
+    nobs = zs.shape[0]
+
+    @jax.jit
+    def step(carry, z_t):
+        m_tt, P_tt, _, _, ll, _ = carry
+
+        # predict
+        m_pred = M @ m_tt
+
+        # Add sigma2_eps to the diagonal intelligently
+        P_prop = M @ P_tt @ M.T
+        P_pred = jnp.fill_diagonal(P_prop, jnp.diag(sigma2_etas) + jnp.diag(P_prop), inplace=False)
+
+        # Update
+
+        # Prediction error
+        e_t = z_t - PHI @ m_pred
+
+        # Prediction Variance
+        P_oprop = PHI @ P_pred @ PHI.T
+        Sigma_t = jnp.fill_diagonal(
+            P_oprop, jnp.diag(sigma2_eps) + jnp.diag(P_oprop), inplace=False
         )
 
         # Kalman Gain
@@ -436,7 +579,7 @@ def sqrt_filter(
 
 
 @partial(jax.jit, static_argnames=["likelihood"])
-def sqrt_filter_indep(
+def sqrt_filter_iid(
     m_0: ArrayLike,
     U_0: ArrayLike,
     M: ArrayLike,
@@ -585,6 +728,160 @@ def sqrt_filter_indep(
     )
 
     return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
+
+
+
+@partial(jax.jit, static_argnames=["likelihood"])
+def sqrt_filter_indep(
+    m_0: ArrayLike,
+    U_0: ArrayLike,
+    M: ArrayLike,
+    PHI: ArrayLike,
+    sigma2_etas: ArrayLike,
+    sigma2_epss: ArrayLike,
+    zs: ArrayLike,  # data matrix, with time across columns
+    likelihood: str = "partial",
+) -> tuple:
+    """
+    Applies square-root Kalman filter using QR decompositions (cite: Kevin S. Tracy, 2022)
+    Additionally assumes that both the error terms $$\\boldsymbol \\epsilon_t$$ and the noise terms $$\\boldsymbol \\eta_t$$ both have uncorrelated componants.
+    For jit-ability, this only allows full (no missing) data in a wide format.
+    For changing data locations or changing data dimension, see [`information_filter_inder`](/reference/information_filter_indep.qmd).
+    For the standard Kalman filter with uncorrelated errors, see [`kalman_filter`](/reference/kalman_filter.qmd).
+
+    Computes posterior means and variances for a system
+    $$\\begin{split}
+        \\mathbf Z_t &= \\Phi \\boldsymbol\\alpha_t + \\boldsymbol \\epsilon_t, \\quad t = 1,\\dots, T,\\\\
+        \\boldsymbol \\alpha_{t+1} &= M\\boldsymbol \\alpha_t + \\boldsymbol\\eta_t,\\quad t = 0,2,\\dots, T-1,\\\\
+    \\end{split}
+    $$
+    with initial 'priors'
+    $$\\begin{split}
+        \\boldsymbol \\alpha_{0} \\sim \\mathcal N(\\mathbf m_0, \\mathbf P_0),\\\\
+    \\end{split}
+    $$
+    where
+    $$\\begin{split}
+        \\boldsymbol \\epsilon_t \\overset{\\mathrm{iid}}{\\sim} \\mathcal N(0, \\sigma^2_\\epsilon I),
+        \\boldsymbol \\eta_t \\overset{\\mathrm{iid}}{\\sim} \\mathcal N(0, \\sigma^2_\\eta I).
+    \\end{split}
+    $$
+
+    Parameters
+    ----------
+    m_0: ArrayLike (r,)
+        The initial means of the process vector
+    U_0: ArrayLike (r,r)
+        The initial square-root covariance matrix of the process vector
+    M: ArrayLike (r,r)
+        The transition matrix of the process
+    PHI: ArrayLike (r,n)
+        The process-to-data matrix
+    sigma2_etas: float
+        The variance of the process noise
+    sigma2_epss: float
+        The variance  of the observation noise
+    zs: ArrayLike
+        The observed data to be filtered, in matrix format
+    likelihood: string = 'partial'
+        (STATIC) The mode to compute the likelihood ('full' with constant terms, 'partial' without constant terms, or 'none'.)
+    
+    Returns
+    ----------
+    ll: ArrayLike (1,)
+        The log (data) likelihood of the data
+    ms: ArrayLike (T,r)
+        The posterior means $m_{t \\mid t}$ of the process given the data 1:t
+    Us: ArrayLike (T,r,r)
+        The posterior square-root covariance matrices $U_{t \\mid t}$ of the process given the data 1:t
+    mpreds: ArrayLike (T-1,r)
+        The predicted next-step means $m_{t \\mid t-1}$ of the process given the data 1:t-1
+    Upreds: ArrayLike (T-1,r,r)
+        The predicted next-step square-root covariances $U_{t \\mid t-1}$ of the process given the data 1:t-1
+    Ks: ArrayLike (T,n,r)
+        The Kalman Gains at each time step
+    """
+
+    nbasis = m_0.shape[0]
+    nobs = zs.shape[0]
+    sigma_epss = jnp.sqrt(sigma2_epss)
+    sigma_etas = jnp.sqrt(sigma2_etas)
+    U_eps = jnp.diag(sigma_epss)
+    U_eta = jnp.diag(sigma_etas)
+
+    @jax.jit
+    def step(carry, z_t):
+        m_tt, U_tt, _, _, ll, _ = carry
+
+        # predict
+        m_pred = M @ m_tt
+
+        # Add sigma2_eps to the diagonal intelligently
+        U_pred = qr_R(U_tt @ M.T, U_eta)
+
+        # Update
+
+        # Prediction error
+        e_t = z_t - PHI @ m_pred
+
+        # Prediction deviation matrix
+        #Ui_t = jnp.linalg.qr(jnp.vstack([U_pred @ PHI.T, U_eps]), mode="r")
+        Ui_t = qr_R(U_pred @ PHI.T, U_eps)
+
+        # Kalman Gain
+        K_t = (
+            jax.scipy.linalg.solve_triangular(
+                Ui_t,
+                jax.scipy.linalg.solve_triangular(Ui_t.T, PHI, lower=True)
+                @ U_pred.T
+                @ U_pred,
+            )
+        ).T
+
+        m_up = m_pred + K_t @ e_t
+
+        U_up = qr_R(U_pred @ (jnp.eye(nbasis) - K_t @ PHI).T, U_eps @ K_t.T)
+
+        # likelihood of epsilon, using cholesky decomposition
+        chol_Sigma_t = Ui_t
+        z = jax.scipy.linalg.solve_triangular(chol_Sigma_t.T, e_t, lower=True)
+        if likelihood == "full":
+            ll_new = (
+                ll
+                - jnp.sum(jnp.log(jnp.abs(jnp.diag(chol_Sigma_t))))
+                - 0.5 * jnp.dot(z, z)
+                - 0.5 * nobs * jnp.log(2 * jnp.pi)
+            )
+        elif likelihood == "partial":
+            ll_new = (
+                ll
+                - jnp.sum(jnp.log(jnp.abs(jnp.diag(chol_Sigma_t))))
+                - 0.5 * jnp.dot(z, z)
+            )
+        elif likelihood == "none":
+            ll_new = jnp.nan
+        else:
+            raise ValueError(
+                "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
+            )
+
+        return (m_up, U_up, m_pred, U_pred, ll_new, K_t), (
+            m_up,
+            U_up,
+            m_pred,
+            U_pred,
+            ll_new,
+            K_t,
+        )
+
+    carry, seq = jl.scan(
+        step,
+        (m_0, U_0, m_0, U_0, 0, jnp.zeros((nbasis, nobs))),
+        zs.T,
+    )
+
+    return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
+
 
 
 @partial(jax.jit, static_argnames=["likelihood"])
@@ -808,7 +1105,7 @@ def information_filter(
     return ll, seq[0], seq[1], seq[2], seq[3]
 
 @partial(jax.jit, static_argnames=["likelihood"])
-def information_filter_indep(
+def information_filter_iid(
     nu_0: ArrayLike,  # initial information vector
     Q_0: ArrayLike,  # initial information matrix
     M: ArrayLike,
@@ -1025,6 +1322,234 @@ def information_filter_indep(
     return ll, seq[0], seq[1], seq[2], seq[3]
 
 
+
+@partial(jax.jit, static_argnames=["likelihood"])
+def information_filter_indep(
+    nu_0: ArrayLike,  # initial information vector
+    Q_0: ArrayLike,  # initial information matrix
+    M: ArrayLike,
+    PHI_tree: tuple,
+    sigma2_etas: ArrayLike,
+    sigma2_epss_tree: PyTree[ArrayLike],
+    zs_tree: tuple,
+    likelihood: str = "partial",
+) -> tuple:
+    """
+    Applies the information Filter (inverse-Kalman filter) to a PyTree of data points at a number of times.
+    Additionally assumes that both the error terms $$\\boldsymbol \\epsilon_t$$ and the noise terms $$\\boldsymbol \\eta_t$$ both have uncorrelated componants.
+    Unlike the Kalman filters, this allows for missing data and data changing shape, by taking a PyTree (most likely a list) of observations at each time (which can be jagged).
+    For the standard Kalman filter with uncorrelated errors, see [`kalman_filter`](/reference/kalman_filter.qmd).
+    For the square-root Kalman filter, [`sqrt_filter_indep`](/reference/sqrt_filter_indep.qmd).
+
+    Computes posterior information vectors and information matrices for a system
+    $$\\begin{split}
+        \\mathbf Z_t &= \\Phi \\boldsymbol\\alpha_t + \\boldsymbol \\epsilon_t, \\quad t = 1,\\dots, T,\\\\
+        \\boldsymbol \\alpha_{t+1} &= M\\boldsymbol \\alpha_t + \\boldsymbol\\eta_t,\\quad t = 0,2,\\dots, T-1,\\\\
+    \\end{split}
+    $$
+    with initial 'priors'
+    $$\\begin{split}
+        \\boldsymbol \\alpha_{0} \\sim \\mathcal N(\\mathbf m_0, \\mathbf P_0),\\\\
+    \\end{split}
+    $$
+    where
+    $$\\begin{split}
+        \\boldsymbol \\epsilon_t \\overset{\\mathrm{iid}}{\\sim} \\mathcal N(0, \\sigma^2_\\epsilon I),
+        \\boldsymbol \\eta_t \\overset{\\mathrm{iid}}{\\sim} \\mathcal N(0, \\sigma^2_\\eta I).
+    \\end{split}
+    $$
+
+    Parameters
+    ----------
+    nu_0: ArrayLike (r,)
+        The initial information vector of the process vector
+    Q_0: ArrayLike (r,r)
+        The initial information matrix of the process vector
+    M: ArrayLike (r,r)
+        The transition matrix of the process
+    PHI_tree: PyTree of ArrayLike (r,n_t)
+        The process-to-data matrices at each time
+    sigma2_etas: ArrayLike
+        The variances of the process noise
+    sigma2_epss: ArrayLike
+        The variances the observation noise
+    zs_tree: PyTree of ArrayLike (n_t,)
+        The observed data to be filtered
+    likelihood: string = 'partial'
+        (STATIC) The mode to compute the likelihood ('full' with constant terms, 'partial' without constant terms, or 'none'.)
+    
+    Returns
+    ----------
+    ll: ArrayLike (1,)
+        The log (data) likelihood of the data
+    nus: ArrayLike (T,r)
+        The posterior means $m_{t \\mid t}$ of the process given the data 1:t
+    Qs: ArrayLike (T,r,r)
+        The posterior covariance matrices $P_{t \\mid t}$ of the process given the data 1:t
+    nupreds: ArrayLike (T-1,r)
+        The predicted next-step means $m_{t \\mid t-1}$ of the process given the data 1:t-1
+    Qpreds: ArrayLike (T-1,r,r)
+        The predicted next-step covariances $P_{t \\mid t-1}$ of the process given the data 1:t-1
+    Ks: ArrayLike (T,n,r)
+        The Kalman Gains at each time step
+    """
+
+    mapping_elts = jax.tree.map(
+        lambda t: (
+            zs_tree[t],
+            PHI_tree[t],
+        ),
+        tuple(range(len(zs_tree))),
+    )
+
+    r = nu_0.shape[0]
+
+    Sigma_eps = jnp.tree.map(jnp.diag,sigma2_epss_tree)
+    Sigma_eta = jnp.diag(sigma2_etas)
+
+    def informationify(tup: tuple):
+        z_k = tup[0]
+        PHI_k = tup[1]
+        Sigma_eps_k = tup[2]
+        i_k = PHI_k.T @ jnp.linalg.solve(Sigma_eps_k, z_k)
+        I_k = PHI_k.T @ jnp.linalg.solve(Sigma_eps_k, PHI_k)
+        return jnp.vstack((i_k, I_k))
+
+    def is_leaf(node):
+        # return len(node)==2 # IMPORTANT NOTE: what if T=2?
+        return jax.tree.structure(node).num_leaves == 3
+        # This works better, but could still be a problem if T=1. But
+        # then, why would you even be filtering?
+        # Added a raise to filter_information for this case
+
+    scan_elts = jnp.array(jax.tree.map(informationify, mapping_elts, is_leaf=is_leaf))
+
+    # This is one situation where I do not know how to avoid inverting
+    # a matrix explicitly...
+    Minv = jnp.linalg.solve(M, jnp.eye(r))
+    Sigma_eta_inv = jnp.linalg.solve(Sigma_eta, jnp.eye(r))
+
+    def step(carry, scan_elt):
+        nu_tt, Q_tt, _, _ = carry
+
+        i_tp = scan_elt[0, :]
+        I_tp = scan_elt[1:, :]
+
+        S_t = Minv.T @ Q_tt @ Minv
+        J_t = jnp.linalg.solve((S_t + Sigma_eta_inv).T, S_t.T).T
+
+        nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu_tt
+        Q_pred = (jnp.eye(r) - J_t) @ S_t
+
+        nu_up = nu_pred + i_tp
+        Q_up = Q_pred + I_tp
+
+        return (nu_up, Q_up, nu_pred, Q_pred), (
+            nu_up,
+            Q_up,
+            nu_pred,
+            Q_pred,
+        )
+
+    carry, seq = jl.scan(
+        step,
+        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
+        scan_elts,
+    )
+
+    mapping_elts = jax.tree.map(
+        lambda t: (seq[0][t], PHI_tree[t], Sigma_eps_tree[t]),
+        tuple(range(len(zs_tree))),
+    )
+
+    if likelihood == "full":
+        mapping_elts = jax.tree.map(
+            lambda t: (
+                zs_tree[t],
+                PHI_tree[t],
+                Sigma_eps_tree[t],
+                seq[2][t],
+                seq[3][t],
+            ),
+            tuple(range(len(zs_tree))),
+        )
+
+        def comp_full_likelihood_good(tree):
+            z = tree[0]
+            nobs = z.shape[0]
+            PHI = tree[1]
+            Sigma_eps = tree[2]
+            nu_pred = tree[3]
+            Q_pred = tree[4]
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+
+            chol_Sigma_t = jnp.linalg.cholesky(
+                PHI @ jnp.linalg.solve(Q_pred, PHI.T) + Sigma_eps
+            )
+            z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e, lower=True)
+
+            ll = (
+                -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+                - 0.5 * jnp.dot(z, z)
+                - 0.5 * nobs * jnp.log(2 * jnp.pi)
+            )
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(
+            jax.tree.map(comp_full_likelihood_good, mapping_elts, is_leaf=is_leaf)
+        )
+        ll = jnp.sum(lls)
+    elif likelihood == "partial":
+        mapping_elts = jax.tree.map(
+            lambda t: (
+                zs_tree[t],
+                PHI_tree[t],
+                Sigma_eps_tree[t],
+                seq[2][t],
+                seq[3][t],
+            ),
+            tuple(range(len(zs_tree))),
+        )
+
+        def comp_full_likelihood_good(tree):
+            z = tree[0]
+            PHI = tree[1]
+            Sigma_eps = tree[2]
+            nu_pred = tree[3]
+            Q_pred = tree[4]
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+
+            chol_Sigma_t = jnp.linalg.cholesky(
+                PHI @ jnp.linalg.solve(Q_pred, PHI.T) + Sigma_eps
+            )
+            z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e, lower=True)
+
+            ll = -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(
+            jax.tree.map(comp_full_likelihood_good, mapping_elts, is_leaf=is_leaf)
+        )
+        ll = jnp.sum(lls)
+    elif likelihood == "none":
+        ll = jnp.nan
+    else:
+        raise ValueError(
+            "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
+        )
+
+    return ll, seq[0], seq[1], seq[2], seq[3]
+
+
+
 @partial(jax.jit, static_argnames=["likelihood"])
 def sqrt_information_filter(
     nu_0: ArrayLike, 
@@ -1227,7 +1752,7 @@ def sqrt_information_filter(
 
 
 @partial(jax.jit, static_argnames=["likelihood"])
-def sqrt_information_filter_indep(
+def sqrt_information_filter_iid(
     nu_0: ArrayLike, 
     R_0: ArrayLike, 
     M: ArrayLike,
@@ -1427,6 +1952,211 @@ def sqrt_information_filter_indep(
         )
 
     return ll, seq[0], seq[1], seq[2], seq[3]
+
+
+@partial(jax.jit, static_argnames=["likelihood"])
+def sqrt_information_filter_indep(
+    nu_0: ArrayLike, 
+    R_0: ArrayLike, 
+    M: ArrayLike,
+    PHI_tree: tuple,
+    sigma2_etas: ArrayLike,
+    sigma2_eps_tree: PyTree[ArrayLike],
+    zs_tree: tuple,
+    likelihood: str = "partial",
+) -> tuple:
+    """
+    Applies the square-root information Filter to a PyTree of data points at a number of times.
+    Additionally assumes that both the error terms $$\\boldsymbol \\epsilon_t$$ and the noise terms $$\\boldsymbol \\eta_t$$ both have uncorrelated componants.
+    Unlike the Kalman filters, this allows for missing data and data changing shape, by taking a PyTree (most likely a list) of observations at each time (which can be jagged).
+    For the standard Kalman filter with uncorrelated errors, see [`kalman_filter`](/reference/kalman_filter.qmd).
+    For the square-root Kalman filter, [`sqrt_filter_indep`](/reference/sqrt_filter_indep.qmd).
+
+    Computes posterior information vectors and information matrices for a system
+    $$\\begin{split}
+        \\mathbf Z_t &= \\Phi \\boldsymbol\\alpha_t + \\boldsymbol \\epsilon_t, \\quad t = 1,\\dots, T,\\\\
+        \\boldsymbol \\alpha_{t+1} &= M\\boldsymbol \\alpha_t + \\boldsymbol\\eta_t,\\quad t = 0,2,\\dots, T-1,\\\\
+    \\end{split}
+    $$
+    with initial 'priors'
+    $$\\begin{split}
+        \\boldsymbol \\alpha_{0} \\sim \\mathcal N(\\mathbf m_0, \\mathbf P_0),\\\\
+    \\end{split}
+    $$
+    where
+    $$\\begin{split}
+        \\boldsymbol \\epsilon_t \\overset{\\mathrm{iid}}{\\sim} \\mathcal N(0, \\sigma^2_\\epsilon I),
+        \\boldsymbol \\eta_t \\overset{\\mathrm{iid}}{\\sim} \\mathcal N(0, \\sigma^2_\\eta I).
+    \\end{split}
+    $$
+
+    Parameters
+    ----------
+    nu_0: ArrayLike (r,)
+        The initial information vector of the process vector
+    R_0: ArrayLike (r,r)
+        The upper-triangular root of the initial information matrix of the process vector
+    M: ArrayLike (r,r)
+        The transition matrix of the process
+    PHI_tree: PyTree of ArrayLike (r,n_t)
+        The process-to-data matrices at each time
+    sigma2_eta: float
+        The variance of the process noise
+    sigma2_eps: float
+        The variance the observation noise
+    zs_tree: PyTree of ArrayLike (n_t,)
+        The observed data to be filtered
+    likelihood: string = 'partial'
+        (STATIC) The mode to compute the likelihood ('full' with constant terms, 'partial' without constant terms, or 'none'.)
+    
+    Returns
+    ----------
+    ll: ArrayLike (1,)
+        The log (data) likelihood of the data
+    nus: ArrayLike (T,r)
+        The posterior means $m_{t \\mid t}$ of the process given the data 1:t
+    Qs: ArrayLike (T,r,r)
+        The posterior covariance matrices $P_{t \\mid t}$ of the process given the data 1:t
+    nupreds: ArrayLike (T-1,r)
+        The predicted next-step means $m_{t \\mid t-1}$ of the process given the data 1:t-1
+    Qpreds: ArrayLike (T-1,r,r)
+        The predicted next-step covariances $P_{t \\mid t-1}$ of the process given the data 1:t-1
+    Ks: ArrayLike (T,n,r)
+        The Kalman Gains at each time step
+    """
+
+    Sigma_eta = jnp.diag(sigma2_etas)
+    Sigma_eps_tree = jax.tree.map(jnp.diag, sigma2epss_tree)
+
+    mapping_elts = jax.tree.map(
+        lambda t: (
+            zs_tree[t],
+            PHI_tree[t],
+            Sigma_eps_tree[t]
+        ),
+        tuple(range(len(zs_tree))),
+    )
+
+    def informationify(tup: tuple):
+        z_k = tup[0]
+        PHI_k = tup[1]
+        Sigma_eps = tup[2]
+        U_eps = jnp.linalg.cholesky(Sigma_eps, upper=True)
+        i_k = PHI_k.T @ st(U_eps,st(U_eps.T, z_k, lower=True), lower=False)
+        R_k = jnp.linalg.qr(st(U_eps.T,PHI_k, lower=True), mode="r")
+        return jnp.vstack((i_k, R_k))
+
+    def is_leaf(node): return jax.tree.structure(node).num_leaves == 3
+
+    scan_elts = jnp.array(jax.tree.map(informationify, mapping_elts, is_leaf=is_leaf))
+
+    U_eta = jnp.sqrt(Sigma_eta)
+    nbasis = nu_0.shape[0]
+    
+    def step(carry, scan_elt):
+        nu_tt, R_tt, _, _ = carry
+
+        i_tp = scan_elt[0, :]
+        R_tp = scan_elt[1:, :]
+
+        U_pred = ql_L(st(R_tt.T, M.T, lower=True), U_eta)
+        R_pred = st(U_pred, jnp.eye(nbasis), lower=True).T
+        nu_pred = R_pred.T @ R_pred @ M @ st(R_tt, 
+                      st(R_tt.T,
+                         nu_tt,
+                         lower=True), lower=False)
+
+        nu_up = nu_pred + i_tp
+        R_up = qr_R(R_pred, R_tp)
+
+        return (nu_up, R_up, nu_pred, R_pred), (nu_up, R_up, nu_pred, R_pred)
+
+    carry, seq = jl.scan(
+        step,
+        (nu_0, R_0, jnp.zeros(nbasis), jnp.eye(nbasis)),
+        scan_elts,
+    )
+
+    if likelihood == "full":
+        mapping_elts = jax.tree.map(
+            lambda t: (zs_tree[t], PHI_tree[t], seq[2][t], seq[3][t], Sigma_eps_tree[t]), 
+            tuple(range(len(zs_tree))),
+        )
+
+        def comp_full_likelihood_good(tree):
+            z = tree[0]
+            nobs = z.shape[0]
+            PHI = tree[1]
+            nu_pred = tree[2]
+            R_pred = tree[3]
+            Sigma_eps = tree[4]
+
+            Q_pred = R_pred.T@R_pred
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+
+            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+            Sigma_t = P_oprop + Sigma_eps
+
+            chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+            z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e, lower=True)
+
+            ll = (
+                -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+                - 0.5 * jnp.dot(z, z)
+                - 0.5 * nobs * jnp.log(2 * jnp.pi)
+            )
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(
+            jax.tree.map(comp_full_likelihood_good, mapping_elts, is_leaf=is_leaf)
+        )
+        ll = jnp.sum(lls)
+    elif likelihood == "partial":
+        mapping_elts = jax.tree.map(
+            lambda t: (zs_tree[t], PHI_tree[t], seq[2][t], seq[3][t], Sigma_eps_tree[t]),
+            tuple(range(len(zs_tree))),
+        )
+
+        def comp_full_likelihood_good(tree):
+            z = tree[0]
+            PHI = tree[1]
+            nu_pred = tree[2]
+            R_pred = tree[3]
+            Sigma_eps = tree[4]
+            
+            Q_pred = R_pred.T@R_pred
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+
+            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+            Sigma_t = P_oprop + Sigma_eps
+
+            chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+            z = jax.scipy.linalg.solve_triangular(chol_Sigma_t, e, lower=True)
+
+            ll = -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t))) - 0.5 * jnp.dot(z, z)
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(
+            jax.tree.map(comp_full_likelihood_good, mapping_elts, is_leaf=is_leaf)
+        )
+        ll = jnp.sum(lls)
+    elif likelihood == "none":
+        ll = jnp.nan
+    else:
+        raise ValueError(
+            "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
+        )
+
+    return ll, seq[0], seq[1], seq[2], seq[3]
+
 
 
 @partial(jax.jit, static_argnames=["likelihood"])

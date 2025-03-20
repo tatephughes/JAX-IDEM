@@ -15,8 +15,9 @@ import blackjax
 import matplotlib.pyplot as plt
 
 # typing imports
-from jax.typing import ArrayLike
-from typing import Callable
+from jax.typing import ArrayLike,
+from jaxtyping import PyTree, Float, Array
+from typing import Callable, Union
 from functools import partial
 
 import warnings
@@ -146,6 +147,17 @@ def param_exp_kernel(K_basis: tuple, k: tuple):
     return Kernel(basis=K_basis, params=k, function=kernel)
 
 
+class IdemParams(NamedTuple):
+    log_sigma2_eps: Union[Float[Array, "()"],
+                          PyTree[Float[Array, "(nobs[i],)"]],
+                          PyTree[Float[Array, "(nobs[i], nobs[i])"]]]
+    log_sigma2_eta: Union(Float[Array, "()"],
+                          Float[Array, "(r,)"],
+                          Float[Array, "(r, r)"])
+    trans_kernel_params: PyTree[Array]
+    beta: ArrayLike
+
+
 class IDEM:
     """The Integro-differential Equation Model.
     I'm really going back and forth on what to name this clas
@@ -156,7 +168,7 @@ class IDEM:
         process_basis,
         kernel,
         process_grid,
-        Sigma_eta,
+        sigma2_eta,
         sigma2_eps,
         beta,
         int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
@@ -164,14 +176,23 @@ class IDEM:
         self.process_basis = process_basis
         self.kernel = kernel
         self.process_grid = process_grid
-        self.Sigma_eta = Sigma_eta
+        self.sigma2_eta = sigma2_eta
         self.sigma2_eps = sigma2_eps
         self.int_grid = int_grid
         self.PHI_proc = process_basis.mfun(process_grid.coords)
         self.GRAM = (self.PHI_proc.T @ self.PHI_proc) * process_grid.area
         self.M = self.con_M(kernel.params)
-        # self.PHI_obs = jl.map(process_basis.mfun, obs_locs)
         self.beta = beta
+
+        trans_kernel_params = (jnp.log(self.kernel.params[0]),
+                               jnp.log(self.kernel.params[1]),
+                               self.kernel.params[2],
+                               self.kernel.params[3])
+        
+        self.params = IdemParams(log_sigma2_eps=jnp.log(sigma2_eps),
+                                 log_sigma2_eta=jnp.log(sigma2_eta),
+                                 trans_kernel_params = trans_kernel_params,
+                                 beta = self.beta)
 
     def simulate(
         self,
@@ -210,8 +231,17 @@ class IDEM:
         M = self.M
         PHI_proc = self.PHI_proc
         beta = self.beta
-        Sigma_eta = self.Sigma_eta
-        sigma2_eps = self.sigma2_eps
+
+        
+
+        match len(self.sigma2_eta.shape):
+            case 0:
+                Sigma_eta = self.sigma2_eta * jnp.eye()
+                Sigma_eps = self.sigma2_eps * jnp.eye()
+                
+        
+        Sigma_eta = jnp.diag(self.sigma2_eta)
+        Sigma_eps = jnp.diag(self.sigma2_eps)
         process_grid = self.process_grid
 
         # Check that M is not explosive
@@ -297,7 +327,7 @@ class IDEM:
             obs_locs=obs_locs,
             process_grid=process_grid,
             Sigma_eta=Sigma_eta,
-            sigma2_eps=sigma2_eps,
+            Sigma_eps=Sigma_eps,
         )
 
         # Create st_data object
@@ -325,7 +355,12 @@ class IDEM:
         return (process_data, obs_data)
 
     def kalman_filter(
-        self, obs_data: st_data, X_obs, m_0=None, P_0=None, likelihood="full"
+        self,
+        obs_data: st_data,
+        X_obs: ArrayLike,
+        m_0: ArrayLike = None,
+        P_0: ArrayLike = None,
+        likelihood: string = "full"
     ):
         """
         Runs the Kalman filter on the inputted data.
@@ -345,20 +380,31 @@ class IDEM:
         PHI_obs = self.process_basis.mfun(obs_locs)
         nobs = PHI_obs.shape[0]
 
-        Sigma_eta = self.Sigma_eta
+        sigma_eta = self.sigma_2eta
         sigma2_eps = self.sigma2_eps
 
         beta = self.beta
 
         ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
-        ll, ms, Ps, mpreds, Ppreds, Ks = fsf.kalman_filter(
+        match len(sigma_eta.shape):
+            case 0:
+                f = fsf.kalman_filter
+            case 1:
+                f = fsf.kalman_filter_indep
+            case 2:
+                f = fsf.kalman_filter_iid
+            case _:
+                raise ValueError(f"Invalid state variance")
+            
+
+        ll, ms, Ps, mpreds, Ppreds, Ks = f(
             m_0,
             P_0,
             M,
             PHI_obs,
-            Sigma_eta,
-            sigma2_eps * jnp.eye(nobs),
+            sigma2_eta,
+            sigma2_eps,
             ztildes,
             likelihood=likelihood,
         )
@@ -1438,8 +1484,8 @@ def sim_idem(
     obs_locs: ArrayLike,
     beta: ArrayLike,
     alpha_0: ArrayLike,
-    Sigma_eta: float,
-    sigma2_eps: float = 0.01**2,
+    Sigma_eta: ArrayLike,
+    Sigma_eps: ArrayLike,
     process_grid: Grid = create_grid(bounds, ngrids),
     int_grid: Grid = create_grid(bounds, ngrids),
 ) -> ArrayLike:
@@ -1512,10 +1558,12 @@ def sim_idem(
     process_vals = vget_process(alpha)
     X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
 
+    chol_Sigma_eps = jnp.linalg.cholesky(Sigma_eps)
+    
     obs_vals = (
         X_obs @ beta
         + PHI_obs @ alpha.flatten()
-        + jnp.sqrt(sigma2_eps) * rand.normal(key, shape=(nobs,))
+        + chol_Sigma_eps @ rand.normal(key, shape=(nobs,))
     )
 
     return (process_vals, obs_vals)

@@ -34,7 +34,7 @@ keys = rand.split(key, 3)
 
 # True model
 
-process_basis = utilities.place_basis(nres=2, min_knot_num=3)
+process_basis = utilities.place_basis(nres=1, min_knot_num=4)
 nbasis = process_basis.nbasis
 
 truemodel = idem.gen_example_idem(
@@ -135,10 +135,23 @@ ks0 = (
     jnp.zeros(truemodel.kernel.basis[2].nbasis),
     jnp.zeros(truemodel.kernel.basis[3].nbasis),
 )
-params0 = (jnp.log(jnp.var(obs_data_wide["z"])),
+prior_mean = (jnp.log(jnp.var(obs_data_wide["z"])),
            jnp.log(jnp.var(obs_data_wide["z"])),
            ks0,
            jnp.array([0.0,0.0,0.0]))
+
+prior_var = (jnp.log(priorvar*100),
+           jnp.log(priorvar*100),
+           (
+               jnp.array([jnp.log(100.0)]),
+               jnp.array([jnp.log(10)]),
+               10*jnp.eye(truemodel.kernel.basis[2].nbasis),
+               10*jnp.eye(truemodel.kernel.basis[3].nbasis),
+           ),
+           jnp.diag(jnp.array([5.0,5.0,5.0])))
+
+
+prior_var = post_var
 
 def log_prior_density(param):
 
@@ -149,16 +162,15 @@ def log_prior_density(param):
         beta,
     ) = param
 
-    logdens_log_sigma2_eta = jax.scipy.stats.norm.logpdf(log_sigma2_eta, loc = priorvar, scale=3.0)
-    logdens_log_sigma2_eps = jax.scipy.stats.norm.logpdf(log_sigma2_eps, loc = priorvar, scale=3.0)
+    logdens_log_sigma2_eta = jax.scipy.stats.norm.logpdf(log_sigma2_eta, loc = prior_mean[0], scale=prior_var[0])
+    logdens_log_sigma2_eps = jax.scipy.stats.norm.logpdf(log_sigma2_eps, loc = prior_mean[1], scale=prior_var[1])
 
-    logdens_ks1 = jax.scipy.stats.multivariate_normal.logpdf(ks[0], ks0[0], 20*jnp.eye(ks[0].shape[0]))
-    logdens_ks2 = jax.scipy.stats.multivariate_normal.logpdf(ks[1], ks0[1], 20*jnp.eye(ks[1].shape[0]))
-    logdens_ks3 = jax.scipy.stats.multivariate_normal.logpdf(ks[2], ks0[2], 20*jnp.eye(ks[2].shape[0]))
-    logdens_ks4 = jax.scipy.stats.multivariate_normal.logpdf(ks[3], ks0[3], 20*jnp.eye(ks[3].shape[0]))
+    logdens_ks1 = jax.scipy.stats.norm.logpdf(ks[0], prior_mean[2][0], prior_var[2][0])
+    logdens_ks2 = jax.scipy.stats.norm.logpdf(ks[1], prior_mean[2][1], prior_var[2][1])
+    logdens_ks3 = jax.scipy.stats.multivariate_normal.logpdf(ks[2], prior_mean[2][2], jnp.diag(prior_var[2][2]))
+    logdens_ks4 = jax.scipy.stats.multivariate_normal.logpdf(ks[3], prior_mean[2][3], jnp.diag(prior_var[2][3]))
 
-    logdens_beta = jax.scipy.stats.multivariate_normal.logpdf(beta, params0[3], 20*jnp.eye(beta.shape[0]))
-
+    logdens_beta = jax.scipy.stats.multivariate_normal.logpdf(beta, prior_mean[3], jnp.diag(prior_var[3]))
     return logdens_log_sigma2_eta+logdens_log_sigma2_eps+logdens_ks1+logdens_ks2+logdens_ks3+logdens_ks4+logdens_beta
     
 
@@ -167,38 +179,75 @@ def log_prior_density(param):
 
 # Build the kernel
 step_size = 1e-3
-nparams = sum(leaf.size for leaf in jax.tree.leaves(params0))
+nparams = sum(leaf.size for leaf in jax.tree.leaves(prior_mean))
 
 # imm should be an estimate of the posterior variance matric, but do this for now
-inverse_mass_matrix = 1.0*jnp.eye(nparams)
+inverse_mass_matrix = jnp.array([0.1928944,
+                                 0.1928944,
+                                 4.6051702,
+                                 2.3025851,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 10.0,
+                                 5.0,
+                                 5.0,
+                                 5.0,])
 
 @jax.jit
 def log_post_dens(param):
-    return log_prior_density(param) + log_marginal(param)
+    return (log_prior_density(param) + log_marginal(param))[0]
+
+step_size = 1e-3
 
 nuts = blackjax.nuts(log_post_dens, step_size, inverse_mass_matrix)
+hmc = blackjax.hmc(log_post_dens, step_size, inverse_mass_matrix, num_integration_steps = 5)
 
-init_state = nuts.init(params0)
+
+init_state = hmc.init(prior_mean)
 
 # Iterate
 
-step = jax.jit(nuts.step)
+step = jax.jit(hmc.step)
 
-n=3
 rng_key = jax.random.key(2)
 burn_key, it_key = rand.split(rng_key,2)
 
+n=100
+burnin=1000
 @scan_tqdm(n, desc='Sampling...')
 def body_fn_sample(carry, i):
     nuts_key = jax.random.fold_in(it_key, i)
     new_state, info = step(nuts_key, carry)
     return new_state, (new_state, info)
 
+@scan_tqdm(burnin, desc='Burning in...')
+def body_fn_burnin(carry, i):
+    nuts_key = jax.random.fold_in(burn_key, i)
+    new_state, info = step(nuts_key, carry)
+    return new_state, (new_state, info)
 
 
-_, (param_post_sample,_) = jax.lax.scan(body_fn_sample, init_state, jnp.arange(n))
+burnin_state, _ = jax.lax.scan(body_fn_burnin, init_state, jnp.arange(burnin))
+_, (param_post_sample,info) = jax.lax.scan(body_fn_sample, burnin_state, jnp.arange(n))
+
 
 post_mean = jax.tree.map(lambda arr: jnp.mean(arr, axis=0), param_post_sample.position)
+post_var = jax.tree.map(lambda arr: jnp.var(arr, axis=0), param_post_sample.position)
 
 def plot_kernel_from_params(par, filename):
     logks1, logks2, ks3, ks4 = par[2]
@@ -220,3 +269,10 @@ for i in range(n):
     plot_kernel_from_params(par, f"./kernelplots/kernel2_{i}.png")
 
 truemodel.kernel.save_plot("./kernelplots/kernel_true.png")
+
+
+## ARVIS?
+## condor
+## get hamilton to work again
+## apptainer
+## ncc
