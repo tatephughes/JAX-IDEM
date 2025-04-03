@@ -33,6 +33,23 @@ class TestSimIdem:
         self.nobs = 4
         self.T = 3
         self.nbasis = self.model.process_basis.nbasis
+
+        match len(self.model.sigma2_eta.shape):
+            case 0:
+                Sigma_eta = self.model.sigma2_eta * jnp.eye(self.model.nbasis)
+            case 1:
+                Sigma_eta = jnp.diag(self.model.sigma2_eta)
+            case 2:
+                Sigma_eta = self.model.sigma2_eta
+
+        match len(self.model.sigma2_eps.shape):
+            case 0:
+                Sigma_eps = self.model.sigma2_eps * jnp.eye(self.nobs*self.T)
+            case 1:
+                Sigma_eps = jnp.diag(self.model.sigma2_eps)
+            case 2:
+                Sigma_eps = self.model.sigma2_eps
+
         
         obs_locs = jnp.column_stack(
             [
@@ -71,8 +88,8 @@ class TestSimIdem:
             obs_locs=obs_locs,
             process_grid=self.model.process_grid,
             int_grid=self.model.int_grid,
-            sigma2_eps=self.model.sigma2_eps,
-            Sigma_eta=self.model.Sigma_eta,
+            Sigma_eps=Sigma_eps,
+            Sigma_eta=Sigma_eta,
         )
     def test_shape(self):
 

@@ -1,0 +1,167 @@
+---
+title: "Filtering in JAX-IDEM"
+author: "Evan Tate Paterson Hughes"
+format:
+  html:
+    code-fold: true
+    toc: true
+    inclue-in-header: header.html
+    mathjax: 
+      extensions: ["breqn", "bm", "ams"]
+jupyter: python3
+bibliography: Bibliography.bib
+---
+
+::: {.content-visible unless-format="pdf"}
+
+[Index](../index.html)
+
+:::
+
+# The Sydney Radar Data Set
+
+This is a data set... [more information here]
+
+# Importing the relevant packages and Loading the data
+
+Firstly, we load the relevant libraries and import the data.
+
+```{python}
+import sys
+import os
+sys.path.append(os.path.abspath('../src/jaxidem'))
+
+import jax
+import jax.numpy as jnp
+import jax.random as rand
+import idem
+import utilities
+
+import pandas
+radar_df = pd.read_csv('../../data/radar_df.csv')
+#radar_df = pd.read_csv('../../data/obs_data_r-ide.csv')
+```
+
+We should put this data into `jax-idem`s `st_data` type; [note; make a function in utilities to automate this]
+
+```{python}
+
+radar_data = utilities.st_data(x = jnp.array(radar_df.s1),
+                               y = jnp.array(radar_df.s2),
+                               t = jnp.array(radar_df['t'].astype('category').cat.codes + 1.),
+                               z = jnp.array(radar_df.z))
+
+unique_times = jnp.unique(radar_data.t)
+T = unique_times.size
+
+```
+
+We now create an initial model for this data
+
+```{python}
+
+radar_data_wide = radar_data.as_wide()
+
+#initial variances
+sigma2_eta = jnp.var(radar_data.z)/2
+sigma2_eps = jnp.var(radar_data.z)/2
+beta = jnp.array([0.]) # only intercept, no covariates
+
+# stations are stationary and there is no missing data, so there is the same number of observations per time period
+nobs = radar_data_wide['x'].size 
+X_obs = jnp.ones((nobs,1)) # intercept
+
+station_locs = jnp.column_stack([radar_data_wide["x"], radar_data_wide["y"]])
+
+process_basis = utilities.place_basis(data = station_locs,
+                                      nres = 2,
+                                      min_knot_num = 3,) # defaults to bisquare basis functions
+
+xmin = jnp.min(station_locs[:, 0])
+xmax = jnp.max(station_locs[:, 0])
+ymin = jnp.min(station_locs[:, 1])
+ymax = jnp.max(station_locs[:, 1])
+bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
+
+process_grid = utilities.create_grid(bounds, jnp.array([41, 41]))
+int_grid = utilities.create_grid(bounds, jnp.array([100, 100]))
+
+K_basis = (
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1), # contant basis
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+)
+k = (
+    jnp.array([150])/(grid.area*grid.ngrid) ,
+    jnp.array([0.002])/(grid.area*grid.ngrid),
+    jnp.array([0.]),
+    jnp.array([0.])
+)
+kernel = idem.param_exp_kernel(K_basis, k)
+
+
+model0 = idem.IDEM(process_basis=process_basis,
+                   kernel=kernel,
+                   process_grid=process_grid,
+                   sigma2_eta=sigma2_eta,
+                   sigma2_eps=sigma2_eps,
+                   beta=beta,
+                   int_grid=int_grid)
+
+```
+
+We can now get the marginal data likelihood function of this model;
+
+```{python}
+log_marginal = model0.get_log_like(radar_data, [X_obs for _ in range(T)], method="sqinf", likelihood='full')
+
+
+ll, ms, Us, mpreds, Upreds = model0.sqrt_filter(radar_data, X_obs, likelihood = 'full')[0]
+```
+
+From there, it is easy to sample from the posterior
+
+```{python}
+key = jax.random.PRNGKey(3) # PRNG key
+inverse_mass_matrix = jnp.ones(model0.nparams)
+sample, _ = model0.sample_posterior(key,
+                                    n = 10,
+                                    burnin=10,
+                                    obs_data = radar_data,
+                                    X_obs = X_obs,
+                                    inverse_mass_matrix = inverse_mass_matrix,
+                                    likelihood_method="sqrt")
+
+```
+
+This initial run will likely mix poorly and have a low acceptance rate. Taking this initial sample, we can fit new (gaussian) priors on the paramterers and use a new mass matrix for the sampling based on the initial sample's variance.
+
+```{python}
+post_mean = jax.tree.map(lambda x: jnp.mean(x, axis=0), sample.position)
+post_var = jax.tree.map(lambda x: jnp.var(x, axis=0), sample.position)
+
+def log_prior_density(param):
+
+    (
+        log_sigma2_eta,
+        log_sigma2_eps,
+        ks,
+        beta,
+    ) = param
+
+    logdens_log_sigma2_eta = jax.scipy.stats.norm.logpdf(log_sigma2_eta, loc = prior_mean[0], scale=prior_var[0])
+    logdens_log_sigma2_eps = jax.scipy.stats.norm.logpdf(log_sigma2_eps, loc = prior_mean[1], scale=prior_var[1])
+
+    logdens_ks1 = jax.scipy.stats.norm.logpdf(ks[0], prior_mean[2][0], prior_var[2][0])
+    logdens_ks2 = jax.scipy.stats.norm.logpdf(ks[1], prior_mean[2][1], prior_var[2][1])
+    logdens_ks3 = jax.scipy.stats.multivariate_normal.logpdf(ks[2], prior_mean[2][2], jnp.diag(prior_var[2][2]))
+    logdens_ks4 = jax.scipy.stats.multivariate_normal.logpdf(ks[3], prior_mean[2][3], jnp.diag(prior_var[2][3]))
+
+    logdens_beta = jax.scipy.stats.multivariate_normal.logpdf(beta, prior_mean[3], jnp.diag(prior_var[3]))
+    return logdens_log_sigma2_eta+logdens_log_sigma2_eps+logdens_ks1+logdens_ks2+logdens_ks3+logdens_ks4+logdens_beta
+
+
+inverse_mass_matrix = jnp.array(jax.tree.flatten(post_var)[0])
+
+```

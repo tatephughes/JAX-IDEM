@@ -35,7 +35,7 @@ class TestFilters:
         beta = model.beta
         M = model.M
         sigma2_eps = model.sigma2_eps
-        sigma2_eta = model.Sigma_eta[0,0]
+        sigma2_eta = model.sigma2_eta
         nbasis = model.process_basis.nbasis
         self.nbasis = nbasis
 
@@ -89,13 +89,13 @@ class TestFilters:
             ztildes,
             likelihood="full"
         )
-        self.ll_kfi, self.ms_kfi, self.Ps_kfi, _, self.Ppreds_kfi, _ = fsf.kalman_filter_indep(
+        self.ll_kfi, self.ms_kfi, self.Ps_kfi, _, self.Ppreds_kfi, _ = fsf.kalman_filter_iid(
             m_0,
             P_0,
             model.M,
             PHI_obs,
-            model.Sigma_eta[0,0],
-            model.sigma2_eps,
+            sigma2_eta,
+            sigma2_eps,
             ztildes,
             likelihood="full",
         )
@@ -104,18 +104,18 @@ class TestFilters:
             jnp.linalg.cholesky(P_0),
             model.M,
             PHI_obs,
-            model.Sigma_eta,
-            model.sigma2_eps*jnp.eye(nobs),
+            Sigma_eta,
+            Sigma_eps,
             ztildes,
             likelihood="full",
         )
-        self.ll_sqi, self.ms_sqi, self.Us_sqi, _, self.Upreds_sqi, _ = fsf.sqrt_filter_indep(
+        self.ll_sqi, self.ms_sqi, self.Us_sqi, _, self.Upreds_sqi, _ = fsf.sqrt_filter_iid(
             m_0,
             jnp.linalg.cholesky(P_0),
             model.M,
             PHI_obs,
-            model.Sigma_eta[0,0],
-            model.sigma2_eps,
+            sigma2_eta,
+            sigma2_eps,
             ztildes,
             likelihood="full",
         )
@@ -135,7 +135,7 @@ class TestFilters:
         self.ms_if = jnp.linalg.solve(
             self.Qs_if, self.nus_if[..., None]).squeeze(-1)
         self.Qpreds_kf = jnp.linalg.inv(self.Ppreds_kf)
-        self.ll_ifi, self.nus_ifi, self.Qs_ifi, _, self.Qpreds_ifi = fsf.information_filter_indep(
+        self.ll_ifi, self.nus_ifi, self.Qs_ifi, _, self.Qpreds_ifi = fsf.information_filter_iid(
             nu_0,
             Q_0,
             model.M,
@@ -163,7 +163,7 @@ class TestFilters:
         self.ms_sqif = jnp.linalg.solve(
             self.Qs_sqif, self.nus_sqif[..., None]).squeeze(-1)
         
-        self.ll_sqifi, self.nus_sqifi, self.Rs_sqifi, _, self.Rpreds_sqifi = fsf.sqrt_information_filter_indep(
+        self.ll_sqifi, self.nus_sqifi, self.Rs_sqifi, _, self.Rpreds_sqifi = fsf.sqrt_information_filter_iid(
             nu_0,
             jnp.linalg.cholesky(Q_0),
             model.M,

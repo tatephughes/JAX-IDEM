@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
-
-# JAX imports
+#!/usr/bin/env .venv/bin/python
+#JAX imports
 import jax.random as rand
 import jax
 import jax.numpy as jnp
@@ -15,20 +14,16 @@ import blackjax
 import matplotlib.pyplot as plt
 
 # typing imports
-from jax.typing import ArrayLike,
+from jaxtyping import ArrayLike, PyTree
 from jaxtyping import PyTree, Float, Array
-from typing import Callable, Union
+from typing import Callable, Union, NamedTuple
 from functools import partial
 
 import warnings
 
+
 # In-Module imports
 from utilities import create_grid, place_basis, outer_op, Basis, Grid, st_data
-
-from filter_smoother_functions import (
-    kalman_filter,
-    kalman_smoother,
-)
 
 import filter_smoother_functions as fsf
 
@@ -151,9 +146,9 @@ class IdemParams(NamedTuple):
     log_sigma2_eps: Union[Float[Array, "()"],
                           PyTree[Float[Array, "(nobs[i],)"]],
                           PyTree[Float[Array, "(nobs[i], nobs[i])"]]]
-    log_sigma2_eta: Union(Float[Array, "()"],
+    log_sigma2_eta: Union[Float[Array, "()"],
                           Float[Array, "(r,)"],
-                          Float[Array, "(r, r)"])
+                          Float[Array, "(r, r)"]]
     trans_kernel_params: PyTree[Array]
     beta: ArrayLike
 
@@ -176,13 +171,13 @@ class IDEM:
         self.process_basis = process_basis
         self.kernel = kernel
         self.process_grid = process_grid
-        self.sigma2_eta = sigma2_eta
-        self.sigma2_eps = sigma2_eps
+        self.sigma2_eta = jnp.array(sigma2_eta)
         self.int_grid = int_grid
         self.PHI_proc = process_basis.mfun(process_grid.coords)
         self.GRAM = (self.PHI_proc.T @ self.PHI_proc) * process_grid.area
         self.M = self.con_M(kernel.params)
         self.beta = beta
+        self.nbasis = process_basis.nbasis
 
         trans_kernel_params = (jnp.log(self.kernel.params[0]),
                                jnp.log(self.kernel.params[1]),
@@ -193,6 +188,24 @@ class IDEM:
                                  log_sigma2_eta=jnp.log(sigma2_eta),
                                  trans_kernel_params = trans_kernel_params,
                                  beta = self.beta)
+
+        self.nparams = sum(arr.size for arr in jax.tree.leaves(self.params))
+        
+        self.sigma2_eta_dim = len(self.sigma2_eta.shape)
+
+        match sigma2_eps:
+            case jnp.ndarray():
+                self.sigma2_eps = sigma2_eps
+                self.sigma2_eps_dim = len(self.sigma2_eps.shape)
+                self.eps_type = "array"
+            case _ if isinstance(sigma2_eps, float):
+                self.sigma2_eps = jnp.array(sigma2_eps)
+                self.sigma2_eps_dim = 0
+                self.eps_type = "array"
+            case _ if isinstance(jax.tree.flatten(sigma2_eps_tree)[0][0], jnp.ndarray):
+                self.sigma2_eps = sigma2_eps
+                self.sigma2_eps_dim = len(jax.tree.flatten(sigma2_eps_tree)[0][0].shape)
+                self.eps_type = "pytree"
 
     def simulate(
         self,
@@ -231,17 +244,7 @@ class IDEM:
         M = self.M
         PHI_proc = self.PHI_proc
         beta = self.beta
-
-        
-
-        match len(self.sigma2_eta.shape):
-            case 0:
-                Sigma_eta = self.sigma2_eta * jnp.eye()
-                Sigma_eps = self.sigma2_eps * jnp.eye()
                 
-        
-        Sigma_eta = jnp.diag(self.sigma2_eta)
-        Sigma_eps = jnp.diag(self.sigma2_eps)
         process_grid = self.process_grid
 
         # Check that M is not explosive
@@ -299,6 +302,25 @@ class IDEM:
         else:
             times = jnp.unique(obs_locs[:, 0])
 
+        nobs = obs_locs.shape[0]
+            
+        match len(self.sigma2_eta.shape):
+            case 0:
+                Sigma_eta = self.sigma2_eta * jnp.eye(self.nbasis)
+            case 1:
+                Sigma_eta = jnp.diag(self.sigma2_eta)
+            case 2:
+                Sigma_eta = self.sigma2_eta
+
+        match len(self.sigma2_eps.shape):
+            case 0:
+                Sigma_eps = self.sigma2_eps * jnp.eye(nobs)
+            case 1:
+                Sigma_eps = jnp.diag(self.sigma2_eps)
+            case 2:
+                Sigma_eps = self.sigma2_eps
+
+            
         if T != len(times):
             raise ValueError("The times in obs_locs does not match inputted T")
 
@@ -354,13 +376,143 @@ class IDEM:
 
         return (process_data, obs_data)
 
+    def get_log_like(self, obs_data, X_obs, method="sqrt", m_0=None, P_0=None, likelihood='spartial'):
+
+        nbasis = self.nbasis
+        
+        if method in ("sqrt", "kalman"):
+                
+            obs_data_wide = obs_data.as_wide()
+
+            if jnp.isnan(obs_data_wide["z"]).any():
+                raise ValueError("Missing data detected. This is not supported for method='kalman' or 'sqrt'. Please use method='inf' or 'sqinf'. Note that errors must be iid for those methods.")
+            if not isinstance(X_obs, jax.numpy.ndarray):
+                raise ValueError("X_obs must be an ndarray for Kalman/square-root filtering. If it is a PyTree, consider method='inf' or 'sqinf', where the spatial stations are allowed to vary with time (hence X_obs is a tree with T elements corresponding to the covariance matrices at each time).")
+                         
+            obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
+            PHI_obs = self.process_basis.mfun(obs_locs)
+            if m_0 is None:
+                m_0 = jnp.zeros(nbasis)
+            if P_0 is None:
+                P_0 = 100 * jnp.eye(nbasis)
+
+            match method:
+                case "sqrt":
+                    init_mat = jnp.linalg.cholesky(P_0)
+                    filterer = fsf.sqrt_filter_new
+                case "kalman":
+                    init_mat = P_0
+                    filterer = fsf.kalman_filter_new
+                
+            @jax.jit
+            def objective(params):
+                (
+                          log_sigma2_eta,
+                          log_sigma2_eps,
+                          ks,
+                          beta,
+                ) = params
+                logks1, logks2, ks3, ks4 = ks
+                ks1 = jnp.exp(logks1)
+                ks2 = jnp.exp(logks2)
+                sigma2_eta = jnp.exp(log_sigma2_eta)
+                sigma2_eps = jnp.exp(log_sigma2_eps)
+                M = self.con_M((ks1, ks2, ks3, ks4))
+                ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
+                ll, _, _, _, _, _ = filterer(
+                    m_0,
+                    init_mat,
+                    M,
+                    PHI_obs,
+                    sigma2_eta,
+                    sigma2_eps,
+                    ztildes,
+                    likelihood=likelihood,
+                    sigma2_eta_dim = self.sigma2_eta_dim,
+                    sigma2_eps_dim = self.sigma2_eps_dim
+                )
+                return ll
+            return objective
+                
+        elif method in ("inf", "sqinf"):
+
+            if isinstance(X_obs, jax.numpy.ndarray):
+                raise ValueError(f"X_obs is a JAX array, but for method={method} it must be a PyTree of length T, with each element beingt the covariate matrix for that time. Assuming the spatial stations are stationary across time and no missing data , try [X_obs for _ in range(T)], or consider method'kalman' or 'sqrt'.")
+                
+            unique_times = jnp.unique(obs_data.t)
+            T = len(unique_times)
+            zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
+
+            obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
+            obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:] for t in unique_times])
+                
+            PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
+            
+            if m_0 is None:
+                m_0 = jnp.zeros(nbasis)
+            if P_0 is None:
+                P_0 = 100 * jnp.eye(nbasis)
+
+            if self.sigma2_eps_dim != 0:
+                raise ValueError("Non-iid measurement errors are not supported for method='inf' or 'sqinf'. Please use methof='kalman' or 'sqrt'.")
+            nu_0 = jnp.linalg.solve(P_0, m_0)
+
+            match method:
+                case "sqinf":
+                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
+                    filterer = fsf.sqrt_information_filter_new
+                case "inf":
+                    init_mat = jnp.linalg.inv(P_0)
+                    filterer = fsf.information_filter_new
+            @jax.jit
+            def tildify(z, X_obs_ind, beta):
+                return z - X_obs_ind @ beta
+            mapping_elts = tuple(
+                [[zs_tuple[i], X_obs[i]] for i in range(len(zs_tuple))]
+            )
+            def is_leaf(node):
+                return jax.tree.structure(node).num_leaves == 2
+            @jax.jit
+            def objective(params):
+                (
+                    log_sigma2_eta,
+                    log_sigma2_eps,
+                    ks,
+                    beta,
+                ) = params
+                ztildes = jax.tree.map(
+                    lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf
+                )
+                logks1, logks2, ks3, ks4 = ks
+                ks1 = jnp.exp(logks1)
+                ks2 = jnp.exp(logks2)
+                sigma2_eta = jnp.exp(log_sigma2_eta)
+                sigma2_eps = jnp.exp(log_sigma2_eps)
+                M = self.con_M((ks1, ks2, ks3, ks4))
+                ll, _, _, _, _ = filterer(
+                    nu_0,
+                    init_mat,
+                    M,
+                    PHI_obs_tuple,
+                    sigma2_eta,
+                    [sigma2_eps for _ in range(T)],
+                    ztildes,
+                    likelihood=likelihood,
+                    sigma2_eta_dim = self.sigma2_eta_dim,
+                    sigma2_eps_dim = 0
+                )
+                return ll
+            return objective
+        else:
+            raise ValueError(f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf'].")
+            
     def kalman_filter(
         self,
         obs_data: st_data,
         X_obs: ArrayLike,
         m_0: ArrayLike = None,
         P_0: ArrayLike = None,
-        likelihood: string = "full"
+        likelihood: str = "full"
     ):
         """
         Runs the Kalman filter on the inputted data.
@@ -380,14 +532,14 @@ class IDEM:
         PHI_obs = self.process_basis.mfun(obs_locs)
         nobs = PHI_obs.shape[0]
 
-        sigma_eta = self.sigma_2eta
+        sigma2_eta = self.sigma_2eta
         sigma2_eps = self.sigma2_eps
 
         beta = self.beta
 
         ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
-        match len(sigma_eta.shape):
+        match len(sigma2_eta.shape):
             case 0:
                 f = fsf.kalman_filter
             case 1:
@@ -432,14 +584,14 @@ class IDEM:
         PHI_obs = self.process_basis.mfun(obs_locs)
         nbasis = self.process_basis.nbasis
 
-        sigma2_eta = self.Sigma_eta[0, 0]
+        sigma2_eta = self.sigma2_eta
         sigma2_eps = self.sigma2_eps
 
         beta = self.beta
 
         ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
-        ll, ms, Us, mpreds, Upreds, Ks = fsf.sqrt_filter_indep(
+        ll, ms, Us, mpreds, Upreds, Ks = fsf.sqrt_filter_iid(
             m_0, U_0, M, PHI_obs, sigma2_eta, sigma2_eps, ztildes, likelihood=likelihood
         )
 
@@ -1334,6 +1486,66 @@ class IDEM:
         )
 
         return (new_fitted_model, params)
+    
+    def sample_posterior(self,
+                         key,
+                         n,
+                         burnin,
+                         obs_data,
+                         X_obs,
+                         init_params=None,
+                         log_prior_density=None,
+                         inverse_mass_matrix=None,
+                         sampling_method=blackjax.hmc,
+                         num_integration_steps = 5,
+                         step_size = 1e-3,
+                         likelihood_method="kalman"):
+        
+        if init_params is None:
+            init_params = self.params
+        nparams = sum(arr.size for arr in jax.tree.leaves(init_params))
+        
+        log_marginal = self.get_log_like(obs_data,
+               X_obs,
+               method=likelihood_method, likelihood='partial')
+
+        if log_prior_density is None:
+            # flat prior by default
+            @jax.jit # really not sure if this is necessary (but it is weirdly funny)
+            def log_prior_density(params): return jnp.array(1)
+
+        if inverse_mass_matrix is None:
+            inverse_mass_matrix = 1*jnp.ones(nparams)
+
+        @jax.jit
+        def log_post_dens(params):
+            return log_prior_density(params) + log_marginal(params)
+
+        sampler = sampling_method(log_post_dens,
+                                  step_size,
+                                  inverse_mass_matrix,
+                                  num_integration_steps = num_integration_steps)
+
+        init_state = sampler.init(init_params)
+        step = jax.jit(sampler.step)
+
+        burn_key, it_key = rand.split(key,2)
+        @scan_tqdm(n, desc='Sampling...')
+        def body_fn_sample(carry, i):
+            nuts_key = jax.random.fold_in(it_key, i)
+            new_state, info = step(nuts_key, carry)
+            return new_state, (new_state, info)
+
+        @scan_tqdm(burnin, desc='Burning in...')
+        def body_fn_burnin(carry, i):
+            nuts_key = jax.random.fold_in(burn_key, i)
+            new_state, info = step(nuts_key, carry)
+            return new_state, (new_state, info)
+
+        burnin_state, _ = jax.lax.scan(body_fn_burnin, init_state, jnp.arange(burnin))
+        _, (param_post_sample,info) = jax.lax.scan(body_fn_sample, burnin_state, jnp.arange(n))
+        
+        return (param_post_sample,info)
 
     def fit_nuts_sqkf(
         self,
@@ -1621,7 +1833,7 @@ def gen_example_idem(
     ngrid: ArrayLike = jnp.array([41, 41]),
     nints: ArrayLike = jnp.array([100, 100]),
     process_basis: Basis = None,
-    Sigma_eta=None,
+    sigma2_eta=0.05**2,
     sigma2_eps=0.1**2,
     beta=jnp.array([0.0, 0.0, 0.0]),
 ):
@@ -1688,17 +1900,17 @@ def gen_example_idem(
 
     nbasis = process_basis.nbasis
         
-    if Sigma_eta is None:
-        Sigma_eta = 0.05**2 * jnp.eye(nbasis)
-    elif Sigma_eta == "random":
+    if sigma2_eta is None:
+        sigma2_eta = 0.05**2
+    elif sigma2_eta == "random":
         A = rand.normal(keys[2], shape=(nbasis, nbasis))
-        Sigma_eta = A.T @ A
+        sigma2_eta = A.T @ A
         
     return IDEM(
         process_basis=process_basis,
         kernel=kernel,
         process_grid=process_grid,
-        Sigma_eta=Sigma_eta,
+        sigma2_eta=sigma2_eta,
         sigma2_eps=sigma2_eps,
         beta=beta,
     )
@@ -1771,4 +1983,4 @@ if __name__ == "__main__":
     process_data, obs_data = model.simulate(key, nobs=nobs)
     # Show all the plots generated
     # Plots are stored in the process_data, obs_data and model.kernel objects.
-    plt.show()
+    process_data.show_plot()

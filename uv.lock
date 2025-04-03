@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -985,6 +986,7 @@ dependencies = [
     { name = "ipython" },
     { name = "jax" },
     { name = "jax-tqdm" },
+    { name = "jaxlib" },
     { name = "jaxtyping" },
     { name = "jupyter" },
     { name = "matplotlib" },
@@ -1010,6 +1012,7 @@ requires-dist = [
     { name = "ipython", specifier = ">=8.12.3" },
     { name = "jax", specifier = ">=0.5.0" },
     { name = "jax-tqdm", specifier = ">=0.3.1" },
+    { name = "jaxlib", specifier = ">=0.5.0" },
     { name = "jaxtyping", specifier = ">=0.3.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "matplotlib", specifier = ">=3.7.5" },
@@ -1019,7 +1022,7 @@ requires-dist = [
     { name = "pyqt5", specifier = ">=5.15.11" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "python-lsp-server", extras = ["all"], specifier = ">=1.12.2" },
-    { name = "quarto-cli", specifier = "==1.6.39" },
+    { name = "quarto-cli", specifier = ">=1.6.42" },
     { name = "quartodoc", specifier = ">=0.9.1" },
     { name = "ruff", specifier = ">=0.9.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
@@ -2932,7 +2935,7 @@ wheels = [
 
 [[package]]
 name = "quarto-cli"
-version = "1.6.39"
+version = "1.6.42"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jupyter" },
@@ -2940,7 +2943,7 @@ dependencies = [
     { name = "nbclient", version = "0.10.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "wheel" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3c/fe/9acdb30b1536f35c3ee8a9b066818a96a273bfe0bea1588c78f1ebd34ec3/quarto_cli-1.6.39.tar.gz", hash = "sha256:638435a175931068b061ef151ca33a33fb950bb0454b68d6b7a7a10b3729c0e4", size = 4618 }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/93/7d94480506d05c31f4462fb6f2c2f028d2048afbd62b214d802fd27d83cc/quarto_cli-1.6.42.tar.gz", hash = "sha256:3f56d000a34736db92bb1ca01564df66d43ee3657430d11d4ffbbe1dbf8e564f", size = 4621 }
 
 [[package]]
 name = "quartodoc"

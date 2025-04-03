@@ -276,3 +276,147 @@ truemodel.kernel.save_plot("./kernelplots/kernel_true.png")
 ## get hamilton to work again
 ## apptainer
 ## ncc
+
+
+sigma2_eta_vec = jnp.repeat(sigma2_eta, 2)
+sigma2_eps_vec = jnp.repeat(sigma2_eps, 3)
+
+sigma2_eta_mat = jnp.diag(jnp.repeat(sigma2_eta, 2))
+sigma2_eps_mat = jnp.diag(jnp.repeat(sigma2_eps, 3))
+
+
+ll, ms, Ps, _, _, _ = kalman_filter_new(m_0,
+                                          P_0,
+                                          M,
+                                          PHI,
+                                          sigma2_eta_mat,
+                                          sigma2_eps_mat,
+                                          zs.T,
+                                          likelihood='full',
+                                          sigma2_eps_dim=2,
+                                          sigma2_eta_dim=2
+    )
+
+
+
+Q_0 = 0.01 * jnp.eye(2) 
+nu_0 = jnp.zeros(2)
+
+PHI_tuple = tuple([PHI for _ in range(T)])
+zs_tuple = tuple(zs)
+
+ll1, nus1, Qs1, nupreds ,Qpreds1  = information_filter_new(nu_0,
+                                            Q_0,
+                                            M,
+                                            PHI_tuple,
+                                            sigma2_eta,
+                                            [sigma2_eps for _ in range(T)],
+                                            zs_tuple,
+                                            likelihood='full',
+                                            sigma2_eps_dim=0,
+                                            sigma2_eta_dim=0
+    )
+
+
+ll2, nus2, Qs2,nupreds2 ,Qpreds2  = information_filter_new(nu_0,
+                                            Q_0,
+                                            M,
+                                            PHI_tuple,
+                                            sigma2_eta_vec,
+                                            [sigma2_eps_vec for _ in range(T)],
+                                            zs_tuple,
+                                            likelihood='full',
+                                            sigma2_eta_dim=1,
+                                            sigma2_eps_dim=0,
+    )
+
+ll3, nus3, Qs3, nupreds3 ,Qpreds3  = information_filter_new(nu_0,
+                                            Q_0,
+                                            M,
+                                            PHI_tuple,
+                                            sigma2_eta_mat,
+                                            [sigma2_eps_mat for _ in range(T)],
+                                            zs_tuple,
+                                            likelihood='full',
+                                            sigma2_eps_dim=2,
+                                            sigma2_eta_dim=2
+    )
+
+
+
+Q_pred =  Qpreds2[4]
+PHI = PHI_tuple[4]
+z =zs_tuple[4]
+
+P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+Sigma_t = jnp.fill_diagonal(
+    P_oprop, sigma2_eps + jnp.diag(P_oprop), inplace=False
+)
+chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+
+P_oprop2 = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+Sigma_t2 = jnp.fill_diagonal(
+    P_oprop, jnp.diag(sigma2_eps_vec) + jnp.diag(P_oprop), inplace=False
+)
+chol_Sigma_t2 = jnp.linalg.cholesky(Sigma_t)
+
+
+
+m_0 = jnp.zeros(2)
+U_0 = 10*jnp.eye(2)
+
+# Since we have independant errors, we can use the faster sqrt_filter_indep.
+    
+ll4, ms4, Us, _, _, _ = sqrt_filter_new(m_0,
+                                              U_0,
+                                              M,
+                                              PHI,
+                                              sigma2_eta_mat,
+                                              sigma2_eps_mat,
+                                              zs.T,  
+                                              likelihood='full',
+                                              sigma2_eps_dim=2,
+                                              sigma2_eta_dim=2
+                                              )
+
+
+
+R_0 = 0.1*jnp.eye(2)
+    
+ll5, nus2, Rs2,_ ,Rpreds2  = sqrt_information_filter_new(nu_0,
+                                                 R_0,
+                                                 M,
+                                                 PHI_tuple,
+                                                 sigma2_eta_mat,
+                                                 [sigma2_eps_mat for _ in range(T)],
+                                                 zs_tuple,
+                                                 likelihood='full',
+                                                 sigma2_eps_dim=2,
+                                                 sigma2_eta_dim=2
+    )
+
+
+ll6, nus3, Rs3,_ ,Rpreds3  = fsf.sqrt_information_filter(nu_0,
+                                                 R_0,
+                                                 M,
+                                                 PHI_tuple,
+                                                 sigma2_eta_mat,
+                                                 [sigma2_eps_mat for _ in range(T)],
+                                                 zs_tuple,
+                                                 likelihood='full',
+    )
+
+
+
+
+
+
+sigma2_eps_tree = [sigma2_eps_mat for _ in range(T)]
+
+match sigma2_eps:
+        case jnp.ndarray():  # JAX array
+            print("Variable is a JAX array.")
+        case _ if isinstance(jax.tree.flatten(sigma2_eps_tree)[0][0], jnp.ndarray):  # Pytree
+            print("Variable is a pytree of JAX arrays.")
+        case _:
+            print("Variable is neither a JAX array nor a pytree of JAX arrays.")
