@@ -19,30 +19,24 @@ bibliography: site/Bibliography.bib
 
 ```{python}
 #| output: false
-import sys
-import os
-sys.path.append(os.path.abspath('src/jaxidem'))
 import jax
-jax.config.update('jax_platform_name', 'cpu')
-import utilities
-import idem
-from utilities import *
-from idem import *
-import warnings
+import jax.numpy as jnp
+import jaxidem.utils as utils
+import jaxidem.idem as idem
 import matplotlib.pyplot as plt
+from PIL import Image, ImageSequence
 
 seed = 4
 key = jax.random.PRNGKey(seed)
-keys = rand.split(key, 10)
+keys = jax.random.split(key, 10)
 
-process_basis = place_cosine_basis(N = 30)
-#process_basis = place_basis()
+process_basis = utils.place_cosine_basis(N = 30)
 
 #Sigma_eta = jnp.diag(0.1*jnp.arange(process_basis.nbasis, dtype="float32"))
 #Sigma_eta = jnp.diag(rand.normal(key, shape=(process_basis.nbasis,))**2)
-Sigma_eta = jnp.diag((0.01*jnp.ones(process_basis.nbasis)).at[1].set(40.0).at[30].set(80.0).at[31].set(60.0))
+sigma2_eta = jnp.diag((0.01*jnp.ones(process_basis.nbasis)).at[1].set(40.0).at[30].set(80.0).at[31].set(60.0))
 
-model = gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]), process_basis = process_basis, Sigma_eta = Sigma_eta)
+model = idem.gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]), process_basis = process_basis, sigma2_eta = sigma2_eta)
 
 # Simulation
 T = 35
@@ -54,14 +48,12 @@ width = 576 / dpi
 height = 480 / dpi
 
 # plot the objects
-gif_st_grid(process_data, "site/process.gif", width=width, height=height)
-gif_st_pts(obs_data, "site/obs.gif", width=width, height=height)
-model.kernel.save_plot("site/kernel.png", width=width, height=height)
+utils.gif_st_grid(process_data, "site/figure/process.gif", width=width, height=height)
+utils.gif_st_pts(obs_data, "site/figure/obs.gif", width=width, height=height)
+model.kernel.save_plot("site/figure/kernel.png", width=width, height=height)
  
-from PIL import Image, ImageSequence
-
-gif1 = Image.open('site/process.gif')
-gif2 = Image.open('site/tardis.gif')
+gif1 = Image.open('site/figure/process.gif')
+gif2 = Image.open('site/figure/tardis.gif')
 
 width, height = gif1.size
 
@@ -80,18 +72,18 @@ for i in range(max_frames):
     frames.append(combined)
 
 
-frames[0].save('site/process.gif', save_all=True, append_images=frames[1:], duration=gif1.info['duration'], loop=0)
+frames[0].save('site/figure/process.gif', save_all=True, append_images=frames[1:], duration=gif1.info['duration'], loop=0)
 
 ```
 
 
 ::: {#fig-example layout-ncol=3}
 
-![Process](site/process.gif)
+![Process](site/figure/process.gif)
 
-![Observations](site/obs.gif)
+![Observations](site/figure/obs.gif)
 
-![Kernel](site/kernel.png)
+![Kernel](site/figure/kernel.png)
 
 An example IDEM simulation, with the underlying process (left), noisy observations randomly placed at each time interval (center), and the direction of 'flow' dictated by the kernel (right).
 
@@ -110,3 +102,6 @@ Documentation for the package is available [here](reference/index.html).
 [IDEM fit example](site/fit_example.html)
 
 [Filtering example](site/filtering_and_smoothing.html)
+
+[Sydney Radar example](site/Sydney_Radar.html)
+

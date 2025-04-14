@@ -62,22 +62,17 @@ Lets simulate from this system;
 ```{python}
 #| output: false
 
-import sys
-import os
-sys.path.append(os.path.abspath('../src/jaxidem'))
-
-import jax.random as rand
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+
+import jaxidem.filters as filt
+
 import matplotlib.pyplot as plt
-import filter_smoother_functions as fsf
-import testfuncs
 import plotly.express as px
 import plotly.io as pio
 import plotly.graph_objs as go
+
 import pandas as pd
-jax.config.update('jax_platform_name', 'cpu')
-jax.config.update('jax_enable_x64', True)
 ```
 
 ```{python}
@@ -97,21 +92,16 @@ alphas = [alpha_0]
 zs = []
 
 T = 50
-keys = rand.split(key, T*2)
+keys = jax.random.split(key, T*2)
 
-sigma2_eta = 0.001
-Sigma_eta = sigma2_eta*jnp.eye(2)
-chol_s_eta = jax.scipy.linalg.cholesky(Sigma_eta, lower=True)
-sigma2_eps = 0.01
-Sigma_eps = sigma2_eps*jnp.eye(3)
-chol_s_eps = jax.scipy.linalg.cholesky(Sigma_eps, lower=True)
+sigma2_eta = jnp.array(0.001)
+sigma2_eps = jnp.array(0.01)
+
 PHI = jnp.array([[1, 0], [0.6, 0.4], [0.4, 0.6]])
 
 for i in range(T):
-    alphas.append(M@alphas[i] + chol_s_eta @
-                  rand.normal(keys[2*i], shape=(2,)))
-    zs.append(PHI @ alphas[i+1] + chol_s_eps @
-              rand.normal(keys[2*i+1], shape=(3,)))
+    alphas.append(M @ alphas[i] + jnp.sqrt(sigma2_eta)*jax.random.normal(keys[2*i], shape=(2,)))
+    zs.append(PHI @ alphas[i+1] + jnp.sqrt(sigma2_eps)*jax.random.normal(keys[2*i+1], shape=(3,)))
 
 alphas_df = pd.DataFrame(alphas, columns = ["x", "y"])
 zs_df = pd.DataFrame(zs, columns = ["x", "y", "z"])
@@ -159,19 +149,23 @@ We do this with two 'forms' of the filter, which should be equivalent.
 m_0 = jnp.zeros(2)
 P_0 = 100*jnp.eye(2)
 
-# Since we have independant errors, we can use the faster kalman_filter_indep.
-    
-ll, ms, Ps, _, _, _ = fsf.kalman_filter_indep(m_0,
-                                              P_0,
-                                              M,
-                                              PHI,
-                                              sigma2_eta,
-                                              sigma2_eps,
-                                              zs.T,
-                                              likelihood='full'
-    )
+# We need to give the dimensions of both sigma2_eps and sigma2_eta.
+# Since our errors are all iid, this is 0
+sigma2_eps_dim = sigma2_eps.ndim
+sigma2_eta_dim = sigma2_eta.ndim
 
-#print(ms)
+
+ll, ms, Ps, _, _, _ = filt.kalman_filter(m_0,
+                                         P_0,
+                                         M,
+                                         PHI,
+                                         sigma2_eta,
+                                         sigma2_eps,
+                                         zs.T,
+                                         sigma2_eps_dim = sigma2_eps_dim,
+                                         sigma2_eta_dim = sigma2_eta_dim,
+                                         likelihood='full'
+    )
     
 ms_df = pd.DataFrame(list(ms), columns = ["x", "y"])
 
@@ -201,14 +195,16 @@ nu_0 = jnp.zeros(2)
 PHI_tuple = tuple([PHI for _ in range(T)])
 zs_tuple = tuple(zs)
 
-ll2, nus, Qs,_ ,_  = fsf.information_filter_indep(nu_0,
-                                                 Q_0,
-                                                 M,
-                                                 PHI_tuple,
-                                                 sigma2_eta,
-                                                 sigma2_eps,
-                                                 zs_tuple,
-                                                 likelihood='full'
+ll2, nus, Qs,_ ,_  = filt.information_filter(nu_0,
+                                            Q_0,
+                                            M,
+                                            PHI_tuple,
+                                            sigma2_eta,
+                                            [sigma2_eps for _ in range(T)],
+                                            zs_tuple,
+                                             sigma2_eps_dim = sigma2_eps_dim,
+                                             sigma2_eta_dim = sigma2_eta_dim,
+                                            likelihood='full'
     )
 
 ms2 = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
@@ -236,10 +232,6 @@ print(ll)
 print(ll2)
 ```
 
-These values are very different _but that might be ok_. 
-The log-likehoods are only correct up to a additive constant, and the two likelihoods are based off the distirbutions of different variables; the first on the direct residuals, the second on an 'information' transformed version.
-The key is that both should increase with how accurate the model is, so any fitting algorithm should give the same results for both.
-
 # Square Root Kalman filter
 
 ```{python}
@@ -251,14 +243,16 @@ U_0 = 10*jnp.eye(2)
 
 # Since we have independant errors, we can use the faster sqrt_filter_indep.
     
-ll3, ms3, Us, _, _, _ = fsf.sqrt_filter_indep(m_0,
-                                              U_0,
-                                              M,
-                                              PHI,
-                                              sigma2_eta,
-                                              sigma2_eps,
-                                              zs.T,  
-                                              likelihood='full')
+ll3, ms3, Us, _, _, _ = filt.sqrt_filter(m_0,
+                                         U_0,
+                                         M,
+                                         PHI,
+                                         sigma2_eta,
+                                         sigma2_eps,
+                                         zs.T,
+                                         sigma2_eps_dim = sigma2_eps_dim,
+                                         sigma2_eta_dim = sigma2_eta_dim,
+                                         likelihood='full')
     
 ms3_df = pd.DataFrame(list(ms3), columns = ["x", "y"])
 
@@ -281,15 +275,17 @@ fig5.show()
 
 R_0 = 0.1*jnp.eye(2)
     
-ll4, nus2, Rs2,_ ,_  = fsf.sqrt_information_filter_indep(nu_0,
-                                                 R_0,
-                                                 M,
-                                                 PHI_tuple,
-                                                 sigma2_eta,
-                                                 sigma2_eps,
-                                                 zs_tuple,
-                                                 likelihood='full'
-    )
+ll4, nus2, Rs2,_ ,_  = filt.sqrt_information_filter(nu_0,
+                                                    R_0,
+                                                    M,
+                                                    PHI_tuple,
+                                                    sigma2_eta,
+                                                    [sigma2_eps for _ in range(T)],
+                                                    zs_tuple,
+                                                    sigma2_eps_dim = sigma2_eps_dim,
+                                                    sigma2_eta_dim = sigma2_eta_dim,
+                                                    likelihood='full'
+                                                    )
 
 Qs2 = jnp.matmul(jnp.transpose(Rs2, (0, 2, 1)), Rs2)
 
@@ -321,6 +317,7 @@ print(ll4)
 Let's 'forget' some of the details of the original model; the propegation matrix $M$ and the variances $\sigma^2_\epsilon$ and $\sigma^2_\eta$ (though we keep the assumption that everything is independant)
 
 ```{python}
+#| eval: false
 #| label: fig-kalman-fitted
 #| fig-caption: "The (Kalman) fitted and filtered means"
 
@@ -396,7 +393,7 @@ These results are great.
 Lets confirm that the information filter is also working, using the same method
 
 ```{python}
-#| eval: true
+#| eval: false
 #| label: fig-information-fitted
 #| fig-caption: "The (information) fitted and filtered means"
 
@@ -406,7 +403,7 @@ def objective_info(params):
     sigma2_eps = jnp.exp(params['log_sigma2_eps'])
     sigma2_eta = jnp.exp(params['log_sigma2_eta'])
 
-    ll, _, _, _, _ = fsf.information_filter_indep(nu_0,
+    ll, _, _, _, _ = fsf.information_filter_iid(nu_0,
                                       Q_0,
                                       M,
                                       PHI_tuple,
@@ -436,7 +433,7 @@ for i in range(5):
     nll = objective_info(param_ad)
     #print(nll)
 
-ll, nus, Qs, _, _ = fsf.information_filter_indep(nu_0,
+ll, nus, Qs, _, _ = fsf.information_filter_iid(nu_0,
                                      Q_0,
                                      param_ad['M'],
                                      PHI_tuple,
@@ -446,7 +443,7 @@ ll, nus, Qs, _, _ = fsf.information_filter_indep(nu_0,
 
 ms4 = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
                                                                      
-#ll, nus, Qs = fsf.information_filter_indep(nu_0,
+#ll, nus, Qs = fsf.information_filter_iid(nu_0,
 #                                           P_0,
 #                                           param_ad['M'],
 #                                           PHI_tuple,

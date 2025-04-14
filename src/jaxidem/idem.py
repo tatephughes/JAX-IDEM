@@ -23,9 +23,9 @@ import warnings
 
 
 # In-Module imports
-from utilities import create_grid, place_basis, outer_op, Basis, Grid, st_data
+from jaxidem.utils import create_grid, place_basis, outer_op, Basis, Grid, st_data
 
-import filter_smoother_functions as fsf
+import jaxidem.filters as filt
 
 ngrids = jnp.array([41, 41])
 bounds = jnp.array([[0, 1], [0, 1]])
@@ -49,6 +49,9 @@ class Kernel:
         self.function = function
         self.form = form
 
+    def update(self, params):
+        return Kernel(self.function, self.basis, params, self.form)
+        
     def show_plot(self, width=5, height=4):
         """Shows a plot of the direction of the kernel."""
 
@@ -153,9 +156,11 @@ class IdemParams(NamedTuple):
     beta: ArrayLike
 
 
-class IDEM:
+class Model:
     """The Integro-differential Equation Model.
-    I'm really going back and forth on what to name this clas
+    Unlike R-IDE, this does not take in data as part of the model, so the
+    process grid and all involved bases must be manually made to be the domain
+    of interest.
     """
 
     def __init__(
@@ -166,7 +171,7 @@ class IDEM:
         sigma2_eta,
         sigma2_eps,
         beta,
-        int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41])),
+        int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([100, 100])),
     ):
         self.process_basis = process_basis
         self.kernel = kernel
@@ -230,8 +235,15 @@ class IDEM:
             the last two to spatial coordinates. If this is not
             provided, 50 random points per time are chosen in the domain
             of interest.d
+        fixed_data: Bool
+            Whether the simulated data are randomly place or static across
+            time (unless obs_locs is manually given)
+        T: int
+            The number of time points to simulate
         int_grid: ArrayLike (3, nint)
             The grid over which to compute the Riemann integral.
+        alpha_0: ArrayLike (nbasis,)
+            Initial value of the process coefficients
 
         Returns
         ----------
@@ -376,7 +388,14 @@ class IDEM:
 
         return (process_data, obs_data)
 
-    def get_log_like(self, obs_data, X_obs, method="sqrt", m_0=None, P_0=None, likelihood='spartial'):
+    def get_log_like(self,
+            obs_data,
+            X_obs,
+            method="sqrt",
+            m_0=None,
+            P_0=None,
+            likelihood='partial',
+            negative=False):
 
         nbasis = self.nbasis
         
@@ -399,10 +418,10 @@ class IDEM:
             match method:
                 case "sqrt":
                     init_mat = jnp.linalg.cholesky(P_0)
-                    filterer = fsf.sqrt_filter_new
+                    filterer = filt.sqrt_filter
                 case "kalman":
                     init_mat = P_0
-                    filterer = fsf.kalman_filter_new
+                    filterer = filt.kalman_filter
                 
             @jax.jit
             def objective(params):
@@ -431,7 +450,10 @@ class IDEM:
                     sigma2_eta_dim = self.sigma2_eta_dim,
                     sigma2_eps_dim = self.sigma2_eps_dim
                 )
-                return ll
+                if negative:
+                    return -ll
+                else:
+                    return ll
             return objective
                 
         elif method in ("inf", "sqinf"):
@@ -460,10 +482,10 @@ class IDEM:
             match method:
                 case "sqinf":
                     init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
-                    filterer = fsf.sqrt_information_filter_new
+                    filterer = filt.sqrt_information_filter
                 case "inf":
                     init_mat = jnp.linalg.inv(P_0)
-                    filterer = fsf.information_filter_new
+                    filterer = filt.information_filter
             @jax.jit
             def tildify(z, X_obs_ind, beta):
                 return z - X_obs_ind @ beta
@@ -501,152 +523,192 @@ class IDEM:
                     sigma2_eta_dim = self.sigma2_eta_dim,
                     sigma2_eps_dim = 0
                 )
-                return ll
+                if negative:
+                    return -ll
+                else:
+                    return ll
             return objective
         else:
             raise ValueError(f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf'].")
-            
-    def kalman_filter(
-        self,
-        obs_data: st_data,
-        X_obs: ArrayLike,
-        m_0: ArrayLike = None,
-        P_0: ArrayLike = None,
-        likelihood: str = "full"
-    ):
-        """
-        Runs the Kalman filter on the inputted data.
-        """
 
-        obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
+    def filter(self, obs_data, X_obs, method="sqrt", params = None, m_0=None, P_0=None, likelihood='partial'):
 
-        nbasis = self.process_basis.nbasis
+        nbasis = self.nbasis
+        if params is None:
+            params = self.params
+        
+        if method in ("sqrt", "kalman"):
+                
+            obs_data_wide = obs_data.as_wide()
 
-        if m_0 is None:
-            m_0 = jnp.zeros(nbasis)
-        if P_0 is None:
-            P_0 = 100 * jnp.eye(nbasis)
+            if jnp.isnan(obs_data_wide["z"]).any():
+                raise ValueError("Missing data detected. This is not supported for method='kalman' or 'sqrt'. Please use method='inf' or 'sqinf'. Note that errors must be iid for those methods.")
+            if not isinstance(X_obs, jax.numpy.ndarray):
+                raise ValueError("X_obs must be an ndarray for Kalman/square-root filtering. If it is a PyTree, consider method='inf' or 'sqinf', where the spatial stations are allowed to vary with time (hence X_obs is a tree with T elements corresponding to the covariance matrices at each time).")
+                         
+            obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
+            PHI_obs = self.process_basis.mfun(obs_locs)
+            if m_0 is None:
+                m_0 = jnp.zeros(nbasis)
+            if P_0 is None:
+                P_0 = 100 * jnp.eye(nbasis)
 
-        M = self.M
-        PHI_obs = self.process_basis.mfun(obs_locs)
-        nobs = PHI_obs.shape[0]
+            match method:
+                case "sqrt":
+                    init_mat = jnp.linalg.cholesky(P_0)
+                    filterer = filt.sqrt_filter
+                case "kalman":
+                    init_mat = P_0
+                    filterer = filt.kalman_filter
+                
 
-        sigma2_eta = self.sigma_2eta
-        sigma2_eps = self.sigma2_eps
-
-        beta = self.beta
-
-        ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
-
-        match len(sigma2_eta.shape):
-            case 0:
-                f = fsf.kalman_filter
-            case 1:
-                f = fsf.kalman_filter_indep
-            case 2:
-                f = fsf.kalman_filter_iid
-            case _:
-                raise ValueError(f"Invalid state variance")
-            
-
-        ll, ms, Ps, mpreds, Ppreds, Ks = f(
-            m_0,
-            P_0,
-            M,
-            PHI_obs,
-            sigma2_eta,
-            sigma2_eps,
-            ztildes,
-            likelihood=likelihood,
-        )
-
-        return (ll, ms, Ps, mpreds, Ppreds)
-
-    def sqrt_filter(
-        self, obs_data: st_data, X_obs, m_0=None, U_0=None, likelihood="full"
-    ):
-        """
-        Runs the Kalman filter on the inputted data.
-        """
-
-        obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
-
-        nbasis = self.process_basis.nbasis
-
-        if m_0 is None:
-            m_0 = jnp.zeros(nbasis)
-        if U_0 is None:
-            U_0 = 100 * jnp.eye(nbasis)
-
-        M = self.M
-        PHI_obs = self.process_basis.mfun(obs_locs)
-        nbasis = self.process_basis.nbasis
-
-        sigma2_eta = self.sigma2_eta
-        sigma2_eps = self.sigma2_eps
-
-        beta = self.beta
-
-        ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
-
-        ll, ms, Us, mpreds, Upreds, Ks = fsf.sqrt_filter_iid(
-            m_0, U_0, M, PHI_obs, sigma2_eta, sigma2_eps, ztildes, likelihood=likelihood
-        )
-
-        return (ll, ms, Us, mpreds, Upreds)
-
-    def information_filter(
-        self,
-        obs_data: st_data,
-        nu_0=None,
-        Q_0=None,
-    ):
-        nbasis = self.process_basis.nbasis
-
-        if nu_0 is None:
-            nu_0 = jnp.zeros(nbasis)
-        if Q_0 is None:
-            Q_0 = 0.01 * jnp.eye(nbasis)
-
-        unique_times = jnp.unique(obs_data.t)
-
-        obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
-        obs_locs_tuple = [obs_locs[obs_data.t == t][:, 0:] for t in unique_times]
-
-        X_obs_tuple = jax.tree.map(
-            lambda locs: jnp.column_stack((jnp.ones(len(locs)), locs)), obs_locs_tuple
-        )
-
-        if unique_times.shape[0] <= 1:
-            raise ValueError(
-                """To filter, there needs to be more that one time
-                               point."""
+            (
+                log_sigma2_eta,
+                log_sigma2_eps,
+                ks,
+                beta,
+            ) = params
+            logks1, logks2, ks3, ks4 = ks
+            ks1 = jnp.exp(logks1)
+            ks2 = jnp.exp(logks2)
+            sigma2_eta = jnp.exp(log_sigma2_eta)
+            sigma2_eps = jnp.exp(log_sigma2_eps)
+            M = self.con_M((ks1, ks2, ks3, ks4))
+            ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
+            filt_results = filterer(
+                m_0,
+                init_mat,
+                M,
+                PHI_obs,
+                sigma2_eta,
+                sigma2_eps,
+                ztildes,
+                likelihood=likelihood,
+                sigma2_eta_dim = self.sigma2_eta_dim,
+                sigma2_eps_dim = self.sigma2_eps_dim
             )
 
-        PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
+            ms = filt_results[1]
+            filt_data = basis_params_to_st_data(ms, self.process_basis, self.process_grid)
 
-        ztildes = [
-            obs_data.z[obs_data.t == t] - X_obs_tuple[i] @ self.beta
-            for i, t in enumerate(unique_times)
-        ]
+            return (filt_data, filt_results)
+                
+        elif method in ("inf", "sqinf"):
 
-        ll, nus, Qs, nupreds, Qpreds = fsf.information_filter_indep(
-            nu_0,
-            Q_0,
-            self.M,
-            PHI_obs_tuple,
-            self.sigma2_eta,
-            self.sigma2_eps,
-            ztildes,
-            likelihood="full",
-        )
+            if isinstance(X_obs, jax.numpy.ndarray):
+                raise ValueError(f"X_obs is a JAX array, but for method={method} it must be a PyTree of length T, with each element beingt the covariate matrix for that time. Assuming the spatial stations are stationary across time and no missing data , try [X_obs for _ in range(T)], or consider method'kalman' or 'sqrt'.")
+                
+            unique_times = jnp.unique(obs_data.t)
+            T = len(unique_times)
+            zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
 
-        return (ll, nus, Qs, nupreds, Qpreds)
+            obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
+            obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:] for t in unique_times])
+                
+            PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
+            
+            if m_0 is None:
+                m_0 = jnp.zeros(nbasis)
+            if P_0 is None:
+                P_0 = 100 * jnp.eye(nbasis)
 
+            if self.sigma2_eps_dim != 0:
+                raise ValueError("Non-iid measurement errors are not supported for method='inf' or 'sqinf'. Please use methof='kalman' or 'sqrt'.")
+            nu_0 = jnp.linalg.solve(P_0, m_0)
+
+            match method:
+                case "sqinf":
+                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
+                    filterer = filt.sqrt_information_filter
+                case "inf":
+                    init_mat = jnp.linalg.inv(P_0)
+                    filterer = filt.information_filter
+            @jax.jit
+            def tildify(z, X_obs_ind, beta):
+                return z - X_obs_ind @ beta
+            mapping_elts = tuple(
+                [[zs_tuple[i], X_obs[i]] for i in range(len(zs_tuple))]
+            )
+            def is_leaf(node):
+                return jax.tree.structure(node).num_leaves == 2
+
+            (
+                log_sigma2_eta,
+                log_sigma2_eps,
+                ks,
+                beta,
+            ) = params
+            ztildes = jax.tree.map(
+                lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf
+            )
+            logks1, logks2, ks3, ks4 = ks
+            ks1 = jnp.exp(logks1)
+            ks2 = jnp.exp(logks2)
+            sigma2_eta = jnp.exp(log_sigma2_eta)
+            sigma2_eps = jnp.exp(log_sigma2_eps)
+            M = self.con_M((ks1, ks2, ks3, ks4))
+            filt_results = filterer(
+                nu_0,
+                init_mat,
+                M,
+                PHI_obs_tuple,
+                sigma2_eta,
+                [sigma2_eps for _ in range(T)],
+                ztildes,
+                likelihood=likelihood,
+                sigma2_eta_dim = self.sigma2_eta_dim,
+                sigma2_eps_dim = 0
+            )
+
+            nus = filt_results[1]
+            
+            match method:
+                case "sqinf":
+                    Rs = (filt_results[2], False)
+                    ms = jax.scipy.cho_solve(Rs, nus[..., None]).squeeze(-1)
+                case "inf":
+                    Qs = filt_results[2]
+                    ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
+
+            filt_data = basis_params_to_st_data(ms, self.process_basis, self.process_grid)
+
+            return (filt_data, filt_results)
+        
+        else:
+            raise ValueError(f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf'].")
+
+
+    def update(self, params):
+
+        (
+                log_sigma2_eta,
+                log_sigma2_eps,
+                ks,
+                beta,
+        ) = params
+        logks1, logks2, ks3, ks4 = ks
+        ks1 = jnp.exp(logks1)
+        ks2 = jnp.exp(logks2)
+        sigma2_eta = jnp.exp(log_sigma2_eta)
+        sigma2_eps = jnp.exp(log_sigma2_eps)
+
+        ker_params = (ks1,ks2,ks3,ks4)
+
+        new_kernel = self.kernel.update(ker_params)
+        
+        newmodel = Model(self.process_basis,
+                         new_kernel,
+                         self.process_grid,
+                         sigma2_eta=sigma2_eta,
+                         sigma2_eps=sigma2_eps,
+                         beta=beta,
+                         int_grid=self.int_grid)
+
+        return newmodel
+
+            
     def smooth(self, ms, Ps, mpreds, Ppreds):
-        """Runs the Kalman smoother on the"""
+        """NOT FULLY IMPLEMENTED """
         M = self.M
         nbasis = ms[-1].shape[0]
 
@@ -665,7 +727,7 @@ class IDEM:
         M = self.M
         nbasis = Ps[0].shape[0]
 
-        carry, seq = fsf.lag1_smoother(Ps, Js, K_T, PHI_obs, M)
+        carry, seq = filt.lag1_smoother(Ps, Js, K_T, PHI_obs, M)
 
         P_TTmT = (jnp.eye(nbasis) - K_T @ PHI_obs) @ M @ Ps[-2]
 
@@ -703,27 +765,25 @@ class IDEM:
             return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
 
         K = outer_op(self.process_grid.coords, self.process_grid.coords, kernel)
+        # TODO: Investigate better, faster, more accurate ways to ocmpute this?
         return (
             solve(self.GRAM, self.PHI_proc.T @ K @ self.PHI_proc)
             * self.process_grid.area**2
         )
 
-    def fit_kalman_filter(
+    def fit_mle(
         self,
         obs_data: st_data,
         X_obs: ArrayLike,
         fixed_ind: list = [],
-        lower=None,
-        upper=None,
         optimizer=optax.adam(1e-3),
-        m_0=None,
-        P_0=None,
         debug=False,
         max_its: int = 100,
         target_ll: ArrayLike = jnp.inf,
         likelihood: str = "partial",
         eps=None,
         loading_bar=True,
+        method = 'sqrt'
     ):
         """
         Fits a new model by maximum likelihood estimation, maximizing the
@@ -788,43 +848,6 @@ class IDEM:
 
         bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
 
-        if upper is None:
-            upper = (
-                jnp.array(jnp.log(1000)),
-                jnp.array(jnp.log(1000)),
-                (
-                    jnp.full(
-                        self.kernel.params[0].shape,
-                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
-                    ),
-                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
-                    jnp.full(self.kernel.params[2].shape, jnp.inf),
-                    jnp.full(self.kernel.params[3].shape, jnp.inf),
-                ),
-                jnp.full(self.beta.shape, jnp.inf),
-            )
-
-        # trying to match these bounds with andrewzm's,
-        # but this is messy. Clean these up later please
-        if lower is None:
-            lower = (
-                jnp.array(jnp.log(0.0001)),
-                jnp.array(jnp.log(0.0001)),
-                (
-                    jnp.full(
-                        self.kernel.params[0].shape,
-                        150
-                        / (self.process_grid.area * self.process_grid.ngrid)
-                        * 0.01
-                        / 1000,
-                    ),
-                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
-                    jnp.full(self.kernel.params[2].shape, -jnp.inf),
-                    jnp.full(self.kernel.params[3].shape, -jnp.inf),
-                ),
-                jnp.full(self.beta.shape, -jnp.inf),
-            )
-
         ks0 = (
             jnp.log(self.kernel.params[0]),
             jnp.log(self.kernel.params[1]),
@@ -841,56 +864,7 @@ class IDEM:
 
         print(f"Initial Parameters:\n\n{format_params(params0)}\n")
 
-        @jax.jit
-        def objective(params):
-            (
-                log_sigma2_eta,
-                log_sigma2_eps,
-                ks,
-                beta,
-            ) = params
-
-            logks1, logks2, ks3, ks4 = ks
-
-            ks1 = jnp.exp(logks1)
-            ks2 = jnp.exp(logks2)
-
-            sigma2_eta = jnp.exp(log_sigma2_eta)
-            sigma2_eps = jnp.exp(log_sigma2_eps)
-
-            # yes, this looks bad BUT after jit-compilation,
-            # these ifs will be compiled away.
-            if "sigma2_eta" in fixed_ind:
-                sigma2_eta = self.Sigma_eta[0, 0]
-            if "sigma2_eps" in fixed_ind:
-                sigma2_eps = self.sigma2_eps
-            if "ks1" in fixed_ind:
-                ks1 = self.kernel.params[0]
-            if "ks2" in fixed_ind:
-                ks2 = self.kernel.params[1]
-            if "ks3" in fixed_ind:
-                ks3 = self.kernel.params[2]
-            if "ks4" in fixed_ind:
-                ks4 = self.kernel.params[3]
-            if "beta" in fixed_ind:
-                beta = self.beta
-
-            M = self.con_M((ks1, ks2, ks3, ks4))
-
-            # CHECK BELOW
-            ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
-
-            ll, _, _, _, _, _ = fsf.kalman_filter_indep(
-                m_0,
-                P_0,
-                M,
-                PHI_obs,
-                sigma2_eta,
-                sigma2_eps,
-                ztildes,
-                likelihood=likelihood,
-            )
-            return -ll
+        objective = get_log_like(self, obs_data, X_obs, method=method, likelihood='partial', negative=True)
 
         obj_grad = jax.grad(objective)
 
@@ -900,7 +874,6 @@ class IDEM:
 
         if loading_bar:
             progress = tqdm(range(max_its), desc="Optimising")
-
         else:
             progress = range(max_its)
 
@@ -942,529 +915,6 @@ class IDEM:
             kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
             process_grid=self.process_grid,
             Sigma_eta=jnp.exp(params[0]) * jnp.eye(self.process_basis.nbasis),
-            sigma2_eps=jnp.exp(params[1]),
-            beta=params[3],
-        )
-
-        init_ll = -objective(params0)
-
-        print(
-            f"""The log likelihood (up to a constant) of the initial model is
-               {init_ll}"""
-        )
-        print(
-            f"""The final log likelihood (up to a constant) of the fit model is
-               {-objective(params)}"""
-        )
-
-        print(
-            f"""\nthe final offset parameters are {params[2][2]} and
-               {params[2][3]}\n\n"""
-        )
-
-        return (new_fitted_model, params)
-
-    def fit_sqrt_filter(
-        self,
-        obs_data: st_data,
-        X_obs: ArrayLike,
-        fixed_ind: list = [],
-        lower=None,
-        upper=None,
-        optimizer=optax.adam(1e-3),
-        m_0=None,
-        U_0=None,
-        debug=False,
-        max_its: int = 100,
-        target_ll: ArrayLike = jnp.inf,
-        likelihood: str = "partial",
-        eps=None,
-        loading_bar=True,
-    ):
-        """
-                Fits a new model by maximum likelihood estimation, maximizing the
-                data likelihood, computed by the square-root Kalman filter, using a given
-                OPTAX optimiser.
-
-                This can be more stable than the standard Kalman, and in some situations
-                can be run in Single-precision mode
-
-                Params
-                ----------
-                obs_data: st_data
-                  The observed data, as an st_data object containing the data to be fit
-                  to.
-                X_obs: ArrayLike (nobs, p)
-                  Matrix of covariate data, where p is the number of covariates
-                  (including a column of 1s)
-                fixed_ind: list = []
-                  List of strings representing the variables to keep fixed at the value
-                  in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
-                  "ks2", "ks3", "ks4", "beta".
-                lower: tuple = None
-                  Lower bounds on the parameters
-                  Initial mean vector for Kalman filter
-                U_0: ArrayLike = None (r,r)
-                  Initial square-root Variance matrix for square root filter
-                debug: bool = False
-                  Whether to print diagnostics during the fitting
-                max_its: int = 100
-                  Maximum number of iterations to perform (if other stopping rules
-                  don't stop the loop early)
-                target_ll: ArrayLike = jnp.inf
-                  Target log likelihood which, once reached, the main loop will stop
-                  early
-                likelihood: str = 'partial'
-                  Type of likelihood for computation ('full' or 'partial').
-                eps: float = None
-                  How close two loops should be before the loop is stopped early (None
-                  removes this stopping rule
-                loading_bar:bool = True
-                  Displays a tqdm bar during the main loop.
-
-                Returns: tuple
-                ----------
-                A tuple containing a new, fitted idem.IDEM object and the corresponding
-                parameters.
-        """
-
-        obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
-        PHI_obs = self.process_basis.mfun(obs_locs)
-        nbasis = self.process_basis.nbasis
-
-        if m_0 is None:
-            m_0 = jnp.zeros(nbasis)
-        if U_0 is None:
-            U_0 = 10 * jnp.eye(nbasis)
-
-        bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
-
-        if upper is None:
-            upper = (
-                jnp.array(jnp.log(1000)),
-                jnp.array(jnp.log(1000)),
-                (
-                    jnp.full(
-                        self.kernel.params[0].shape,
-                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
-                    ),
-                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
-                    jnp.full(self.kernel.params[2].shape, jnp.inf),
-                    jnp.full(self.kernel.params[3].shape, jnp.inf),
-                ),
-                jnp.full(self.beta.shape, jnp.inf),
-            )
-
-        # trying to match these bounds with andrewzm's,
-        # but this is messy. Clean these up later please
-        if lower is None:
-            lower = (
-                jnp.array(jnp.log(0.0001)),
-                jnp.array(jnp.log(0.0001)),
-                (
-                    jnp.full(
-                        self.kernel.params[0].shape,
-                        150
-                        / (self.process_grid.area * self.process_grid.ngrid)
-                        * 0.01
-                        / 1000,
-                    ),
-                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
-                    jnp.full(self.kernel.params[2].shape, -jnp.inf),
-                    jnp.full(self.kernel.params[3].shape, -jnp.inf),
-                ),
-                jnp.full(self.beta.shape, -jnp.inf),
-            )
-
-        ks0 = (
-            jnp.log(self.kernel.params[0]),
-            jnp.log(self.kernel.params[1]),
-            self.kernel.params[2],
-            self.kernel.params[3],
-        )
-
-        params0 = (
-            jnp.log(self.Sigma_eta[0, 0]),
-            jnp.log(self.sigma2_eps),
-            ks0,
-            self.beta,
-        )
-
-        print(f"Initial Parameters:\n\n{format_params(params0)}\n")
-
-        @jax.jit
-        def objective(params):
-            (
-                log_sigma2_eta,
-                log_sigma2_eps,
-                ks,
-                beta,
-            ) = params
-
-            logks1, logks2, ks3, ks4 = ks
-
-            ks1 = jnp.exp(logks1)
-            ks2 = jnp.exp(logks2)
-
-            sigma2_eta = jnp.exp(log_sigma2_eta)
-            sigma2_eps = jnp.exp(log_sigma2_eps)
-
-            # yes, this looks bad BUT after jit-compilation,
-            # these ifs will be compiled away.
-            if "sigma2_eta" in fixed_ind:
-                sigma2_eta = self.sigma2_eta
-            if "sigma2_eps" in fixed_ind:
-                sigma2_eps = self.sigma2_eps
-            if "ks1" in fixed_ind:
-                ks1 = self.kernel.params[0]
-            if "ks2" in fixed_ind:
-                ks2 = self.kernel.params[1]
-            if "ks3" in fixed_ind:
-                ks3 = self.kernel.params[2]
-            if "ks4" in fixed_ind:
-                ks4 = self.kernel.params[3]
-            if "beta" in fixed_ind:
-                beta = self.beta
-
-            M = self.con_M((ks1, ks2, ks3, ks4))
-
-            # CHECK BELOW
-            ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
-
-            ll, _, _, _, _, _ = fsf.sqrt_filter_indep(
-                m_0,
-                U_0,
-                M,
-                PHI_obs,
-                sigma2_eta,
-                sigma2_eps,
-                ztildes,
-                likelihood=likelihood,
-            )
-            return -ll
-
-        obj_grad = jax.grad(objective)
-
-        ll = -objective(params0)
-        params = params0
-        opt_state = optimizer.init(params)
-
-        if loading_bar:
-            progress = tqdm(range(max_its), desc="Optimising")
-
-        else:
-            progress = range(max_its)
-
-        for i in progress:
-            grad = obj_grad(params)
-            updates, opt_state = optimizer.update(grad, opt_state, params=params)
-            params = optax.apply_updates(params, updates)
-            # params = optax.projections.projection_box(params, lower, upper)
-            llprev = ll
-            ll = -objective(params)
-            if eps is not None and (jnp.isclose(ll, llprev, atol=eps)):
-                print("Likelihood stopped improving. Stopping early...")
-                break
-            if ll > target_ll:
-                print("Achieved target likelihood. Stopping early...")
-                break
-            if loading_bar:
-                progress.set_postfix_str(
-                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}"
-                )
-            if debug & loading_bar:
-                progress.write(f"\nIteration: {i}")
-                progress.write(format_params(params))
-                progress.write(f"Current log-likelihood {ll.tolist()}")
-            elif debug:
-                print(f"\nIteration: {i}")
-                print(format_params(params))
-                print(f"Current log-likelihood {ll.tolist()}")
-
-        logks1, logks2, ks3, ks4 = params[2]
-
-        ks1 = jnp.exp(logks1)
-        ks2 = jnp.exp(logks2)
-
-        new_kernel_params = (ks1, ks2, ks3, ks4)
-
-        new_fitted_model = IDEM(
-            process_basis=self.process_basis,
-            kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
-            process_grid=self.process_grid,
-            Sigma_eta=jnp.exp(params[0]) * jnp.eye(nbasis),
-            sigma2_eps=jnp.exp(params[1]),
-            beta=params[3],
-        )
-
-        init_ll = -objective(params0)
-
-        print(
-            f"""The log likelihood (up to a constant) of the initial model is
-               {init_ll}"""
-        )
-        print(
-            f"""The final log likelihood (up to a constant) of the fit model is
-               {-objective(params)}"""
-        )
-
-        print(
-            f"""\nthe final offset parameters are {params[2][2]} and
-               {params[2][3]}\n\n"""
-        )
-
-        return (new_fitted_model, params)
-
-    def fit_information_filter(
-        self,
-        obs_data: st_data,
-        X_obs_tuple: ArrayLike,
-        fixed_ind: list = [],
-        lower=None,
-        upper=None,
-        optimizer=optax.adam(1e-3),
-        nu_0=None,
-        Q_0=None,
-        debug=False,
-        max_its: int = 100,
-        target_ll: ArrayLike = jnp.inf,
-        likelihood: str = "partial",
-        eps=None,
-        loading_bar=True,
-    ):
-        """
-        Fits a new model by maximum likelihood estimation, maximizing the
-        data likelihood, computed by the information filter (inverse Kalman
-        filter), using a given OPTAX optimiser.
-
-        Params
-        ----------
-        obs_data: st_data
-          The observed data, as an st_data object containing the data to be fit
-          to.
-        X_obs_tuple: tuple
-          Tuple of matrices of covariate data, where p is the number of covariates
-          (including a column of 1s)
-        fixed_ind: list = []
-          List of strings representing the variables to keep fixed at the value
-          in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
-          "ks2", "ks3", "ks4", "beta".
-        lower: tuple = None
-          Lower bounds on the parameters
-        upper:tuple = None
-          Upper bounds on the parameters
-        optimizer: Callable = optax.adam(1e-3)
-          Optimiser to use
-          (see [here](https://optax.readthedocs.io/en/latest/api/optimizers.html)
-          for available options)
-        nu_0: ArrayLike = None (r,)
-          Initial information vector for information filter
-        Q_0: ArrayLike = None (r,r)
-          Initial Information matrix for information filter
-        debug: bool = False
-          Whether to print diagnostics during the fitting
-        max_its: int = 100
-          Maximum number of iterations to perform (if other stopping rules
-          don't stop the loop early)
-        target_ll: ArrayLike = jnp.inf
-          Target log likelihood which, once reached, the main loop will stop
-          early
-        likelihood: str = 'partial'
-          Type of likelihood for computation ('full' or 'partial').
-        eps: float = None
-          How close two loops should be before the loop is stopped early (None
-          removes this stopping rule
-        loading_bar:bool = True
-          Displays a tqdm bar during the main loop.
-
-        Returns: tuple
-        ----------
-        A tuple containing a new, fitted idem.IDEM object and the corresponding
-        parameters.
-        """
-
-        unique_times = jnp.unique(obs_data.t)
-        zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
-
-        obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
-        obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:] for t in unique_times])
-
-        PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
-
-        bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
-
-        nbasis = self.process_basis.nbasis
-
-        if nu_0 is None:
-            nu_0 = jnp.zeros(nbasis)
-        if Q_0 is None:
-            Q_0 = 100 * jnp.eye(nbasis)
-
-        if upper is None:
-            upper = (
-                jnp.array(jnp.log(1000)),
-                jnp.array(jnp.log(1000)),
-                (
-                    jnp.full(
-                        self.kernel.params[0].shape,
-                        150 / (self.process_grid.area * self.process_grid.ngrid) * 10,
-                    ),
-                    jnp.full(self.kernel.params[1].shape, ((bound_di / 2) ** 2) / 10),
-                    jnp.full(self.kernel.params[2].shape, jnp.inf),
-                    jnp.full(self.kernel.params[3].shape, jnp.inf),
-                ),
-                jnp.full(self.beta.shape, jnp.inf),
-            )
-
-        # trying to match these bounds with andrewzm's,
-        # but this is messy. Clean these up later please
-        if lower is None:
-            lower = (
-                jnp.array(jnp.log(0.0001)),
-                jnp.array(jnp.log(0.0001)),
-                (
-                    jnp.full(
-                        self.kernel.params[0].shape,
-                        150
-                        / (self.process_grid.area * self.process_grid.ngrid)
-                        * 0.01
-                        / 1000,
-                    ),
-                    jnp.full(self.kernel.params[1].shape, (bound_di / 2) ** 2 * 0.001),
-                    jnp.full(self.kernel.params[2].shape, -jnp.inf),
-                    jnp.full(self.kernel.params[3].shape, -jnp.inf),
-                ),
-                jnp.full(self.beta.shape, -jnp.inf),
-            )
-
-        ks0 = (
-            jnp.log(self.kernel.params[0]),
-            jnp.log(self.kernel.params[1]),
-            self.kernel.params[2],
-            self.kernel.params[3],
-        )
-
-        params0 = (
-            jnp.log(self.sigma2_eta),
-            jnp.log(self.sigma2_eps),
-            ks0,
-            self.beta,
-        )
-
-        print(f"Initial Parameters:\n\n{format_params(params0)}\n")
-
-        @jax.jit
-        def tildify(z, X_obs, beta):
-            return z - X_obs @ beta
-
-        mapping_elts = tuple(
-            [[zs_tuple[i], X_obs_tuple[i]] for i in range(len(zs_tuple))]
-        )
-
-        def is_leaf(node):
-            return jax.tree.structure(node).num_leaves == 2
-
-        @jax.jit
-        def objective(params):
-            (
-                log_sigma2_eta,
-                log_sigma2_eps,
-                ks,
-                beta,
-            ) = params
-
-            ztildes = jax.tree.map(
-                lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf
-            )
-
-            logks1, logks2, ks3, ks4 = ks
-
-            ks1 = jnp.exp(logks1)
-            ks2 = jnp.exp(logks2)
-
-            sigma2_eta = jnp.exp(log_sigma2_eta)
-            sigma2_eps = jnp.exp(log_sigma2_eps)
-
-            if "sigma2_eta" in fixed_ind:
-                sigma2_eta = self.sigma2_eta
-            if "sigma2_eps" in fixed_ind:
-                sigma2_eps = self.sigma2_eps
-            if "ks1" in fixed_ind:
-                ks1 = self.kernel.params[0]
-            if "ks2" in fixed_ind:
-                ks2 = self.kernel.params[1]
-            if "ks3" in fixed_ind:
-                ks3 = self.kernel.params[2]
-            if "ks4" in fixed_ind:
-                ks4 = self.kernel.params[3]
-            if "beta" in fixed_ind:
-                beta = self.beta
-
-            M = self.con_M((ks1, ks2, ks3, ks4))
-
-            ll, _, _, _, _ = fsf.information_filter_indep(
-                nu_0,
-                Q_0,
-                M,
-                PHI_obs_tuple,
-                sigma2_eta,
-                sigma2_eps,
-                ztildes,
-                likelihood=likelihood,
-            )
-            return -ll
-
-        obj_grad = jax.grad(objective)
-
-        ll = -objective(params0)
-        params = params0
-        opt_state = optimizer.init(params)
-
-        if loading_bar:
-            progress = tqdm(range(max_its), desc="Optimising")
-
-        else:
-            progress = range(max_its)
-
-        for i in progress:
-            grad = obj_grad(params)
-            updates, opt_state = optimizer.update(grad, opt_state, params=params)
-            params = optax.apply_updates(params, updates)
-            # params = optax.projections.projection_box(params, lower, upper)
-            llprev = ll
-            ll = -objective(params)
-            if eps is not None and (jnp.isclose(ll, llprev, atol=eps)):
-                print("Likelihood stopped improving. Stopping early...")
-                break
-            if ll > target_ll:
-                print("Achieved target likelihood. Stopping early...")
-                break
-            if loading_bar:
-                progress.set_postfix_str(
-                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}"
-                )
-            if debug & loading_bar:
-                progress.write(f"\nIteration: {i}")
-                progress.write(format_params(params))
-                progress.write(f"Current log-likelihood {ll.tolist()}")
-            elif debug:
-                print(f"\nIteration: {i}")
-                print(format_params(params))
-                print(f"Current log-likelihood {ll.tolist()}")
-
-        logks1, logks2, ks3, ks4 = params[2]
-
-        ks1 = jnp.exp(logks1)
-        ks2 = jnp.exp(logks2)
-
-        new_kernel_params = (ks1, ks2, ks3, ks4)
-
-        new_fitted_model = IDEM(
-            process_basis=self.process_basis,
-            kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
-            process_grid=self.process_grid,
-            sigma2_eta=jnp.exp(params[0]),
             sigma2_eps=jnp.exp(params[1]),
             beta=params[3],
         )
@@ -1625,7 +1075,7 @@ class IDEM:
             # CHECK BELOW
             ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
-            ll, _, _, _, _, _ = fsf.sqrt_filter_indep(
+            ll, _, _, _, _, _ = filt.sqrt_filter_indep(
                 m_0,
                 U_0,
                 M,
@@ -1906,7 +1356,7 @@ def gen_example_idem(
         A = rand.normal(keys[2], shape=(nbasis, nbasis))
         sigma2_eta = A.T @ A
         
-    return IDEM(
+    return Model(
         process_basis=process_basis,
         kernel=kernel,
         process_grid=process_grid,
@@ -1915,7 +1365,40 @@ def gen_example_idem(
         beta=beta,
     )
 
+def init_model(data, n_process_grid=41, n_int_grid=100):
+    #initial variances
+    sigma2_eta = jnp.var(data.z)/2
+    sigma2_eps = jnp.var(data.z)/2
+    beta = jnp.array([0.]) # only intercept, no covariates
 
+    # stations are stationary and there is no missing data, so there is the same number of observations per time period
+    nobs = data.wide['x'].size 
+    X_obs = jnp.ones((nobs,1)) # intercept
+    
+    process_basis = utils.place_basis(data = data.coords,
+                                      nres = 2,
+                                      min_knot_num = 3,) # defaults to bisquare basis functions
+    
+    process_grid = utils.create_grid(data.bounds, jnp.array([41, 41]))
+    int_grid = utils.create_grid(data.bounds, jnp.array([100, 100]))
+
+    const_basis = utils.constant_basis
+    K_basis = (const_basis,const_basis,const_basis,const_basis)
+    k = (jnp.array([150]) / (process_grid.area*process_grid.ngrid), # kernel scale
+         jnp.array([0.002]) * (process_grid.area*process_grid.ngrid), # kernel shape
+         jnp.array([0.]), # x drift
+         jnp.array([0.])) # y drift
+    kernel = idem.param_exp_kernel(K_basis, k)
+
+    model = idem.Model(process_basis=process_basis,
+                       kernel=kernel,
+                       process_grid=process_grid,
+                       sigma2_eta=sigma2_eta,
+                       sigma2_eps=sigma2_eps,
+                       beta=beta,
+                       int_grid=int_grid)
+    
+    
 def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     """
     Converts the process expansion coefficients back into the original process
@@ -1968,6 +1451,18 @@ def format_params(params):
     return "\n".join([kernel_string, var_string, coeff_string])
 
 
+def print_params(params: IdemParams):
+    print("Parameters:")
+    print(f"  sigma2_eps: {jnp.exp(params.log_sigma2_eps).tolist()}")
+    print(f"  sigma2_eta: {jnp.exp(params.log_sigma2_eta).tolist()}")
+    print(f"  Kernel Parameters:")
+    print(f"    Scale: {jnp.exp(params.trans_kernel_params[0]).tolist()}")
+    print(f"    Shape: {jnp.exp(params.trans_kernel_params[1]).tolist()}")
+    print(f"    Offset X: {params.trans_kernel_params[2].tolist()}")
+    print(f"    Offset Y: {params.trans_kernel_params[3].tolist()}")
+    print(f"  beta: {params.beta.tolist()}")
+    
+
 if __name__ == "__main__":
     print("IDEM loaded as main. Simulating a simple example.")
 
@@ -1984,3 +1479,5 @@ if __name__ == "__main__":
     # Show all the plots generated
     # Plots are stored in the process_data, obs_data and model.kernel objects.
     process_data.show_plot()
+
+  

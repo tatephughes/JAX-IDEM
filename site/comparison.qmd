@@ -63,30 +63,24 @@ We will fit to the same data, using as much the same as possible, fitting to tar
 # | output: false
 
 import jax
-jax.config.update('jax_platform_name', 'cpu')
-jax.config.update('jax_enable_x64', True)
-import jax.random as rand
 import jax.numpy as jnp
-
                              
 import matplotlib.pyplot as plt
 
-import sys
-import os
-sys.path.append(os.path.abspath('../src/jaxidem'))
-import idem
-import utilities
-import filter_smoother_functions as fsf
+import jaxidem.idem as idem
+import jaxidem.utils as utils
+import jaxidem.filters as filt
+
 import csv
 import pandas as pd
 
 
 df = pd.read_csv('../data/obs_data_r-ide.csv')
-df['time'] = pd.to_datetime(df['time'])
+df['t'] = pd.to_datetime(df['t'])
 reference_date = pd.to_datetime('2017-12-01')
-df['t'] = (df['time'] - reference_date).dt.days+1
+df['t'] = (df['t'] - reference_date).dt.days+1
 
-obs_data = utilities.st_data(x = jnp.array(df['s1']),
+obs_data = utils.st_data(x = jnp.array(df['s1']),
                              y = jnp.array(df['s2']),
                              t = jnp.array(df['t']),
                              z = jnp.array(df['z']))
@@ -98,45 +92,39 @@ betahat = jnp.linalg.solve(X_obs.T @ X_obs, X_obs.T) @ obs_data.z
 
 ztilde = obs_data.z - X_obs @ betahat
 
-const_basis = utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1)
-                                                
-K_basis = (
-            const_basis,
-            const_basis,
-            const_basis,
-            const_basis,
-        )
-k = (
-            jnp.array([150.0]),
-            jnp.array([0.002]),
-            jnp.array([0.0]),
-            jnp.array([0.0]),
-        )
+const_basis = utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1)
+K_basis = (const_basis,
+           const_basis,
+           const_basis,
+           const_basis,)
+k = (jnp.array([150.0]),
+     jnp.array([0.002]),
+     jnp.array([0.0]),
+     jnp.array([0.0]),)
 
 kernel = idem.param_exp_kernel(K_basis, k)
                                                
-process_basis = utilities.place_basis(nres=2, min_knot_num=3)
+process_basis = utils.place_basis(nres=2, min_knot_num=3)
 
-
-
-model0 = idem.IDEM(
-                    process_basis = process_basis,
+model = idem.Model(process_basis = process_basis,
                     kernel=kernel,
-                    process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
-                                               jnp.array([41, 41])),
+                    process_grid = utils.create_grid(jnp.array([[0, 1], [0, 1]]),
+                                                     jnp.array([41, 41])),
                     sigma2_eta = jnp.var(ztilde),
                     sigma2_eps = jnp.var(ztilde),
                     beta = betahat,)
 ```
 
 ```{python}
+#| eval: false
 import optax
 import time
 
 obs_data_wide = obs_data.as_wide()
 X_obs = jnp.column_stack([jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['x'], obs_data_wide['y']])
 start_time = time.time()
-model1, params = model0.fit_kalman_filter(obs_data=obs_data,
+
+firmodel1, params = model.fit_mle(obs_data=obs_data,
                                        X_obs=X_obs, 
                                        optimizer=optax.adamax(1e-2),
                                        debug=False,
@@ -145,7 +133,9 @@ model1, params = model0.fit_kalman_filter(obs_data=obs_data,
                                        target_ll = jnp.array(3217.945),
                                        likelihood = 'partial',
                                        loading_bar=False)
+
 end_time = time.time()
+
 print(f"\nTime Elapsed is {end_time - start_time}")
 
 print("\nFitted parameters are: \n", idem.format_params(params))

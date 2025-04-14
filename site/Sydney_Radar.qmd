@@ -1,0 +1,428 @@
+---
+title: "Sydney Radar Data"
+author: "Evan Tate Paterson Hughes"
+format:
+  html:
+    code-fold: false
+    toc: true
+    inclue-in-header: header.html
+    mathjax: 
+      extensions: ["breqn", "bm", "ams"]
+jupyter: python3
+bibliography: Bibliography.bib
+---
+
+::: {.content-visible unless-format="pdf"}
+
+[Index](../index.html)
+
+:::
+
+# The Sydney Radar Data Set
+
+This is a data set... [more information here and plotting here]
+
+# Importing the relevant packages and Loading the data
+
+Firstly, we load the relevant libraries and import the data.
+
+```{python}
+import jax
+import jax.numpy as jnp
+import jax.random as rand
+import pandas as pd
+
+import jaxidem.idem as idem
+import jaxidem.utils as utils
+
+
+radar_df = pd.read_csv('../data/radar_df.csv')
+```
+
+We should put this data into `jax-idem`s `st_data` type;
+
+```{python}
+
+radar_data = utils.pd_to_st(radar_df, 's2', 's1', 't', 'z')
+
+```
+
+We now create an initial model for this data
+
+```{python}
+
+# This initialisation logic will soon be packages into idem.init_model
+
+# initial variances
+sigma2_eta = jnp.var(radar_data.z)/2
+sigma2_eps = jnp.var(radar_data.z)/2
+beta = jnp.array([0.]) # only intercept, no covariates
+
+# stations are stationary and there is no missing data, so there is the same number of observations per time period
+nobs = radar_data.wide['x'].size 
+X_obs = jnp.ones((nobs,1)) # intercept
+
+process_basis = utils.place_basis(data = radar_data.coords,
+                                  nres = 2,
+                                  min_knot_num = 3,) # defaults to bisquare basis functions
+
+process_grid = utils.create_grid(radar_data.bounds, jnp.array([41, 41]))
+int_grid = utils.create_grid(radar_data.bounds, jnp.array([100, 100]))
+
+const_basis = utils.constant_basis
+K_basis = (const_basis,const_basis,const_basis,const_basis)
+k = (jnp.array([150]) / (process_grid.area*process_grid.ngrid), # kernel scale
+    jnp.array([0.002]) * (process_grid.area*process_grid.ngrid), # kernel shape
+    jnp.array([0.]), # x drift
+    jnp.array([0.])) # y drift
+kernel = idem.param_exp_kernel(K_basis, k)
+
+model = idem.Model(process_basis=process_basis,
+                   kernel=kernel,
+                   process_grid=process_grid,
+                   sigma2_eta=sigma2_eta,
+                   sigma2_eps=sigma2_eps,
+                   beta=beta,
+                   int_grid=int_grid)
+```
+
+We can now get the marginal data likelihood function of this model with the `get_log_like` method;
+
+```{python}
+log_marginal = model.get_log_like(radar_data, X_obs, method="sqrt", likelihood='partial', P_0 = 1000*jnp.eye(process_basis.nbasis))
+```
+
+We can then use this function to do various inference techniques, like direclty maximising it or Bayesian MCMC methods. It is auto-differentiation compatible, so can easily be dropped into packages like `optax` or `blackjax` for these purposes.
+
+The function takes, as an input, an object of type `IdemParams`, which is a `NamedTuple` containing the variances `sigma2_eps` and `sigma2_eta`
+
+```{python}
+#| output: true
+
+idem.print_params(model.params)
+```
+
+## Maximum Likelihood using Optax
+
+Firstly, we can easily plug this into the `optax` package to use some optimiser to do maximum likelhood estimation. For example, using the `adam` optimiser;
+
+```{python}
+#| eval: false
+import optax
+
+# create a function to find the value and gradient of the negative log likelihood
+nll_val_grad = jax.value_and_grad(lambda par: -log_marginal(par))
+
+init_nll, _ = nll_val_grad(model.params)
+
+optimizer = optax.adam(1e-1)
+opt_state = optimizer.init(model.params)
+
+params = model.params
+
+for i in range(200):
+    nll, grad = nll_val_grad(params)
+    updates, opt_state = optimizer.update(grad, opt_state, params=params)
+    params = optax.apply_updates(params, updates)
+    print(i, nll)
+
+mle_params = params
+    
+
+```
+
+```{python}
+#| eval: true
+#| echo: false
+#| output: false
+
+import pickle
+with open('pickles/mle_params.pkl', 'rb') as file: 
+    mle_params = pickle.load(file)
+```
+
+The resulting parameters are then
+
+```{python}
+idem.print_params(mle_params)
+```
+
+Once we have new parameters, we can update the model with them using idem.Model.update;
+
+```{python}
+fit_model_mle = model.update(mle_params)
+```
+
+[NEXT STEP: implment predictions in all the filters; should be easy. Also, I'm not happy with the way that covariate information is stored, it must be overhauled soon.]
+
+## Simple Random-Walk MCMC
+
+Of course, for Bayesian analysis, we furthermore want to be able to sample from the posterior.
+Now, we will use a basic random walk RMH (Rosenbluth-Metropolis-Hastings, oget just called Metropolis-Hastings) to sample from the models posterior.
+
+
+Firstly, in order to esaily handle everything, we will flatten the parameters into a single 1D JAX array.
+The functions `jaxidem.utils.flatten` and `jaxidem.utils.unflatten` do this easily;
+
+```{python}
+fparams, unflat = utils.flatten_and_unflatten(model.params)
+print(fparams)
+idem.print_params(unflat(fparams))
+```
+
+Now we can initialise a chain with variance 1 for each parameter
+
+```{python}
+init_mean = fparams
+
+# initial run gave the following for estimated optimal tuning
+prop_var = jnp.array([0.16133152, 0.00453646, 0.01214727, 0.392362, 0.789936, 0.41011548, 0.14044523])
+```
+
+Now sampling from the proposal Gaussian distribution is as simple as
+
+```{python}
+rng_key = jax.random.PRNGKey(1)
+parshape = init_mean.shape
+npars = parshape[0]
+print(init_mean + jax.random.normal(rng_key, shape=parshape) * jnp.sqrt(prop_var))
+```
+
+And finally, we can sample a chain with RMH as follows;
+
+```{python}
+#| eval: false
+
+back_key, sample_key = jax.random.split(rng_key, 2)
+
+n = 100
+
+sample_keys = jax.random.split(sample_key, n)
+
+current_state = init_mean        
+rmh_sample = [current_state]
+accepted = 0
+
+for i in tqdm(range(n), desc="Sampling... "):
+    current_state = rmh_sample[-1]
+    prop_key, acc_key = jax.random.split(sample_keys[i], 2)
+
+    proposal = current_state + jax.random.normal(prop_key, shape=parshape) * jnp.sqrt(init_vars)
+    r = log_marginal(unflat(proposal)) - log_marginal(unflat(current_state))
+    log_acc_prob = min((jnp.array(0.0), r))
+    if jnp.log(jax.random.uniform(acc_key)) > log_acc_prob:
+        rmh_sample.append(current_state)
+    else:
+        accepted = accepted + 1
+        rmh_sample.append(proposal)
+
+acc_ratio = accepted/n
+```
+
+```{python}
+#| eval: true
+#| echo: false
+#| output: false
+
+import pickle
+with open('pickles/rmh_sample.pkl', 'rb') as file:
+    rmh_sample, acc_ratio = pickle.load(file)
+```
+
+```{python}
+print(acc_ratio)
+post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):]), axis=0)
+post_params_mean = unflat(post_mean)
+idem.print_params(post_params_mean)
+print(log_marginal(post_params_mean)) 
+```
+
+```{python}
+import matplotlib.pyplot as plt
+import jax.numpy as jnp
+
+# Assuming `samples` is your JAX array of shape (1000, 7)
+samples = jnp.array(rmh_sample)
+
+# Number of parameters (columns in the array)
+num_params = samples.shape[1]
+
+# Create a figure and axes for the stacked trace plots
+fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
+
+# Plot each parameter's trace
+for i in range(num_params):
+    axes[i].plot(samples[:, i], lw=0.8, color='b')
+    axes[i].set_ylabel(f'Parameter {i+1}')
+    axes[i].grid(True)
+
+# Label the x-axis for the last subplot
+axes[-1].set_xlabel('Iteration')
+
+# Add a title to the entire figure
+fig.suptitle('Trace Plots', fontsize=16, y=0.95)
+
+# Adjust spacing
+plt.tight_layout(rect=[0, 0, 1, 0.96])
+plt.show()
+
+```
+
+## MALA
+
+Even when tuned, the mixing of these chains leaves much to be desired.
+Since `jaxidem` supports JAX's autodifferentiation, we can easily incorporate the gradient into a MCMC chain using MALA.
+
+```{python}
+#| eval: false
+
+prop_sd = 0.008
+
+accepted = 0
+lmvn = jax.scipy.stats.multivariate_normal.logpdf
+
+back_key, sample_key = jax.random.split(back_key, 2)
+
+sample_keys = jax.random.split(sample_key, mala_n)
+
+
+ll_val_grad = jax.value_and_grad(lambda par: log_marginal(par))
+
+# start from the end of the last chain
+mala_sample = init_mean]
+
+for i in tqdm(range(mala_n), desc="Sampling... "):
+    current_state = mala_sample[-1]
+    prop_key, acc_key = jax.random.split(sample_keys[i], 2)
+
+    val, grad = ll_val_grad(unflat(current_state))
+    grad, _ = utils.flatten_and_unflatten(grad)
+
+    mean = 0.5* prop_sd**2 * grad + current_state
+
+    proposal = (mean + prop_sd * jax.random.normal(prop_key, shape=parshape))
+
+    r = (log_marginal(unflat(proposal)) - val
+         + lmvn(current_state, mean, prop_sd*jnp.eye(7)) - lmvn(proposal, mean, prop_sd*jnp.eye(7)))
+    log_acc_prob = min((jnp.array(0.0), r))
+        
+    if jnp.log(jax.random.uniform(acc_key)) > log_acc_prob:
+        mala_sample.append(current_state)
+    else:
+        accepted = accepted + 1
+        mala_sample.append(proposal)
+
+acc_ratio = accepted/mala_n
+```
+
+```{python}
+#| eval: true
+#| echo: false
+#| output: false
+
+import pickle
+with open('pickles/mala_sample.pkl', 'rb') as file:
+    mala_sample, acc_ratio = pickle.load(file)
+```
+
+```{python}
+print(acc_ratio)
+post_mean = jnp.mean(jnp.array(mala_sample[int(len(mala_sample)/3):]), axis=0)
+post_params_mean = unflat(post_mean)
+idem.print_params(post_params_mean)
+print(log_marginal(post_params_mean)) 
+```
+
+```{python}
+import matplotlib.pyplot as plt
+
+samples = jnp.array(mala_sample)
+
+# Number of parameters (columns in the array)
+num_params = samples.shape[1]
+
+# Create a figure and axes for the stacked trace plots
+fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
+
+# Plot each parameter's trace
+for i in range(num_params):
+    axes[i].plot(samples[:, i], lw=0.8, color='b')
+    axes[i].set_ylabel(f'Parameter {i+1}')
+    axes[i].grid(True)
+
+# Label the x-axis for the last subplot
+axes[-1].set_xlabel('Iteration')
+
+# Add a title to the entire figure
+fig.suptitle('Trace Plots', fontsize=16, y=0.95)
+
+# Adjust spacing
+plt.tight_layout(rect=[0, 0, 1, 0.96])
+plt.show()
+
+```
+
+
+## Using Blackjax
+
+From there, it is easy to sample from the posterior
+
+```{python}
+#| eval: false
+key = jax.random.PRNGKey(1) # PRNG key
+inverse_mass_matrix = jnp.ones(model.nparams)
+num_integration_steps = 10
+step_size = 1e-5
+sample, _ = model.sample_posterior(key,
+                                   n=10,
+                                   burnin=0,
+                                   obs_data=radar_data,
+                                   X_obs=[X_obs for _ in range(T)],
+                                   inverse_mass_matrix=inverse_mass_matrix,
+                                   num_integration_steps=num_integration_steps,
+                                   step_size = step_size,
+                                   likelihood_method="sqinf",)
+
+```
+
+This initial run will likely mix poorly and have a low acceptance rate. Taking this initial sample, we can fit new (gaussian) priors on the paramterers and use a new mass matrix for the sampling based on the initial sample's variance.
+
+```{python}
+#| eval: false
+post_mean = jax.tree.map(lambda x: jnp.mean(x, axis=0), sample.position)
+post_var = jax.tree.map(lambda x: jnp.var(x, axis=0), sample.position)
+
+def log_prior_density(param):
+
+    (
+        log_sigma2_eta,
+        log_sigma2_eps,
+        ks,
+        beta,
+    ) = param
+
+    logdens_log_sigma2_eta = jax.scipy.stats.norm.logpdf(log_sigma2_eta, loc = post_mean[0], scale=post_var[0])
+    logdens_log_sigma2_eps = jax.scipy.stats.norm.logpdf(log_sigma2_eps, loc = post_mean[1], scale=post_var[1])
+
+    logdens_ks1 = jax.scipy.stats.norm.logpdf(ks[0], post_mean[2][0], post_var[2][0])
+    logdens_ks2 = jax.scipy.stats.norm.logpdf(ks[1], post_mean[2][1], post_var[2][1])
+    logdens_ks3 = jax.scipy.stats.multivariate_normal.logpdf(ks[2], post_mean[2][2], jnp.diag(post_var[2][2]))
+    logdens_ks4 = jax.scipy.stats.multivariate_normal.logpdf(ks[3], post_mean[2][3], jnp.diag(post_var[2][3]))
+
+    logdens_beta = jax.scipy.stats.multivariate_normal.logpdf(beta, post_mean[3], jnp.diag(post_var[3]))
+    return logdens_log_sigma2_eta+logdens_log_sigma2_eps+logdens_ks1+logdens_ks2+logdens_ks3+logdens_ks4+logdens_beta
+
+
+inverse_mass_matrix = jnp.array(jax.tree.flatten(post_var)[0])
+
+```
+
+
+
+BY NEXT WEEK
+	start off with simple mcmc loop
+	more tests
+	
+(also)
+Mala
+HMC (handbook of MCMC radford neal), (mike betancourt, more intuitive)

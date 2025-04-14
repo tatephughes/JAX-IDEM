@@ -101,11 +101,8 @@ This creates a 'spatially variant kernel', where the direction of flow varies ac
               
 import numpy
 import matplotlib.pyplot as plt
-import sys
-import os
-sys.path.append(os.path.abspath('../src/jaxidem'))
-import idem
-import utilities
+import jaxidem.idem as idem
+import jaxidem.utils as utils
 import jax
 import jax.random as rand
 import jax.numpy as jnp
@@ -114,10 +111,10 @@ key = jax.random.PRNGKey(2)
 keys = rand.split(key, 2)
 
 K_basis = (
-    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
 )
 k = (
     jnp.array([150.0]),
@@ -129,7 +126,7 @@ kernel = idem.param_exp_kernel(K_basis, k)
 kernel.save_plot("kernel_example_direction.png", height=5, width=5,title=None) 
 plt.close()
                                                     
-grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([50, 50])).coords
+grid = utils.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([50, 50])).coords
 
 z = jax.vmap(lambda s: kernel.function(jnp.array([0.5,0.5]), s))(grid)
 
@@ -151,10 +148,10 @@ plt.savefig("kernel_example_strength.png", dpi=300)
 #|output: false
 
 K_basis = (
-    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-    utilities.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-    utilities.place_basis(nres=1),
-    utilities.place_basis(nres=1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1),
+    utils.place_basis(nres=1),
 )
 k = (
     jnp.array([150]),
@@ -166,7 +163,7 @@ kernel = idem.param_exp_kernel(K_basis, k)
 kernel.save_plot("kernel_example_direction_var.png", height=5, width=5,title=None) 
 plt.close()
 
-grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([50, 50])).coords
+grid = utils.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([50, 50])).coords
 
 centre = jnp.array([0.5,0.5])
 

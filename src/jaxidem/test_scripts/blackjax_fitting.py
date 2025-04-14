@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import filter_smoother_functions as fsf
 import utilities
 import idem
-jax.config.update('jax_enable_x64', False)
+jax.config.update('jax_enable_x64', True)
 jax.config.update('jax_platform_name', 'cpu')
 import blackjax
 from tqdm.auto import tqdm

@@ -89,6 +89,19 @@ class TestFilters:
             ztildes,
             likelihood="full"
         )
+        self.ll_kf2, self.ms_kf2, self.Ps_kf2, _, self.Ppreds_kf2, _ = fsf.sqrt_filter_new(
+            m_0,
+            jnp.linalg.cholesky(P_0),
+            model.M,
+            PHI_obs,
+            Sigma_eta,
+            Sigma_eps,
+            ztildes,
+            sigma2_eta_dim = 2,
+            sigma2_eps_dim = 2,
+            likelihood="full",
+            
+        )
         self.ll_kfi, self.ms_kfi, self.Ps_kfi, _, self.Ppreds_kfi, _ = fsf.kalman_filter_iid(
             m_0,
             P_0,
@@ -189,13 +202,14 @@ class TestFilters:
     def test_means_across_filters(self):
 
          assert (jnp.allclose(self.ms_kf, self.ms_kfi, atol=1e-03) &
-                jnp.allclose(self.ms_kfi, self.ms_sqi, atol=1e-03) &
-                jnp.allclose(self.ms_sqi, self.ms_if, atol=1e-03) &
-                jnp.allclose(self.ms_if, self.ms_ifi, atol=1e-03) &
-                jnp.allclose(self.ms_ifi, self.ms_sqifi, atol=1e-03) &
-                jnp.allclose(self.ms_sqifi, self.ms_sq, atol=1e-03) &
-                jnp.allclose(self.ms_sq, self.ms_sqif, atol=1e-03)
-                )
+                 jnp.allclose(self.ms_kfi, self.ms_sqi, atol=1e-03) &
+                 jnp.allclose(self.ms_sqi, self.ms_if, atol=1e-03) &
+                 jnp.allclose(self.ms_if, self.ms_ifi, atol=1e-03) &
+                 jnp.allclose(self.ms_ifi, self.ms_sqifi, atol=1e-03) &
+                 jnp.allclose(self.ms_sqifi, self.ms_sq, atol=1e-03) &
+                 jnp.allclose(self.ms_sq, self.ms_sqif, atol=1e-03) &
+                 jnp.allclose(self.ms_sq, self.ms_kf2, atol=1e-03)
+                 )
 
     def test_Ppreds_across_filters(self):
 
