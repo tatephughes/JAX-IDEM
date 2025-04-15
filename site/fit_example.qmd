@@ -30,24 +30,15 @@ We will start by simulating from a simple IDEM with only three time steps. We ca
 # | output: false
 
 import jax
-jax.config.update('jax_platform_name', 'cpu')
 import jax.random as rand
 import jax.numpy as jnp
 
 jax.config.update('jax_enable_x64', True)
 import matplotlib.pyplot as plt
 
-import sys
-import os
-sys.path.append(os.path.abspath('../src/jaxidem'))
-import idem
-import utilities
-import filter_smoother_functions as fsf
-
-import importlib
-importlib.reload(idem)
-importlib.reload(utilities)
-importlib.reload(fsf)
+import jaxidem.idem as idem
+import jaxidem.utils as utils
+import jaxidem.filters as filts
 
 ```
 
@@ -57,8 +48,8 @@ importlib.reload(fsf)
 key = jax.random.PRNGKey(2)
 keys = rand.split(key, 3)
 
-process_basis = utilities.place_basis(nres=2, min_knot_num=3)
-#process_basis = utilities.place_cosine_basis(N=9)
+process_basis = utils.place_basis(nres=2, min_knot_num=3)
+#process_basis = utils.place_cosine_basis(N=9)
 nbasis = process_basis.nbasis
 truemodel = idem.gen_example_idem(
     keys[0], k_spat_inv=True,
@@ -106,11 +97,11 @@ k = (
 # This is the kind of kernel used by ```gen_example_idem```
 kernel = idem.param_exp_kernel(K_basis, k)
 
-process_basis0 = utilities.place_cosine_basis(N=9)
+process_basis0 = utils.place_cosine_basis(N=9)
 
-model0 = idem.IDEM(process_basis = process_basis0,
+model0 = idem.Model(process_basis = process_basis0,
                    kernel=kernel,
-                   process_grid = utilities.create_grid(jnp.array([[0, 1], [0, 1]]),
+                   process_grid = utils.create_grid(jnp.array([[0, 1], [0, 1]]),
                                                         jnp.array([41, 41])),
                    sigma2_eta = 0.01**2,
                    sigma2_eps = 0.01**2,
@@ -130,6 +121,9 @@ The fitting functions output new ```IDEM_Model``` objects, generated using OPTAX
 ```{python}
 #| output: true
 #| eval: false
+
+# OUT OF DATE
+
 obs_data_wide = obs_data.as_wide()
 X_obs = jnp.column_stack([jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['x'], obs_data_wide['y']])
 X_obs_tuple = [X_obs for _ in range(len(obs_data.z))]

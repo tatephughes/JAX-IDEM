@@ -241,7 +241,6 @@ print(log_marginal(post_params_mean))
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 
-# Assuming `samples` is your JAX array of shape (1000, 7)
 samples = jnp.array(rmh_sample)
 
 # Number of parameters (columns in the array)
@@ -263,7 +262,7 @@ axes[-1].set_xlabel('Iteration')
 fig.suptitle('Trace Plots', fontsize=16, y=0.95)
 
 # Adjust spacing
-plt.tight_layout(rect=[0, 0, 1, 0.96])
+plt.tight_layout(rect=[0, 0, 1, 0.96]) 
 plt.show()
 
 ```
