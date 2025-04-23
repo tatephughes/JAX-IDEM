@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import jax.random as rand
+import numpy as np
 import optax
 import pandas as pd
 import pickle
@@ -22,10 +23,27 @@ dir = os.path.dirname(os.path.abspath(__file__))
 mle_n = int(input("How many maximum likelihood iterations?: (int)"))
 rmh_n = int(input("How many RMH samples?"))
 mala_n = int(input("How many MALA samples?"))
+hmc_n = int(input("How many HMC samples?"))
 
 
 radar_df = pd.read_csv(os.path.join(dir, '../data/radar_df.csv'))
-radar_data = utils.pd_to_st(radar_df, 's2', 's1', 't', 'z')
+
+
+# Censor the data!
+radar_df_censored = radar_df
+
+# remove the final time measurements (for forecast testing)
+#radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 08:45:00"]
+
+# remove the a specific time (for intracast testing)
+#radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 10:15:00"]
+
+# three randomly chose indices ('dead pixels')
+#np.random.seed(42) # reproducibility (jax.random is used elsewhere)
+#random_indices = np.random.choice(radar_df_censored.index, size=300, replace=False)
+#radar_df_censored = radar_df_censored.drop(random_indices)
+
+radar_data = utils.pd_to_st(radar_df_censored, 's2', 's1', 'time', 'z')
 
 sigma2_eta = jnp.var(radar_data.z)/2
 sigma2_eps = jnp.var(radar_data.z)/2
@@ -33,7 +51,6 @@ beta = jnp.array([0.]) # only intercept, no covariates
 
 # stations are stationary and there is no missing data, so there is the same number of observations per time period
 nobs = radar_data.wide['x'].size 
-X_obs = jnp.ones((nobs,1)) # intercept
 
 process_basis = utils.place_basis(data = radar_data.coords,
                                   nres = 2,
@@ -58,7 +75,7 @@ model = idem.Model(process_basis=process_basis,
                    beta=beta,
                    int_grid=int_grid)
 
-log_marginal = model.get_log_like(radar_data, X_obs, method="sqrt", likelihood='partial', P_0 = 1000*jnp.eye(process_basis.nbasis))
+log_marginal = model.get_log_like(radar_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(process_basis.nbasis))
 
 
 import optax
@@ -115,6 +132,7 @@ init_mean = fparams
 # hand-tuned
 prop_var = jnp.array([0.001, 0.001, 0.001, 0.01, 0.01, 0.01, 0.01])
 prop_sd = jnp.diag(jnp.sqrt(prop_var))
+prop_var = jnp.diag(prop_var)
 
 # or we cheat
 #with open(os.path.join(dir, 'pickles/rmh_sample_14_04.pkl'), 'rb') as file:
@@ -164,7 +182,10 @@ if rmh_n > 0:
     post_params_mean = unflat(post_mean)
     idem.print_params(post_params_mean)
 
-
+# hand-tuned
+prop_var = 0.2*jnp.array([0.001, 0.001, 0.001, 0.01, 0.01, 0.01, 0.01])
+prop_sd = jnp.diag(jnp.sqrt(prop_var))
+prop_var = jnp.diag(prop_var)
 
 back_key, sample_key = jax.random.split(back_key, 2)
 
@@ -174,14 +195,12 @@ sample_keys = jax.random.split(sample_key, mala_n)
 ll_val_grad = jax.value_and_grad(lambda par: log_marginal(par))
 
 # start from the end of the last chain
-mala_sample = [rmh_sample[-1]]
+mala_sample = [init_mean]
 # use estimated theoretically optimalish proposal variance
-with open(os.path.join(dir, 'pickles/rmh_sample.pkl'), 'rb') as file:
-    rmh_sample, acc_ratio = pickle.load(file)
-prop_var = (2.38**2/7**3) *jnp.cov(jnp.array(rmh_sample[int(len(rmh_sample)/3):]).T)
-prop_sd = jnp.linalg.cholesky(prop_var) 
-
-prop_sd = 0.008
+#with open(os.path.join(dir, 'pickles/rmh_sample.pkl'), 'rb') as file:
+#    rmh_sample, acc_ratio = pickle.load(file)
+#prop_var = (2.38**2/7**3) *jnp.cov(jnp.array(rmh_sample[int(len(rmh_sample)/3):]).T)
+#prop_sd = jnp.linalg.cholesky(prop_var) 
 
 accepted = 0
 lmvn = jax.scipy.stats.multivariate_normal.logpdf
@@ -194,12 +213,12 @@ if mala_n > 0:
         val, grad = ll_val_grad(unflat(current_state))
         grad, _ = utils.flatten_and_unflatten(grad)
 
-        mean = 0.5* prop_sd**2 * grad + current_state
+        mean = 0.5 * prop_var @ grad + current_state
 
-        proposal = (mean + prop_sd * jax.random.normal(prop_key, shape=parshape))
+        proposal = (mean + prop_sd @ jax.random.normal(prop_key, shape=parshape))
 
         r = (log_marginal(unflat(proposal)) - val
-             + lmvn(current_state, mean, prop_sd*jnp.eye(7)) - lmvn(proposal, mean, prop_sd*jnp.eye(7)))
+             + lmvn(current_state, mean, prop_var) - lmvn(proposal, mean, prop_var))
         log_acc_prob = min((jnp.array(0.0), r))
         
         if jnp.log(jax.random.uniform(acc_key)) > log_acc_prob:
@@ -221,23 +240,29 @@ if mala_n > 0:
     idem.print_params(post_params_mean)
 
 
-#from jax_tqdm import scan_tqdm
-#import blackjax
-#samp = blackjax.mala(log_marginal, 1e-3)
-#kernel=samp.step
-#init = samp.init(model.params)
-#mala_n = 100
-#
-#@scan_tqdm(mala_n, desc='Sampling...')
-#def step(carry, i):
-#    nuts_key = jax.random.fold_in(rng_key, i)
-#    new_state, info = kernel(nuts_key, carry)
-#    return new_state, (new_state, info)
-#
-#
-#_, (states, info) = jax.lax.scan(step, init, jnp.arange(mala_n))
-#
-#post_mean = jax.tree.map(lambda arr: jnp.mean(arr, axis=0), states.position)
-#idem.print_params(post_mean)
-#
-#pre = jnp.array([10.,1.,1.,1.,1.,1.,5.,1.]).astype(jnp.float32)
+from jax_tqdm import scan_tqdm
+import blackjax
+
+if hmc_n > 0:
+    
+    imm = prop_sd
+    num_int = 3
+    samp = blackjax.hmc(log_marginal, 1e-3, imm, num_int)
+    kernel=samp.step
+    init = samp.init(model.params)
+
+#    @scan_tqdm(hmc_n, desc='Sampling...')
+    def step(carry, i):
+        nuts_key = jax.random.fold_in(rng_key, i)
+        new_state, info = kernel(nuts_key, carry)
+        return new_state, (new_state, info)
+
+    _, (hmc_sample, info) = jax.lax.scan(step, init, jnp.arange(hmc_n))
+
+    post_mean = jax.tree.map(lambda arr: jnp.mean(arr, axis=0), hmc_sample.position)
+    idem.print_params(post_mean)
+
+    with open(os.path.join(dir, 'pickles/hmc_sample.pkl'), 'wb') as file:
+        pickle.dump((hmc_sample, info), file)
+
+

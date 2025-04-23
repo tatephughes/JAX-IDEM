@@ -22,6 +22,7 @@ from tqdm.auto import tqdm
 import time
 
 import pandas as pd
+from pandas.api.types import is_string_dtype, is_float_dtype, is_integer_dtype
 
 class Grid(NamedTuple):
     """
@@ -373,15 +374,48 @@ class st_data:
     data, and converting between long and wide formats.
     """
 
-    def __init__(self, x: ArrayLike, y: ArrayLike, t: ArrayLike, z: ArrayLike):
+    def __init__(self, x: ArrayLike, y: ArrayLike, times, z: ArrayLike, dt = None, covariates = None):
         self.x = x
         self.y = y
-        self.t = t
+        self.times = times
         self.z = z
-        self.data_array = jnp.column_stack((self.x, self.y, self.t, self.z))
+        self.data_array = jnp.column_stack((self.x, self.y, self.times, self.z))
+        self.covariates = covariates
 
-        self.times = jnp.unique(t)
-        self.T = len(self.times)
+        if covariates is None:
+            self.X_obs_stacked = jnp.ones((x.size,1))
+        else:
+            self.X_obs_stacked = jnp.column_stack((jnp.ones_like(x), self.covariates))
+
+        # the logic below works, but _probably_ isn't as efficient as is
+        # could be. doesn't really need to be though.
+        unique_times = jnp.unique(times) # automatically sorted
+        self.unique_times = unique_times
+        #self.T = len(self.times)
+        if dt is None:
+            dt = jnp.min(jnp.abs(jnp.diff(unique_times)))
+    
+        full_times = jnp.arange(jnp.min(unique_times), jnp.max(unique_times) + dt, dt)
+        self.full_times = full_times
+        time_indices = [0]
+        for time in full_times[1:]:
+            i=0
+            while times[0]+i*dt <= unique_times[-1]:
+                if jnp.allclose(time, times[0]+i*dt):
+                    time_indices.append(i)
+                i = i+1
+        if len(full_times) != len(time_indices):
+            raise ValueError("Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modleling.")
+        def associate(time):
+            index = jnp.argwhere(jnp.isclose(full_times,time))
+            if index.size>0:
+                return index[0][0]
+            else:
+                return jnp.nan
+        # must be a traditional map
+        self.t = jnp.array(list(map(associate, times)))
+        self.T = len(self.full_times)
+        
         self.coords = jnp.unique(self.data_array[:, 0:2], axis=0)
 
         xmin = jnp.min(self.coords[:, 0])
@@ -390,8 +424,32 @@ class st_data:
         ymax = jnp.max(self.coords[:, 1])
         self.bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
 
+        
+        self.zs_tree = [z[jnp.where(self.times==time)] for time in self.full_times]
+        self.X_obs_tree = [self.X_obs_stacked[jnp.where(self.times==time)] for time in self.full_times]
+        self.coords_tree = [self.data_array[:,0:2][jnp.where(self.times==time)] for time in self.full_times]
+
+        self.tilding_elts = [[self.zs_tree[i], self.X_obs_tree[i]] for i in range(len(self.zs_tree))]
+
         self.wide = self.as_wide()
 
+    @partial(jax.jit, static_argnames=["self"])
+    def tildify(self,
+                beta,
+                ):
+
+        def entilden(tup):
+            z, X_obs = tup
+            return z - X_obs@beta
+
+        def is_leaf(node):
+                return jax.tree.structure(node).num_leaves == 2
+        
+        #ztildes = self.z - self.X_obs_stacked @ beta
+        #ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
+        ztildes_tree = jax.tree.map(entilden, self.tilding_elts, is_leaf=is_leaf)
+        return ztildes_tree
+        
     def as_wide(self):
         """
         Gives the data in wide format. Any missing data will be represented in
@@ -405,7 +463,7 @@ class st_data:
         """
         data_array = self.data_array
 
-        times = self.times
+        full_times = self.full_times
         xycoords = self.coords
         nlocs = data_array.shape[0]
 
@@ -427,13 +485,13 @@ class st_data:
                 0,
             )
 
+
         return {
             "x": xycoords[:, 0],
             "y": xycoords[:, 1],
-            "z": outer_op(xycoords, times, getval),
+            "z": outer_op(xycoords, full_times, getval),
         }
         
-
     def show_plot(self):
         nrows = int(jnp.ceil(self.T / 3))
 
@@ -522,11 +580,34 @@ class st_data:
         """UNIMPLEMENTED"""
         return None
 
-def pd_to_st(df: pd.DataFrame, xlabel,ylabel, tlabel, zlabel):
-   return st_data(x = jnp.array(df[xlabel]),
-                  y = jnp.array(df[ylabel]),
-                  t = jnp.array(df[tlabel].astype('category').cat.codes + 1.),
-                  z = jnp.array(df[zlabel]))
+def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=[]):
+
+    if pd.api.types.is_datetime64_any_dtype(df[tlabel]):
+        print("Time inputted is of datetime type. This will be converted to a number corresponding to the seconds since the earliest time.")
+        times = (df[tlabel] - df[tlabel].min()).dt.total_seconds()
+    elif is_string_dtype(df[tlabel]):
+        print("Time inputted are strings. Attempting to coerce into datetime objects, then into floats...")
+        time_dt = pd.to_datetime(df[tlabel])
+        times = jnp.array((time_dt - time_dt.min()).dt.total_seconds())
+    elif is_float_dtype(df[tlabel]) or is_integer_dtype(df[tlabel]):
+        times = jnp.array(df[tlabel])
+    else:
+        warnings.warn(
+                """Times inputted not of a familiar type (datetime, string, float or int). Attempting to coerce into a JAX array anyway, but this will likely give an error."""
+            )
+        times = jnp.array(df[tlabel])
+
+    if len(covariate_labels) != 0:
+        covariates = jnp.column_stack([df[col] for cols in covariate_labels])
+    else:
+        covariates = None
+
+    
+    return st_data(x = jnp.array(df[xlabel]),
+                   y = jnp.array(df[ylabel]),
+                   times = times,
+                   z = jnp.array(df[zlabel]),
+                   covariates = covariates)
 
 def gif_st_grid(
     data: st_data,
@@ -734,5 +815,5 @@ def flatten_and_unflatten(tree: PyTree):
         splits = [flat_array[start:end] for start, end in zip([0] + split_indices, split_indices + [len(flat_array)])]
         reshaped_leaves = [split.reshape(leaf.shape) for split, leaf in zip(splits, flat_leaves)]
         return jax.tree.unflatten(treedef, reshaped_leaves)
-
+    
     return flat_array, unflatten

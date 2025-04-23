@@ -43,7 +43,7 @@ We should put this data into `jax-idem`s `st_data` type;
 
 ```{python}
 
-radar_data = utils.pd_to_st(radar_df, 's2', 's1', 't', 'z')
+radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z')
 
 ```
 
@@ -89,7 +89,7 @@ model = idem.Model(process_basis=process_basis,
 We can now get the marginal data likelihood function of this model with the `get_log_like` method;
 
 ```{python}
-log_marginal = model.get_log_like(radar_data, X_obs, method="sqrt", likelihood='partial', P_0 = 1000*jnp.eye(process_basis.nbasis))
+log_marginal = model.get_log_like(radar_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(process_basis.nbasis))
 ```
 
 We can then use this function to do various inference techniques, like direclty maximising it or Bayesian MCMC methods. It is auto-differentiation compatible, so can easily be dropped into packages like `optax` or `blackjax` for these purposes.
@@ -158,7 +158,7 @@ fit_model_mle = model.update(mle_params)
 ## Simple Random-Walk MCMC
 
 Of course, for Bayesian analysis, we furthermore want to be able to sample from the posterior.
-Now, we will use a basic random walk RMH (Rosenbluth-Metropolis-Hastings, oget just called Metropolis-Hastings) to sample from the models posterior.
+Now, we will use a basic random walk RMH (Rosenbluth-Metropolis-Hastings, often just called Metropolis-Hastings) to sample from the models posterior.
 
 
 Firstly, in order to esaily handle everything, we will flatten the parameters into a single 1D JAX array.
@@ -417,11 +417,13 @@ inverse_mass_matrix = jnp.array(jax.tree.flatten(post_var)[0])
 ```
 
 
+```{python}
+#| eval: true
+#| echo: false
+#| output: false
 
-BY NEXT WEEK
-	start off with simple mcmc loop
-	more tests
-	
-(also)
-Mala
-HMC (handbook of MCMC radford neal), (mike betancourt, more intuitive)
+with open('pickles/hmc_sample.pkl', 'rb') as file:
+    hmc_sample, hmc_info = pickle.load(file)
+
+idem.print_params(jax.tree.map(jnp.mean, hmc_sample.position))
+```

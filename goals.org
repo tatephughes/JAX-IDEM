@@ -1,0 +1,54 @@
+#+Title: Tasks
+
+* CURRENT GOALS 15/04/25
+
+** TODO Parallel Kalman Filter(s)
+*** TODO Is the parallel square root filter possible?
+
+** TODO It should also be possible to implement a infinite-initial-variance to all(?) or the filters; confirm and implement this!
+
+** TODO Smoothers (sqrt, information, and the corresponding lag-1 smoothers)
+*** TODO EM algorithm follows quickly, implement to test
+*** TODO Corresponding parallel equivalents as well
+
+** TODO Clean and update documentation, particularily docstrings
+*** TODO Continue the mathematics page, correcting any errors and expanding and completing
+*** TODO Once documentation is cleaned up and certain rubbish is removed, a proper published early version of the package is nearly ready
+
+** TODO Remove (or at least git-ignore) unnessecary or outdated scripts
+
+** TODO Implement prediction for the filters
+- Is relatively simple wiht these algorithms, just add a new argument to each filter to predict for that many extra time steps. 
+*** TODO Also, backcasting for the smoothers
+
+** TODO Complete and test the ~fit_mle~ and ~sample_posterior~ interfaces for ~idem.Model~
+
+** TODO Finish analysing the Sydney Radar explorative example
+- Include visualisation, discussion, complete the two MCMC examples, introduce using BlackJax for HMC, cover using the  ~fit_mle~ and ~sample_posterior~ methods above for ease of use
+*** TODO As an extra side, I want to look at the German air quality data, due to it's challenging missing data. 
+*** TODO Also, try finding a data set with which to test /invariant/ kernels
+
+** Other MCMC related tasks
+*** TODO Tuning is a problem right now!
+  DEADLINE: <2025-04-22 Tue>
+- preconditioning
+  
+** Speed improvements
+*** TODO Find what parts of likelihood computation are cumbersome
+- I believe the ~con_M~ method is somewhat of a bottleneck right now?
+- Integration is done rather Naively right now (the same as in R-IDE), perhaps a better method could be used?
+  
+** TODO Compare the filters!
+- Especially once the parralel filters are implemented, I want to expand on how they all compare, especially as process & observation dimension change.
+
+** Other improvements to do
+*** TODO Re-work how covariate data is handled
+- I'm not happy with the relative clunkyness of it right now.
+*** TODO Improve how data can be placed during the initialisation to automate things like grid placements
+- ~init_model~ will implement this!
+
+** Get Hamilton Access and test with some large chains
+DEADLINE: <2025-04-22 Tue>
+
+- apptainer for Hamilton
+- check that MALA and RMH are targetting the same posterior

@@ -1,3 +1,41 @@
+import os
+import sys
+import jax.numpy as jnp
+import numpy as np
+import jax.random as rand
+import time
+import optax
+import importlib
+import jax
+sys.path.append(os.path.abspath('../'))
+import jaxidem.idem as idem
+import jaxidem.utils as utils
+import jaxidem.filters as filts
+#jax.config.update('jax_enable_x64', True)
+#jax.config.update('jax_platform_name', 'cpu')
+import blackjax
+from tqdm.auto import tqdm
+from jax_tqdm import scan_tqdm
+
+
+print(f"Current working directory: {os.getcwd()}")
+
+# unnecessary unless running interactively
+importlib.reload(idem)
+importlib.reload(utils)
+importlib.reload(filts)
+
+import jax
+import jax.numpy as jnp
+
+
+# Choose a reference time (first entry)
+start_time = radar_df['time'].iloc[0]
+
+# Compute time differences in seconds
+radar_df['time_float'] = (radar_df['time'] - start_time).dt.total_seconds()
+
+
 def flatten_and_unflatten(pytree):
     # Flatten the PyTree
     flat_leaves, treedef = jax.tree.flatten(pytree)

@@ -155,19 +155,20 @@ sigma2_eps_dim = sigma2_eps.ndim
 sigma2_eta_dim = sigma2_eta.ndim
 
 
-ll, ms, Ps, _, _, _ = filt.kalman_filter(m_0,
-                                         P_0,
-                                         M,
-                                         PHI,
-                                         sigma2_eta,
-                                         sigma2_eps,
-                                         zs.T,
-                                         sigma2_eps_dim = sigma2_eps_dim,
-                                         sigma2_eta_dim = sigma2_eta_dim,
-                                         likelihood='full'
+filt_results = filt.kalman_filter(m_0,
+                                  P_0,
+                                  M,
+                                  PHI,
+                                  sigma2_eta,
+                                  sigma2_eps,
+                                  zs.T,
+                                  sigma2_eps_dim = sigma2_eps_dim,
+                                  sigma2_eta_dim = sigma2_eta_dim,
+                                  forecast=0,
+                                  likelihood='full'
     )
     
-ms_df = pd.DataFrame(list(ms), columns = ["x", "y"])
+ms_df = pd.DataFrame(list(filt_results['ms']), columns = ["x", "y"])
 
 combined_df = pd.concat([alphas_df.assign(line='True Process'), ms_df.assign(line='Filtered Process Means')])
 
@@ -195,19 +196,20 @@ nu_0 = jnp.zeros(2)
 PHI_tuple = tuple([PHI for _ in range(T)])
 zs_tuple = tuple(zs)
 
-ll2, nus, Qs,_ ,_  = filt.information_filter(nu_0,
-                                            Q_0,
-                                            M,
-                                            PHI_tuple,
-                                            sigma2_eta,
-                                            [sigma2_eps for _ in range(T)],
-                                            zs_tuple,
-                                             sigma2_eps_dim = sigma2_eps_dim,
-                                             sigma2_eta_dim = sigma2_eta_dim,
-                                            likelihood='full'
-    )
+filt_results2  = filt.information_filter(nu_0,
+                                         Q_0,
+                                         M,
+                                         PHI_tuple,
+                                         sigma2_eta,
+                                         [sigma2_eps for _ in range(T)],
+                                         zs_tuple,
+                                         sigma2_eps_dim = sigma2_eps_dim,
+                                         sigma2_eta_dim = sigma2_eta_dim,
+                                         forecast = 0,
+                                         likelihood='full'
+                                         )
 
-ms2 = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
+ms2 = jnp.linalg.solve(filt_results2['Qs'], filt_results2['nus'][..., None]).squeeze(-1)
 
 ms2_df = pd.DataFrame(list(ms2), columns = ["x", "y"])
 
@@ -228,8 +230,8 @@ They only differ slightly due to numerical error.
 We still need to look at the log-likelihoods that were outputted;
 
 ```{python}
-print(ll)
-print(ll2)
+print(filt_results['ll'])
+print(filt_results2['ll'])
 ```
 
 # Square Root Kalman filter
@@ -243,7 +245,7 @@ U_0 = 10*jnp.eye(2)
 
 # Since we have independant errors, we can use the faster sqrt_filter_indep.
     
-ll3, ms3, Us, _, _, _ = filt.sqrt_filter(m_0,
+filt_results3 = filt.sqrt_filter(m_0,
                                          U_0,
                                          M,
                                          PHI,
@@ -252,9 +254,10 @@ ll3, ms3, Us, _, _, _ = filt.sqrt_filter(m_0,
                                          zs.T,
                                          sigma2_eps_dim = sigma2_eps_dim,
                                          sigma2_eta_dim = sigma2_eta_dim,
+                                         forecast=0,
                                          likelihood='full')
     
-ms3_df = pd.DataFrame(list(ms3), columns = ["x", "y"])
+ms3_df = pd.DataFrame(list(filt_results3['ms']), columns = ["x", "y"])
 
 combined3_df = pd.concat([alphas_df.assign(line='True Process'), ms3_df.assign(line='Filtered Process Means')])
 
@@ -275,21 +278,22 @@ fig5.show()
 
 R_0 = 0.1*jnp.eye(2)
     
-ll4, nus2, Rs2,_ ,_  = filt.sqrt_information_filter(nu_0,
-                                                    R_0,
-                                                    M,
-                                                    PHI_tuple,
-                                                    sigma2_eta,
-                                                    [sigma2_eps for _ in range(T)],
-                                                    zs_tuple,
-                                                    sigma2_eps_dim = sigma2_eps_dim,
-                                                    sigma2_eta_dim = sigma2_eta_dim,
-                                                    likelihood='full'
-                                                    )
+filt_results4  = filt.sqrt_information_filter(nu_0,
+                                              R_0,
+                                              M,
+                                              PHI_tuple,
+                                              sigma2_eta,
+                                              [sigma2_eps for _ in range(T)],
+                                              zs_tuple,
+                                              sigma2_eps_dim = sigma2_eps_dim,
+                                              sigma2_eta_dim = sigma2_eta_dim,
+                                              forecast=0,
+                                              likelihood='full'
+                                              )
 
-Qs2 = jnp.matmul(jnp.transpose(Rs2, (0, 2, 1)), Rs2)
+Qs2 = jnp.matmul(jnp.transpose(filt_results4['Rs'], (0, 2, 1)), filt_results4['Rs'])
 
-ms4 = jnp.linalg.solve(Qs2, nus2[..., None]).squeeze(-1)
+ms4 = jnp.linalg.solve(Qs2, filt_results4['nus'][..., None]).squeeze(-1)
  
 ms4_df = pd.DataFrame(list(ms4), columns = ["x", "y"])
 
@@ -306,10 +310,10 @@ fig4.show()
 
 
 ```{python}
-print(ll)
-print(ll2)
-print(ll3)
-print(ll4)
+print(filt_results['ll'])
+print(filt_results2['ll'])
+print(filt_results3['ll'])
+print(filt_results4['ll'])
 ```
 
 # Fitting

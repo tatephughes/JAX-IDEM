@@ -15,7 +15,7 @@ def qr_R(A, B):
 
 @jax.jit
 def ql_L(A, B):
-    """Computes the QL decomposition of matrix A."""
+    """Wrapper for the stacked-QL decompositon"""
     A_flipped = jnp.flip(jnp.vstack([A, B]), axis=1)
     R = jnp.linalg.qr(A_flipped, mode='r')
     L = jnp.flip(R, axis=(0, 1))
@@ -24,7 +24,7 @@ def ql_L(A, B):
 
 
 
-@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "likelihood"])
+@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
 def kalman_filter(
         m_0: ArrayLike,
         P_0: ArrayLike,
@@ -35,10 +35,11 @@ def kalman_filter(
         zs: ArrayLike,
         sigma2_eta_dim: int,
         sigma2_eps_dim: int,
+        forecast: int = 0,
         likelihood: str = "partial",
 ) -> tuple:
 
-    nbasis = m_0.shape[0]
+    r = m_0.shape[0]
     nobs = zs.shape[0]
     
     @jax.jit
@@ -73,7 +74,7 @@ def kalman_filter(
 
         m_up = m_pred + K_t @ e_t
 
-        P_up = (jnp.eye(nbasis) - K_t @ PHI) @ P_pred
+        P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred
 
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
@@ -104,32 +105,70 @@ def kalman_filter(
             K_t,
         )
 
+    def forecast_step(carry, x):
+        m_tt, P_tt = carry
+
+        # predict
+        m_pred = M @ m_tt
+        P_prop = M @ P_tt @ M.T
+        
+        match sigma2_eta_dim:
+            case 0 | 1:
+                P_pred = jnp.fill_diagonal(P_prop, sigma2_eta + jnp.diag(P_prop), inplace=False)
+            case 2:
+                P_pred = P_prop + sigma2_eta
+                
+        return (m_pred, P_pred), (m_pred, P_pred)
+        
+
     carry, seq = jl.scan(
         step,
-        (m_0, P_0, m_0, P_0, 0, jnp.zeros((nbasis, nobs))),
+        (m_0, P_0, m_0, P_0, 0, jnp.zeros((r, nobs))),
         zs.T,
     )
 
-    return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
+    ll, ms, Ps, mpreds, Ppreds, Ks = (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
+
+    carry_fc, seq_fc = jl.scan(
+        forecast_step,
+        (ms[-1], Ps[-1]),
+        jnp.arange(forecast),
+    )
+
+    filt_results = {"ll": ll,
+                    "ms": ms,
+                    "Ps": Ps,
+                    "mpreds": mpreds,
+                    "Ppreds": Ppreds,
+                    "mforecast": seq_fc[0],
+                    "Pforecast": seq_fc[1]}
+
+    
+    return filt_results
 
 
 
-@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "likelihood"])
+@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
 def information_filter(
-    nu_0: ArrayLike,  # initial information vector
-    Q_0: ArrayLike,  # initial information matrix
-    M: ArrayLike,
-    PHI_tree: tuple,
-    sigma2_eta: ArrayLike,
-    sigma2_eps_tree: tuple,
-    zs_tree: tuple,
-    sigma2_eta_dim: int,
-    sigma2_eps_dim: int,
-    likelihood: str = "partial",
+        nu_0: ArrayLike,  # initial information vector
+        Q_0: ArrayLike,  # initial information matrix
+        M: ArrayLike,
+        PHI_tree: tuple,
+        sigma2_eta: ArrayLike,
+        sigma2_eps_tree: tuple,
+        zs_tree: tuple,
+        sigma2_eta_dim: int,
+        sigma2_eps_dim: int,
+        forecast: int = 0,
+        likelihood: str = "partial",
 ) -> tuple:
 
     mapping_elts = jax.tree.map(
-        lambda t: (zs_tree[t], PHI_tree[t], sigma2_eps_tree[t]),
+        lambda t: (
+            zs_tree[t],
+            PHI_tree[t],
+            sigma2_eps_tree[t]
+        ),
         tuple(range(len(zs_tree))),
     )
 
@@ -142,11 +181,11 @@ def information_filter(
 
         match sigma2_eps_dim:
             case 0|1:
-                I_k = PHI_k.T/sigma2_eps_k @ PHI_k
                 i_k = PHI_k.T/sigma2_eps_k @ z_k    
+                I_k = PHI_k.T/sigma2_eps_k @ PHI_k
             case 2:
-                I_k = PHI_k.T @ jnp.linalg.solve(sigma2_eps_k, PHI_k)
                 i_k = PHI_k.T @ jnp.linalg.solve(sigma2_eps_k, z_k)
+                I_k = PHI_k.T @ jnp.linalg.solve(sigma2_eps_k, PHI_k)
 
         
         return jnp.vstack((i_k, I_k))
@@ -276,29 +315,46 @@ def information_filter(
             "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
         )
 
-    return ll, seq[0], seq[1], seq[2], seq[3]
+    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
+    
+    fc_scan_elts = jnp.repeat(jnp.expand_dims(jnp.zeros((r+1, r)), axis=0), forecast, axis=0)
+    carry_pred, seq_pred = jl.scan(
+        step,
+        (nus[-1], Qs[-1], jnp.zeros(r), jnp.eye(r)),
+        fc_scan_elts,)
+
+    filt_results = {"ll": ll,
+                    "nus": nus,
+                    "Qs": Qs,
+                    "nupreds": nupreds,
+                    "Qpreds": Qpreds,
+                    "nuforecast": seq_pred[0],
+                    "Qforecast": seq_pred[1]}
+
+    return filt_results
 
 
-@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "likelihood"])
+@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
 def sqrt_filter(
-    m_0: ArrayLike,
-    U_0: ArrayLike,
-    M: ArrayLike,
-    PHI: ArrayLike,
-    sigma2_eta: ArrayLike,
-    sigma2_eps: ArrayLike,
-    zs: ArrayLike,  # data matrix, with time across columns
-    sigma2_eta_dim: int,
-    sigma2_eps_dim: int,
-    likelihood: str = "full",
+        m_0: ArrayLike,
+        U_0: ArrayLike,
+        M: ArrayLike,
+        PHI: ArrayLike,
+        sigma2_eta: ArrayLike,
+        sigma2_eps: ArrayLike,
+        zs: ArrayLike,  # data matrix, with time across columns
+        sigma2_eta_dim: int,
+        sigma2_eps_dim: int,
+        forecast:int = 0,
+        likelihood: str = "full",
 ) -> tuple:
 
-    nbasis = m_0.shape[0]
+    r = m_0.shape[0]
     nobs = zs.shape[0]
 
     match sigma2_eta_dim:
         case 0:
-            sigma_eta = jnp.sqrt(sigma2_eta) * jnp.eye(nbasis)
+            sigma_eta = jnp.sqrt(sigma2_eta) * jnp.eye(r)
         case 1:
             sigma_eta = jnp.diag(jnp.sqrt(sigma2_eta))
         case 2:
@@ -341,7 +397,7 @@ def sqrt_filter(
 
         m_up = m_pred + K_t @ e_t
 
-        U_up = qr_R(U_pred @ (jnp.eye(nbasis) - K_t @ PHI).T, sigma_eps @ K_t.T)
+        U_up = qr_R(U_pred @ (jnp.eye(r) - K_t @ PHI).T, sigma_eps @ K_t.T)
 
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = Ui_t
@@ -375,31 +431,56 @@ def sqrt_filter(
             K_t,
         )
 
+    def forecast_step(carry, x):
+        m_tt, U_tt = carry
+
+        m_pred = M @ m_tt
+        U_pred = qr_R(U_tt @ M.T, sigma_eta)
+
+        return (m_pred, U_pred), (m_pred, U_pred)
+
     carry, seq = jl.scan(
         step,
-        (m_0, U_0, m_0, U_0, 0, jnp.zeros((nbasis, nobs))),
+        (m_0, U_0, m_0, U_0, 0, jnp.zeros((r, nobs))),
         zs.T,
     )
 
-    return (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
+    ll, ms, Us, mpreds, Upreds, Ks = (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
+
+    carry_fc, seq_fc = jl.scan(
+        forecast_step,
+        (ms[-1], Us[-1]),
+        jnp.arange(forecast),
+    )
+
+    filt_results = {"ll": ll,
+                    "ms": ms,
+                    "Us": Us,
+                    "mpreds": mpreds,
+                    "Upreds": Upreds,
+                    "mforecast": seq_fc[0],
+                    "Uforecast": seq_fc[1]}
+
+    return filt_results
 
 
 
-#@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "likelihood"])
+@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
 def sqrt_information_filter(
-    nu_0: ArrayLike,
-    R_0: ArrayLike,
-    M: ArrayLike,
-    PHI_tree: tuple,
-    sigma2_eta: ArrayLike,
-    sigma2_eps_tree: tuple,
-    zs_tree: tuple,
-    sigma2_eta_dim: int,
-    sigma2_eps_dim: int,
-    likelihood: str = "partial",
+        nu_0: ArrayLike,
+        R_0: ArrayLike,
+        M: ArrayLike,
+        PHI_tree: tuple,
+        sigma2_eta: ArrayLike,
+        sigma2_eps_tree: tuple,
+        zs_tree: tuple,
+        sigma2_eta_dim: int,
+        sigma2_eps_dim: int,
+        forecast:int = 0,
+        likelihood: str = "partial",
 ) -> tuple:
 
-    nbasis = nu_0.shape[0]
+    r = nu_0.shape[0]
     
     mapping_elts = jax.tree.map(
         lambda t: (
@@ -413,22 +494,28 @@ def sqrt_information_filter(
     def informationify(tup: tuple):
         z_k = tup[0]
         PHI_k = tup[1]
-        sigma2_eps = tup[2]
+        sigma2_eps_k = tup[2]
 
         match sigma2_eps_dim:
             case 0:
-                sigma_eps = jnp.sqrt(sigma2_eps) * jnp.eye(z_k.shape[0])
+                sigma_eps = jnp.sqrt(sigma2_eps_k) * jnp.eye(z_k.shape[0])
             case 1:
-                sigma_eps = jnp.diag(jnp.sqrt(sigma2_eps))
+                sigma_eps = jnp.diag(jnp.sqrt(sigma2_eps_k))
             case 2:
-                sigma_eps = jnp.linalg.cholesky(sigma2_eps)
+                sigma_eps = jnp.linalg.cholesky(sigma2_eps_k)
         
         i_k = PHI_k.T @ st(sigma_eps, st(sigma_eps.T, z_k, lower=False), lower=True)
+        #I_k = PHI_k.T @ jnp.linalg.solve(sigma_eps.T@sigma_eps, PHI_k)
+
+        # an edge case means the following does not work...
+        # actually... it may have been wrong to begin with?
         R_k = jnp.linalg.qr(st(sigma_eps.T, PHI_k, lower=False), mode="r")
+        #R_k = jnp.linalg.qr(I_k, mode="r")
         
         return jnp.vstack((i_k, R_k))
 
-    def is_leaf(node): return jax.tree.structure(node).num_leaves == 3
+    def is_leaf(node):
+        return jax.tree.structure(node).num_leaves == 3
 
     scan_elts = jnp.array(jax.tree.map(
         informationify, mapping_elts, is_leaf=is_leaf))
@@ -436,13 +523,13 @@ def sqrt_information_filter(
     # Minv = jnp.linalg.solve(M, jnp.eye(r))
     match sigma2_eta_dim:
         case 0:
-            sigma_eta = jnp.sqrt(sigma2_eta) * jnp.eye(nbasis)
+            sigma_eta = jnp.sqrt(sigma2_eta) * jnp.eye(r)
         case 1:
             sigma_eta = jnp.diag(jnp.sqrt(sigma2_eta))
         case 2:
             sigma_eta = jnp.linalg.cholesky(sigma2_eta)
 
-    nbasis = nu_0.shape[0]
+    r = nu_0.shape[0]
 
     def step(carry, scan_elt):
         nu_tt, R_tt, _, _ = carry
@@ -451,7 +538,7 @@ def sqrt_information_filter(
         R_tp = scan_elt[1:, :]
 
         U_pred = ql_L(st(R_tt.T, M.T, lower=True), sigma_eta)
-        R_pred = st(U_pred, jnp.eye(nbasis), lower=True).T
+        R_pred = st(U_pred, jnp.eye(r), lower=True).T
         nu_pred = R_pred.T @ R_pred @ M @ st(R_tt,
                                              st(R_tt.T,
                                                 nu_tt,
@@ -464,7 +551,7 @@ def sqrt_information_filter(
 
     carry, seq = jl.scan(
         step,
-        (nu_0, R_0, jnp.zeros(nbasis), jnp.eye(nbasis)),
+        (nu_0, R_0, jnp.zeros(r), jnp.eye(r)),
         scan_elts,
     )
 
@@ -534,14 +621,32 @@ def sqrt_information_filter(
             "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
         )
 
-    return ll, seq[0], seq[1], seq[2], seq[3]
+    nus, Rs, nupreds, Rpreds = (seq[0], seq[1], seq[2], seq[3])
+
+    fc_scan_elts = jnp.repeat(jnp.expand_dims(jnp.zeros((r+1, r)), axis=0), forecast, axis=0)
+    
+    carry_pred, seq_pred = jl.scan(
+        step,
+        (nus[-1], Rs[-1], jnp.zeros(r), jnp.eye(r)),
+        fc_scan_elts,)
+
+
+    filt_results = {"ll": ll,
+                    "nus": nus,
+                    "Rs": Rs,
+                    "nupreds": nupreds,
+                    "Rpreds": Rpreds,
+                    "nuforecast": seq_pred[0],
+                    "Rforecast": seq_pred[1]}
+    
+    return filt_results
 
 
 
 @jax.jit
 def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
     """NOT FULLY IMPLEMENTED"""
-    nbasis = ms[0].shape[0]
+    r = ms[0].shape[0]
 
     @jax.jit
     def step(carry, y):
@@ -553,7 +658,7 @@ def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
         m_tT = carry[0]
         P_tT = carry[1]
 
-        J_tm = P_tmtm @ M.T @ jnp.linalg.solve(P_ttm, jnp.eye(nbasis))
+        J_tm = P_tmtm @ M.T @ jnp.linalg.solve(P_ttm, jnp.eye(r))
 
         m_tmT = m_tmtm - J_tm @ (m_tT - m_ttm)
         P_tmT = P_tmtm - J_tm @ (P_tT - P_ttm) @ J_tm.T
@@ -566,7 +671,7 @@ def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
         jnp.flip(mpreds, axis=1),
         jnp.flip(Ppreds, axis=1),
     )
-    init = (ms[-1], Ps[-1], jnp.zeros((nbasis, nbasis)))
+    init = (ms[-1], Ps[-1], jnp.zeros((r, r)))
 
     result = jl.scan(step, init, ys)
 
@@ -577,8 +682,8 @@ def kalman_smoother(ms, Ps, mpreds, Ppreds, M):
 def lag1_smoother(Ps, Js, K_T, PHI: ArrayLike, M: ArrayLike):
     """CURRENTLY OUT-OF-DATE AND UNTESTED"""
 
-    nbasis = Ps[0].shape[0]
-    P_TTmT = (jnp.eye(nbasis) - K_T @ PHI) @ M @ Ps[-2]
+    r = Ps[0].shape[0]
+    P_TTmT = (jnp.eye(r) - K_T @ PHI) @ M @ Ps[-2]
 
     @jax.jit
     def step(carry, y):
