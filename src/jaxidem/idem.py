@@ -25,7 +25,7 @@ import warnings
 # In-Module imports
 from jaxidem.utils import create_grid, place_basis, outer_op, Basis, Grid, st_data
 
-import jaxidem.filters as filt
+import jaxidem.filters as filts
 
 ngrids = jnp.array([41, 41])
 bounds = jnp.array([[0, 1], [0, 1]])
@@ -400,14 +400,17 @@ class Model:
         
         if method in ("sqrt", "kalman"):
                 
-            obs_data_wide = obs_data.as_wide()
+            obs_data_wide = obs_data.wide
 
-            if jnp.isnan(obs_data_wide["z"]).any():
+            if jnp.isnan(obs_data_wide["z_mat"]).any():
                 raise ValueError("Missing data detected. This is not supported for method='kalman' or 'sqrt'. Please use method='inf' or 'sqinf'. Note that errors must be iid for those methods.")
+            z_mat = obs_data.wide['z_mat']
+            X_obs_mat = obs_data.wide['X_obs_mat']
             # if not isinstance(X_obs, jax.numpy.ndarray):
             #     raise ValueError("X_obs must be an ndarray for Kalman/square-root filtering. If it is a PyTree, consider method='inf' or 'sqinf', where the spatial stations are allowed to vary with time (hence X_obs is a tree with T elements corresponding to the covariance matrices at each time).")
                          
-            obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
+            #obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
+            obs_locs = obs_data.coords
             PHI_obs = self.process_basis.mfun(obs_locs)
             if m_0 is None:
                 m_0 = jnp.zeros(nbasis)
@@ -417,10 +420,10 @@ class Model:
             match method:
                 case "sqrt":
                     init_mat = jnp.linalg.cholesky(P_0)
-                    filterer = filt.sqrt_filter
+                    filterer = filts.sqrt_filter
                 case "kalman":
                     init_mat = P_0
-                    filterer = filt.kalman_filter
+                    filterer = filts.kalman_filter
                 
             @jax.jit
             def objective(params):
@@ -430,7 +433,7 @@ class Model:
                           ks,
                           beta,
                 ) = params
-                ztildes_mat = jnp.column_stack(obs_data.tildify(beta))
+                ztildes_mat = z_mat - X_obs_mat @ beta
                 logks1, logks2, ks3, ks4 = ks
                 ks1 = jnp.exp(logks1)
                 ks2 = jnp.exp(logks2)
@@ -481,10 +484,10 @@ class Model:
             match method:
                 case "sqinf":
                     init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
-                    filterer = filt.sqrt_information_filter
+                    filterer = filts.sqrt_information_filter
                 case "inf":
                     init_mat = jnp.linalg.inv(P_0)
-                    filterer = filt.information_filter
+                    filterer = filts.information_filter
 
             @jax.jit
             def objective(params):
@@ -546,10 +549,10 @@ class Model:
             match method:
                 case "sqrt":
                     init_mat = jnp.linalg.cholesky(P_0)
-                    filterer = filt.sqrt_filter
+                    filterer = filts.sqrt_filter
                 case "kalman":
                     init_mat = P_0
-                    filterer = filt.kalman_filter
+                    filterer = filts.kalman_filter
                 
 
             (
@@ -590,12 +593,14 @@ class Model:
                 
             unique_times = jnp.unique(obs_data.t)
             T = len(unique_times)
-            zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
+            #zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
+            zs_tree = obs_data.zs_tree
 
-            obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
-            obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:] for t in unique_times])
+            #obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
+            #obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:] for t in unique_times])
+            obs_locs_tree = obs_data.coords_tree
                 
-            PHI_obs_tuple = jax.tree.map(self.process_basis.mfun, obs_locs_tuple)
+            PHI_obs_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
             
             if m_0 is None:
                 m_0 = jnp.zeros(nbasis)
@@ -609,10 +614,10 @@ class Model:
             match method:
                 case "sqinf":
                     init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
-                    filterer = filt.sqrt_information_filter
+                    filterer = filts.sqrt_information_filter
                 case "inf":
                     init_mat = jnp.linalg.inv(P_0)
-                    filterer = filt.information_filter
+                    filterer = filts.information_filter
             @jax.jit
             def tildify(z, X_obs_ind, beta):
                 return z - X_obs_ind @ beta
@@ -717,7 +722,7 @@ class Model:
         M = self.M
         nbasis = Ps[0].shape[0]
 
-        carry, seq = filt.lag1_smoother(Ps, Js, K_T, PHI_obs, M)
+        carry, seq = filts.lag1_smoother(Ps, Js, K_T, PHI_obs, M)
 
         P_TTmT = (jnp.eye(nbasis) - K_T @ PHI_obs) @ M @ Ps[-2]
 
@@ -1065,7 +1070,7 @@ class Model:
             # CHECK BELOW
             ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
 
-            ll, _, _, _, _, _ = filt.sqrt_filter_indep(
+            ll, _, _, _, _, _ = filts.sqrt_filter_indep(
                 m_0,
                 U_0,
                 M,

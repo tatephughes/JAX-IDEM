@@ -220,7 +220,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="importing-the-relevant-packages-and-loading-the-data" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Importing the relevant packages and Loading the data</h1>
 <p>Firstly, we load the relevant libraries and import the data.</p>
-<div id="2fe7aeab" class="cell" data-execution_count="1">
+<div id="0f1c4eec" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.random <span class="im">as</span> rand</span>
@@ -233,14 +233,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>radar_df <span class="op">=</span> pd.read_csv(<span class="st">'../data/radar_df.csv'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We should put this data into <code>jax-idem</code>s <code>st_data</code> type;</p>
-<div id="be39d5c4" class="cell" data-execution_count="2">
+<div id="92f428d8" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>radar_data <span class="op">=</span> utils.pd_to_st(radar_df, <span class="st">'s2'</span>, <span class="st">'s1'</span>, <span class="st">'time'</span>, <span class="st">'z'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Time inputted are strings. Attempting to coerce into datetime objects, then into floats...</code></pre>
 </div>
 </div>
 <p>We now create an initial model for this data</p>
-<div id="54480a04" class="cell" data-execution_count="3">
+<div id="beaa275c" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This initialisation logic will soon be packages into idem.init_model</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># initial variances</span></span>
@@ -276,12 +276,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>                   int_grid<span class="op">=</span>int_grid)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We can now get the marginal data likelihood function of this model with the <code>get_log_like</code> method;</p>
-<div id="7661bbd9" class="cell" data-execution_count="4">
+<div id="556e0338" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>log_marginal <span class="op">=</span> model.get_log_like(radar_data, method<span class="op">=</span><span class="st">"sqinf"</span>, likelihood<span class="op">=</span><span class="st">'partial'</span>, P_0 <span class="op">=</span> <span class="dv">1000</span><span class="op">*</span>jnp.eye(process_basis.nbasis))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We can then use this function to do various inference techniques, like direclty maximising it or Bayesian MCMC methods. It is auto-differentiation compatible, so can easily be dropped into packages like <code>optax</code> or <code>blackjax</code> for these purposes.</p>
 <p>The function takes, as an input, an object of type <code>IdemParams</code>, which is a <code>NamedTuple</code> containing the variances <code>sigma2_eps</code> and <code>sigma2_eta</code></p>
-<div id="03eb54b3" class="cell" data-execution_count="5">
+<div id="b9dd29fd" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>idem.print_params(model.params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Parameters:
@@ -298,7 +298,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="maximum-likelihood-using-optax" class="level2" data-number="2.1">
 <h2 data-number="2.1" class="anchored" data-anchor-id="maximum-likelihood-using-optax"><span class="header-section-number">2.1</span> Maximum Likelihood using Optax</h2>
 <p>Firstly, we can easily plug this into the <code>optax</code> package to use some optimiser to do maximum likelhood estimation. For example, using the <code>adam</code> optimiser;</p>
-<div id="02ab82b2" class="cell" data-execution_count="6">
+<div id="ebbcc81c" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> optax</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># create a function to find the value and gradient of the negative log likelihood</span></span>
@@ -320,22 +320,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>mle_params <span class="op">=</span> params</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The resulting parameters are then</p>
-<div id="c30d7d22" class="cell" data-execution_count="8">
+<div id="7485031d" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>idem.print_params(mle_params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Parameters:
-  sigma2_eps: 5.7245378494262695
-  sigma2_eta: 28.264541625976562
+  sigma2_eps: 5.723726272583008
+  sigma2_eta: 28.266475677490234
   Kernel Parameters:
-    Scale: [0.08538854122161865]
-    Shape: [3.752246379852295]
-    Offset X: [-5.437586307525635]
-    Offset Y: [-1.7613128423690796]
-  beta: [0.424447625875473]</code></pre>
+    Scale: [0.08538345247507095]
+    Shape: [3.7510576248168945]
+    Offset X: [-5.437947750091553]
+    Offset Y: [-1.7626336812973022]
+  beta: [0.42389795184135437]</code></pre>
 </div>
 </div>
 <p>Once we have new parameters, we can update the model with them using idem.Model.update;</p>
-<div id="b649e66f" class="cell" data-execution_count="9">
+<div id="69ed8731" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fit_model_mle <span class="op">=</span> model.update(mle_params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>[NEXT STEP: implment predictions in all the filters; should be easy. Also, I’m not happy with the way that covariate information is stored, it must be overhauled soon.]</p>
@@ -344,7 +344,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 data-number="2.2" class="anchored" data-anchor-id="simple-random-walk-mcmc"><span class="header-section-number">2.2</span> Simple Random-Walk MCMC</h2>
 <p>Of course, for Bayesian analysis, we furthermore want to be able to sample from the posterior. Now, we will use a basic random walk RMH (Rosenbluth-Metropolis-Hastings, often just called Metropolis-Hastings) to sample from the models posterior.</p>
 <p>Firstly, in order to esaily handle everything, we will flatten the parameters into a single 1D JAX array. The functions <code>jaxidem.utils.flatten</code> and <code>jaxidem.utils.unflatten</code> do this easily;</p>
-<div id="a8a429e5" class="cell" data-execution_count="10">
+<div id="295a44c0" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>fparams, unflat <span class="op">=</span> utils.flatten_and_unflatten(model.params)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(fparams)</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>idem.print_params(unflat(fparams))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -363,14 +363,14 @@ Parameters:
 </div>
 </div>
 <p>Now we can initialise a chain with variance 1 for each parameter</p>
-<div id="1eb4f071" class="cell" data-execution_count="11">
+<div id="90283daf" class="cell" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>init_mean <span class="op">=</span> fparams</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co"># initial run gave the following for estimated optimal tuning</span></span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>prop_var <span class="op">=</span> jnp.array([<span class="fl">0.16133152</span>, <span class="fl">0.00453646</span>, <span class="fl">0.01214727</span>, <span class="fl">0.392362</span>, <span class="fl">0.789936</span>, <span class="fl">0.41011548</span>, <span class="fl">0.14044523</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Now sampling from the proposal Gaussian distribution is as simple as</p>
-<div id="434aa202" class="cell" data-execution_count="12">
+<div id="6c661aed" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>rng_key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">1</span>)</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>parshape <span class="op">=</span> init_mean.shape</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>npars <span class="op">=</span> parshape[<span class="dv">0</span>]</span>
@@ -381,7 +381,7 @@ Parameters:
 </div>
 </div>
 <p>And finally, we can sample a chain with RMH as follows;</p>
-<div id="31116c54" class="cell" data-execution_count="13">
+<div id="acab29c0" class="cell" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>back_key, sample_key <span class="op">=</span> jax.random.split(rng_key, <span class="dv">2</span>)</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">100</span></span>
@@ -407,31 +407,31 @@ Parameters:
 <span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>acc_ratio <span class="op">=</span> accepted<span class="op">/</span>n</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="d24ba5e7" class="cell" data-execution_count="15">
+<div id="8b7da2d8" class="cell" data-execution_count="15">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(acc_ratio)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>post_mean <span class="op">=</span> jnp.mean(jnp.array(rmh_sample[<span class="bu">int</span>(<span class="bu">len</span>(rmh_sample)<span class="op">/</span><span class="dv">3</span>):]), axis<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>post_params_mean <span class="op">=</span> unflat(post_mean)</span>
 <span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>idem.print_params(post_params_mean)</span>
 <span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(log_marginal(post_params_mean)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>0.187
+<pre><code>0.06055
 Parameters:
-  sigma2_eps: 7.819906234741211
-  sigma2_eta: 28.08264923095703
+  sigma2_eps: 5.692798614501953
+  sigma2_eta: 28.267518997192383
   Kernel Parameters:
-    Scale: [0.051470331847667694]
-    Shape: [6.490745544433594]
-    Offset X: [-5.312304496765137]
-    Offset Y: [-1.6898086071014404]
-  beta: [0.018268056213855743]
--30199.018</code></pre>
+    Scale: [0.09685702621936798]
+    Shape: [3.2974460124969482]
+    Offset X: [-5.449050426483154]
+    Offset Y: [-1.7590761184692383]
+  beta: [0.4384661912918091]
+-30187.625</code></pre>
 </div>
 </div>
-<div id="95a1bd6f" class="cell" data-execution_count="16">
+<div id="3b43f471" class="cell" data-execution_count="16">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> jnp.array(rmh_sample)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> jnp.array(rmh_sample[<span class="dv">1000</span>:])</span>
 <span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Number of parameters (columns in the array)</span></span>
 <span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>num_params <span class="op">=</span> samples.shape[<span class="dv">1</span>]</span>
@@ -457,7 +457,7 @@ Parameters:
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><a href="Sydney_Radar_files/figure-html/cell-17-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="Sydney_Radar_files/figure-html/cell-17-output-1.png" width="959" height="1282" class="figure-img"></a></p>
+<p><a href="Sydney_Radar_files/figure-html/cell-17-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="Sydney_Radar_files/figure-html/cell-17-output-1.png" width="948" height="1282" class="figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -466,7 +466,7 @@ Parameters:
 <section id="mala" class="level2" data-number="2.3">
 <h2 data-number="2.3" class="anchored" data-anchor-id="mala"><span class="header-section-number">2.3</span> MALA</h2>
 <p>Even when tuned, the mixing of these chains leaves much to be desired. Since <code>jaxidem</code> supports JAX’s autodifferentiation, we can easily incorporate the gradient into a MCMC chain using MALA.</p>
-<div id="86d7f6e6" class="cell" data-execution_count="17">
+<div id="ca0c8f64" class="cell" data-execution_count="17">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>prop_sd <span class="op">=</span> <span class="fl">0.008</span></span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>accepted <span class="op">=</span> <span class="dv">0</span></span>
@@ -505,30 +505,30 @@ Parameters:
 <span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a>acc_ratio <span class="op">=</span> accepted<span class="op">/</span>mala_n</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="9dc8c574" class="cell" data-execution_count="19">
+<div id="7eb4a99e" class="cell" data-execution_count="19">
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(acc_ratio)</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>post_mean <span class="op">=</span> jnp.mean(jnp.array(mala_sample[<span class="bu">int</span>(<span class="bu">len</span>(mala_sample)<span class="op">/</span><span class="dv">3</span>):]), axis<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>post_params_mean <span class="op">=</span> unflat(post_mean)</span>
 <span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>idem.print_params(post_params_mean)</span>
 <span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(log_marginal(post_params_mean)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>0.061
+<pre><code>0.02675
 Parameters:
-  sigma2_eps: 10.433406829833984
-  sigma2_eta: 27.590110778808594
+  sigma2_eps: 5.694046974182129
+  sigma2_eta: 28.345043182373047
   Kernel Parameters:
-    Scale: [0.03547915443778038]
-    Shape: [9.810134887695312]
-    Offset X: [-5.288577556610107]
-    Offset Y: [-1.6870993375778198]
-  beta: [0.5980997085571289]
--30229.1</code></pre>
+    Scale: [0.0813666507601738]
+    Shape: [4.000741958618164]
+    Offset X: [-5.447969436645508]
+    Offset Y: [-1.7537591457366943]
+  beta: [0.1484980583190918]
+-30188.129</code></pre>
 </div>
 </div>
-<div id="213e9f8e" class="cell" data-execution_count="20">
+<div id="d5736e42" class="cell" data-execution_count="20">
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> jnp.array(mala_sample)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> jnp.array(mala_sample[<span class="dv">1000</span>:])</span>
 <span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Number of parameters (columns in the array)</span></span>
 <span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>num_params <span class="op">=</span> samples.shape[<span class="dv">1</span>]</span>
@@ -554,7 +554,7 @@ Parameters:
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><a href="Sydney_Radar_files/figure-html/cell-21-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="Sydney_Radar_files/figure-html/cell-21-output-1.png" width="950" height="1282" class="figure-img"></a></p>
+<p><a href="Sydney_Radar_files/figure-html/cell-21-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="Sydney_Radar_files/figure-html/cell-21-output-1.png" width="942" height="1282" class="figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -563,7 +563,7 @@ Parameters:
 <section id="using-blackjax" class="level2" data-number="2.4">
 <h2 data-number="2.4" class="anchored" data-anchor-id="using-blackjax"><span class="header-section-number">2.4</span> Using Blackjax</h2>
 <p>From there, it is easy to sample from the posterior</p>
-<div id="c263a91c" class="cell" data-execution_count="21">
+<div id="f7f2f29d" class="cell" data-execution_count="21">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">1</span>) <span class="co"># PRNG key</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>inverse_mass_matrix <span class="op">=</span> jnp.ones(model.nparams)</span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>num_integration_steps <span class="op">=</span> <span class="dv">10</span></span>
@@ -579,7 +579,7 @@ Parameters:
 <span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>                                   likelihood_method<span class="op">=</span><span class="st">"sqinf"</span>,)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>This initial run will likely mix poorly and have a low acceptance rate. Taking this initial sample, we can fit new (gaussian) priors on the paramterers and use a new mass matrix for the sampling based on the initial sample’s variance.</p>
-<div id="58b543ae" class="cell" data-execution_count="22">
+<div id="f2b64bf1" class="cell" data-execution_count="22">
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>post_mean <span class="op">=</span> jax.tree.<span class="bu">map</span>(<span class="kw">lambda</span> x: jnp.mean(x, axis<span class="op">=</span><span class="dv">0</span>), sample.position)</span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>post_var <span class="op">=</span> jax.tree.<span class="bu">map</span>(<span class="kw">lambda</span> x: jnp.var(x, axis<span class="op">=</span><span class="dv">0</span>), sample.position)</span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -605,6 +605,53 @@ Parameters:
 <span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>inverse_mass_matrix <span class="op">=</span> jnp.array(jax.tree.flatten(post_var)[<span class="dv">0</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="3c8a5acd" class="cell" data-execution_count="23">
+<div class="cell-output cell-output-stdout">
+<pre><code>Parameters:
+  sigma2_eps: 47.1029052734375
+  sigma2_eta: 32.85206604003906
+  Kernel Parameters:
+    Scale: 0.021949168294668198
+    Shape: 13.138100624084473
+    Offset X: -0.09490437060594559
+    Offset Y: -0.020940084010362625
+  beta: 0.008254376240074635</code></pre>
+</div>
+</div>
+<div id="fbbc1066" class="cell" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> jnp.array(hmc_sample_array[<span class="dv">1000</span>:])</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Number of parameters (columns in the array)</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>num_params <span class="op">=</span> samples.shape[<span class="dv">1</span>]</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a figure and axes for the stacked trace plots</span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(num_params, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">2</span> <span class="op">*</span> num_params), sharex<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot each parameter's trace</span></span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_params):</span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    axes[i].plot(samples[:, i], lw<span class="op">=</span><span class="fl">0.8</span>, color<span class="op">=</span><span class="st">'b'</span>)</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    axes[i].set_ylabel(<span class="ss">f'Parameter </span><span class="sc">{</span>i<span class="op">+</span><span class="dv">1</span><span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    axes[i].grid(<span class="va">True</span>)</span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Label the x-axis for the last subplot</span></span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>axes[<span class="op">-</span><span class="dv">1</span>].set_xlabel(<span class="st">'Iteration'</span>)</span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a title to the entire figure</span></span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Trace Plots'</span>, fontsize<span class="op">=</span><span class="dv">16</span>, y<span class="op">=</span><span class="fl">0.95</span>)</span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Adjust spacing</span></span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>plt.tight_layout(rect<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="fl">0.96</span>])</span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="Sydney_Radar_files/figure-html/cell-25-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="Sydney_Radar_files/figure-html/cell-25-output-1.png" width="950" height="1282" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
 </div>
 
 

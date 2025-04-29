@@ -465,6 +465,24 @@ def sqrt_filter(
 
 
 
+
+def safe_cholesky(matrix):
+    # Define a function for the zero case
+    def zero_case(_):
+        return jnp.zeros_like(matrix)
+
+    # Define a function for the non-zero case
+    def nonzero_case(matrix):
+        return jnp.linalg.cholesky(matrix, upper=True)
+
+    # Use lax.cond to handle both cases
+    return jax.lax.cond(
+        jnp.all(matrix == 0),  # Condition
+        zero_case,            # If condition is True (zero matrix)
+        nonzero_case,         # If condition is False (non-zero matrix)
+        operand=matrix         # Argument passed to the functions
+        )
+
 @partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
 def sqrt_information_filter(
         nu_0: ArrayLike,
@@ -496,21 +514,21 @@ def sqrt_information_filter(
         PHI_k = tup[1]
         sigma2_eps_k = tup[2]
 
+
+        # THIS WILL FAIL if sigma2_eps_dim!=0 and there is a time point with no data.
         match sigma2_eps_dim:
             case 0:
-                sigma_eps = jnp.sqrt(sigma2_eps_k) * jnp.eye(z_k.shape[0])
+                i_k = PHI_k.T @ z_k / sigma2_eps_k
+                #R_k = jnp.linalg.qr((PHI_k / jnp.sqrt(sigma2_eps_k)), mode="r")
+                R_k = safe_cholesky(PHI_k.T @ PHI_k / sigma2_eps_k)
             case 1:
                 sigma_eps = jnp.diag(jnp.sqrt(sigma2_eps_k))
+                i_k = PHI_k.T @ st(sigma_eps, st(sigma_eps.T, z_k, lower=False), lower=True)
+                R_k = jnp.linalg.qr(st(sigma_eps.T, PHI_k, lower=False), mode="r")
             case 2:
                 sigma_eps = jnp.linalg.cholesky(sigma2_eps_k)
-        
-        i_k = PHI_k.T @ st(sigma_eps, st(sigma_eps.T, z_k, lower=False), lower=True)
-        #I_k = PHI_k.T @ jnp.linalg.solve(sigma_eps.T@sigma_eps, PHI_k)
-
-        # an edge case means the following does not work...
-        # actually... it may have been wrong to begin with?
-        R_k = jnp.linalg.qr(st(sigma_eps.T, PHI_k, lower=False), mode="r")
-        #R_k = jnp.linalg.qr(I_k, mode="r")
+                i_k = PHI_k.T @ st(sigma_eps, st(sigma_eps.T, z_k, lower=False), lower=True)
+                R_k = jnp.linalg.qr(st(sigma_eps.T, PHI_k, lower=False), mode="r")
         
         return jnp.vstack((i_k, R_k))
 
@@ -640,7 +658,6 @@ def sqrt_information_filter(
                     "Rforecast": seq_pred[1]}
     
     return filt_results
-
 
 
 @jax.jit

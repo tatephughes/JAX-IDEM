@@ -26,6 +26,21 @@
 ** TODO Finish analysing the Sydney Radar explorative example
 - Include visualisation, discussion, complete the two MCMC examples, introduce using BlackJax for HMC, cover using the  ~fit_mle~ and ~sample_posterior~ methods above for ease of use
 *** TODO As an extra side, I want to look at the German air quality data, due to it's challenging missing data. 
+**** With missing data, sqrt_information filter now works fully. Interestingly, it required what I thought to be a worse method of computation:
+
+#+begin_src python :session example :results none
+R_k = safe_cholesky(PHI_k.T @ PHI_k / sigma2_eps_k)
+#+end_src
+
+instead of
+
+#+begin_src python :session example :results none
+R_k = jnp.linalg.qr(PHI_k/jnp.sqrt(sigma2_eps_k), mode="r")
+#+end_src
+
+But upon testing, despite ~safe_cholesky~ having a built-in conditional _and_ being slightly less efficient (and, perhaps notably, precise!) the new version actually gets noticably better sppeds (in the partially-censored Sydney Radar data set with 129 basis functions and an invariant kernel, the new option had an average likelihood-computation of 0.21361656522750855s, compared to the old one's 0.25794637274742127).
+***** TODO Investigate this more. is it simply that cholesky decopmosition is _that_ much quicker than QR? What about other implementations/methods for the two decomposers? What about on a GPU?
+
 *** TODO Also, try finding a data set with which to test /invariant/ kernels
 
 ** Other MCMC related tasks
@@ -52,3 +67,23 @@ DEADLINE: <2025-04-22 Tue>
 
 - apptainer for Hamilton
 - check that MALA and RMH are targetting the same posterior
+
+** TODO Look into how much faster jl.scan (with it's broken tqdm) is to a traditional loop for blackjax
+
+* TODO Scaling tests
+- Number of CPU cores
+  
+- start at mle
+- better tuning
+  
+  - 
+
+* TODO Can zs/zs_tree/obs_data be static? would that be faster?
+
+- Could I pull the 'informationify' logic out of the information filters, reducing th likelihood computation in those cases?
+  - This would actually be necessary for the information filters, since PyTrees cannot be static arguments. This also complicates likelihood computation.
+- This has one significant roblem; likelihood computation. If i pre-compute informations (including beta after as in 'informationified X_obs' multiplied by beta), the ztildes still need to be computed for likelihood computation.
+  - Again, this could be a not-problem if I was able to write the information form of the likelihood in a way that actually works! For now, lets just power through without.
+
+- To test though, I should try withou tthe covariate problem, to see how much this pre-computation actually makes a difference.
+

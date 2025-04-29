@@ -137,7 +137,7 @@ mle_params = params
 #| output: false
 
 import pickle
-with open('pickles/mle_params.pkl', 'rb') as file: 
+with open('./pickles/Hamilton/24_4_25/mle_params.pkl', 'rb') as file: 
     mle_params = pickle.load(file)
 ```
 
@@ -224,8 +224,7 @@ acc_ratio = accepted/n
 #| echo: false
 #| output: false
 
-import pickle
-with open('pickles/rmh_sample.pkl', 'rb') as file:
+with open('./pickles/Hamilton/24_4_25/rmh_sample.pkl', 'rb') as file:
     rmh_sample, acc_ratio = pickle.load(file)
 ```
 
@@ -241,7 +240,7 @@ print(log_marginal(post_params_mean))
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 
-samples = jnp.array(rmh_sample)
+samples = jnp.array(rmh_sample[1000:])
 
 # Number of parameters (columns in the array)
 num_params = samples.shape[1]
@@ -319,8 +318,7 @@ acc_ratio = accepted/mala_n
 #| echo: false
 #| output: false
 
-import pickle
-with open('pickles/mala_sample.pkl', 'rb') as file:
+with open('./pickles/Hamilton/24_4_25/mala_sample.pkl', 'rb') as file:
     mala_sample, acc_ratio = pickle.load(file)
 ```
 
@@ -335,7 +333,7 @@ print(log_marginal(post_params_mean))
 ```{python}
 import matplotlib.pyplot as plt
 
-samples = jnp.array(mala_sample)
+samples = jnp.array(mala_sample[1000:])
 
 # Number of parameters (columns in the array)
 num_params = samples.shape[1]
@@ -420,10 +418,47 @@ inverse_mass_matrix = jnp.array(jax.tree.flatten(post_var)[0])
 ```{python}
 #| eval: true
 #| echo: false
-#| output: false
+#| output: true
 
-with open('pickles/hmc_sample.pkl', 'rb') as file:
+with open('./pickles/Hamilton/24_4_25/hmc_sample.pkl', 'rb') as file:
     hmc_sample, hmc_info = pickle.load(file)
 
 idem.print_params(jax.tree.map(jnp.mean, hmc_sample.position))
+hmc_sample_array = jnp.column_stack([hmc_sample.position[0],
+                                     hmc_sample.position[1],
+                                     hmc_sample.position[2][0],
+                                     hmc_sample.position[2][1],
+                                     hmc_sample.position[2][2].reshape((10000,)),
+                                     hmc_sample.position[2][3].reshape((10000,)),
+                                     hmc_sample.position[3],])
+```
+
+
+```{python}
+import matplotlib.pyplot as plt
+
+samples = jnp.array(hmc_sample_array[1000:])
+
+# Number of parameters (columns in the array)
+num_params = samples.shape[1]
+
+# Create a figure and axes for the stacked trace plots
+fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
+
+# Plot each parameter's trace
+for i in range(num_params):
+    axes[i].plot(samples[:, i], lw=0.8, color='b')
+    axes[i].set_ylabel(f'Parameter {i+1}')
+    axes[i].grid(True)
+
+# Label the x-axis for the last subplot
+axes[-1].set_xlabel('Iteration')
+
+# Add a title to the entire figure
+fig.suptitle('Trace Plots', fontsize=16, y=0.95)
+
+# Adjust spacing
+plt.tight_layout(rect=[0, 0, 1, 0.96])
+plt.show()
+
 ```

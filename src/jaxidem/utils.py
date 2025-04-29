@@ -378,9 +378,12 @@ class st_data:
         self.x = x
         self.y = y
         self.times = times
-        self.z = z
+        self.z = z.astype(y.dtype)
         self.data_array = jnp.column_stack((self.x, self.y, self.times, self.z))
-        self.covariates = covariates
+        if covariates is None:
+            self.covariates = jnp.ones((x.size,1))
+        else:
+            self.covariates = jnp.columns_stack([jnp.ones_like(x), jnp.array(covariates)])
 
         if covariates is None:
             self.X_obs_stacked = jnp.ones((x.size,1))
@@ -407,13 +410,11 @@ class st_data:
         if len(full_times) != len(time_indices):
             raise ValueError("Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modleling.")
         def associate(time):
-            index = jnp.argwhere(jnp.isclose(full_times,time))
-            if index.size>0:
-                return index[0][0]
-            else:
-                return jnp.nan
-        # must be a traditional map
-        self.t = jnp.array(list(map(associate, times)))
+            index = jnp.argwhere(jnp.isclose(full_times,time), size=1, fill_value=jnp.nan)
+            return index[0][0]
+
+        self.t = jl.map(associate, times)
+        
         self.T = len(self.full_times)
         
         self.coords = jnp.unique(self.data_array[:, 0:2], axis=0)
@@ -449,6 +450,23 @@ class st_data:
         #ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
         ztildes_tree = jax.tree.map(entilden, self.tilding_elts, is_leaf=is_leaf)
         return ztildes_tree
+
+    @partial(jax.jit, static_argnames=["self"])
+    def tildify_wide(self,
+                beta,
+                ):
+
+        def entilden(tup):
+            z, X_obs = tup
+            return z - X_obs@beta
+
+        def is_leaf(node):
+                return jax.tree.structure(node).num_leaves == 2
+        
+        #ztildes = self.z - self.X_obs_stacked @ beta
+        #ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
+        ztildes_tree = jax.tree.map(entilden, self.tilding_elts, is_leaf=is_leaf)
+        return ztildes_tree
         
     def as_wide(self):
         """
@@ -462,34 +480,65 @@ class st_data:
         each time point (columns) and spatial point (rows).
         """
         data_array = self.data_array
+        zs_and_covs = jnp.column_stack([self.z, self.covariates])
 
         full_times = self.full_times
         xycoords = self.coords
-        nlocs = data_array.shape[0]
+        #nlocs = data_array.shape[0]
 
-        @jax.jit
-        def extract(array):  # (from a generative model, dont trust!)
-            array_no_nan = jax.numpy.nan_to_num(array, nan=0.0)
-            float_value = jnp.sum(array_no_nan)
-            return float_value
+        p = self.covariates.shape[1]
 
         @jax.jit
         def getval(xy, t):
             xyt = jnp.hstack((xy, t))
-            mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
-            masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
-            return jl.cond(
-                jnp.all(jnp.isnan(masked)),
-                lambda x: jnp.nan,
-                lambda x: extract(masked),
-                0,
+            index = jnp.argwhere(jnp.all(data_array[:, 0:3] == xyt, axis=1), size=1, fill_value=-1)[0][0]
+            tup = jax.lax.cond(
+                index == -1,
+                lambda x: (jnp.array(jnp.nan), jnp.full((p,), jnp.nan)),
+                lambda x: (self.z[x], self.covariates[x]),
+                index
             )
+            return tup
 
+        @jax.jit
+        def getval(xy, t):
+            xyt = jnp.hstack((xy, t))
+            index = jnp.argwhere(jnp.all(data_array[:, 0:3] == xyt, axis=1), size=1, fill_value=-1)[0][0]
+            tup = jax.lax.cond(
+                index == -1,
+                lambda x: jnp.full((p+1,), jnp.nan),
+                lambda x: zs_and_covs[x],
+                index
+            )
+            return tup
+            
+        #@jax.jit
+        #def extract(array):  # (from a generative model, dont trust!)
+        #    array_no_nan = jax.numpy.nan_to_num(array, nan=0.0)
+        #    float_value = jnp.sum(array_no_nan)
+        #    return float_value
+        #@jax.jit
+        #def getval(xy, t):
+        #    xyt = jnp.hstack((xy, t))
+        #    mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
+        #    masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
+        #    return jl.cond(
+        #        jnp.all(jnp.isnan(masked)),
+        #        lambda x: jnp.nan,
+        #        lambda x: extract(masked),
+        #        0,
+        #    )
 
+        z_X_obs_mat = outer_op(xycoords, full_times, getval)
+
+        z_mat = z_X_obs_mat[:,:,0]
+        X_obs_mat = z_X_obs_mat[:,:,1:]
+        
         return {
             "x": xycoords[:, 0],
             "y": xycoords[:, 1],
-            "z": outer_op(xycoords, full_times, getval),
+            "z_mat": z_mat,
+            "X_obs_mat": X_obs_mat
         }
         
     def show_plot(self):
@@ -598,7 +647,7 @@ def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=
         times = jnp.array(df[tlabel])
 
     if len(covariate_labels) != 0:
-        covariates = jnp.column_stack([df[col] for cols in covariate_labels])
+        covariates = jnp.column_stack([jnp.array(df[col]) for col in covariate_labels])
     else:
         covariates = None
 
@@ -723,7 +772,7 @@ def gif_st_pts(
 
 def noise(key, tree, noise_scale=1e-5):
     """
-    Adds gaussian noise to each a PyTree.
+    Adds gaussian noise to each leaf of a PyTree.
     """
     keys = rand.split(key, num=len(jax.tree_leaves(tree)))
     return jax.tree.map(
@@ -741,6 +790,11 @@ def check_nans(tree):
     return any(jax.tree_leaves(jax.tree_map(check, tree)))
 
 
+class TimeResults(NamedTuple):
+    compile_time: float
+    average_time: float
+    total_time: float
+
 def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
     """
     Timer function that uses random noise to properly time jit-compiled functions.
@@ -749,21 +803,19 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
     Returns a tuple containing the compile time and the average run time.
     """
 
-    func_jit = jax.jit(func)    
+    func_jit = jax.jit(func)
     
     tot_time = 0
-    #progress_bar = tqdm(range(n+1), desc = desc)
-    print("\n", desc)
-    progress_bar = range(n+1)
+    progress_bar = tqdm(range(n+1), desc = desc)
     for i in progress_bar:
         
         noise_key = jax.random.fold_in(key, i)
         inp_noise = noise(noise_key, inp_tree, noise_scale=noise_scale)
         
         start_time = time.time()
-        result = func_jit(inp_noise)[0]
+        result = func_jit(inp_noise).block_until_ready()
         elapsed = time.time() - start_time
-        print(f"i: {i}, Value: {round(result,5)}, Elapsed: {round(elapsed, 5)}s")
+        #print(f"i: {i}, Value: {round(result,5)}, Elapsed: {round(elapsed, 5)}s")
 
         if i != 0:
             tot_time = tot_time + elapsed
@@ -771,12 +823,12 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
             compile_time = elapsed
 
         if check_nans(result):
-            print("WARNING: The function has returned a PyTree/array with nan.")
+            warnings.warn("The function has returned a PyTree/array with nan.")
         
-    av_time = tot_time / n
-    print(f"Compile time: {compile_time}s")
-    print(f"Average time: {av_time}s")
-    return (compile_time, av_time * 1000)
+    average_time = tot_time / n
+    #print(f"Compile time: {compile_time}s")
+    #print(f"Average time: {av_time}s")
+    return TimeResults(compile_time, average_time, tot_time)
 
 
 constant_basis = place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1)
