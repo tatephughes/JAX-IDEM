@@ -1,7 +1,6 @@
 import jax
 import jax.numpy as jnp
 import jax.random as rand
-import numpy as np
 import optax
 import pandas as pd
 import pickle
@@ -33,15 +32,16 @@ radar_df = pd.read_csv(os.path.join(dir, '../data/radar_df.csv'))
 radar_df_censored = radar_df
 
 # remove the final time measurements (for forecast testing)
-#radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 08:45:00"]
+radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 08:45:00"]
 
 # remove the a specific time (for intracast testing)
-#radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 10:15:00"]
+radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 10:15:00"]
 
 # three randomly chose indices ('dead pixels')
-#np.random.seed(42) # reproducibility (jax.random is used elsewhere)
-#random_indices = np.random.choice(radar_df_censored.index, size=300, replace=False)
-#radar_df_censored = radar_df_censored.drop(random_indices)
+import numpy as np
+np.random.seed(42) # reproducibility (jax.random is used elsewhere)
+random_indices = np.random.choice(radar_df_censored.index, size=300, replace=False)
+radar_df_censored = radar_df_censored.drop(random_indices)
 
 radar_data = utils.pd_to_st(radar_df_censored, 's2', 's1', 'time', 'z')
 
@@ -74,8 +74,8 @@ model = idem.Model(process_basis=process_basis,
                    sigma2_eps=sigma2_eps,
                    beta=beta,
                    int_grid=int_grid)
-
 log_marginal = model.get_log_like(radar_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(process_basis.nbasis))
+
 
 
 import optax
@@ -96,11 +96,11 @@ if mle_n > 0:
         updates, opt_state = optimizer.update(grad, opt_state, params=params)
         params = optax.apply_updates(params, updates)
 
-        #idem.print_params(params)
+    idem.print_params(params)
 
-        # Save the PyTree to a file using pickle
-        with open(os.path.join(dir, 'pickles/mle_params.pkl'), 'wb') as file:
-            pickle.dump(params, file)
+    # Save the PyTree to a file using pickle
+    with open(os.path.join(dir, 'pickles/mle_params.pkl'), 'wb') as file:
+        pickle.dump(params, file)
 
 
 # results from R-IxDE

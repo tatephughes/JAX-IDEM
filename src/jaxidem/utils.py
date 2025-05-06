@@ -774,7 +774,7 @@ def noise(key, tree, noise_scale=1e-5):
     """
     Adds gaussian noise to each leaf of a PyTree.
     """
-    keys = rand.split(key, num=len(jax.tree_leaves(tree)))
+    keys = rand.split(key, num=len(jax.tree.leaves(tree)))
     return jax.tree.map(
         lambda x, k: x + noise_scale * jax.random.normal(k, shape=x.shape) if isinstance(x, jnp.ndarray) else x,
         tree,
@@ -787,7 +787,7 @@ def check_nans(tree):
             return True
         else:
             return False
-    return any(jax.tree_leaves(jax.tree_map(check, tree)))
+    return any(jax.tree.leaves(jax.tree.map(check, tree)))
 
 
 class TimeResults(NamedTuple):

@@ -396,9 +396,6 @@ def sqrt_information_filter_B(
                 i_k = PHI_k.T @ st(sigma_eps, st(sigma_eps.T, z_k, lower=False), lower=True)
                 R_k = jnp.linalg.qr(st(sigma_eps.T, PHI_k, lower=False), mode="r")
         
-        
-
-        
         return jnp.vstack((i_k, R_k))
 
     def is_leaf(node):
@@ -559,10 +556,34 @@ def objective_B(params):
                 return -filt_results['ll']
 
 
-                
 rng_key = jax.random.PRNGKey(1)
+                
 
 times_A = utils.time_jit(rng_key, jax.jit(objective_A), model.params, n=100, noise_scale=1e-5, desc = "Objective_A...")
 print(times_A.average_time)
 times_B = utils.time_jit(rng_key, jax.jit(objective_B), model.params, n=100, noise_scale=1e-5, desc = "Objective_B...")
 print(times_B.average_time)
+
+
+
+
+
+
+def cholesky_method(PHI):
+    return filts.safe_cholesky(PHI.T @ PHI)
+
+def qr_method(PHI):
+    return jnp.linalg.qr(PHI, mode="r")
+
+times_A = utils.time_jit(rng_key, jax.jit(cholesky_method), PHI, n=1000, noise_scale=1e-5, desc = "Cholesky...")
+print(times_A.average_time)
+times_B = utils.time_jit(rng_key, jax.jit(qr_method), PHI, n=1000, noise_scale=1e-5, desc = "QR...")
+print(times_B.average_time)
+
+
+
+
+
+
+
+

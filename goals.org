@@ -40,6 +40,7 @@ R_k = jnp.linalg.qr(PHI_k/jnp.sqrt(sigma2_eps_k), mode="r")
 
 But upon testing, despite ~safe_cholesky~ having a built-in conditional _and_ being slightly less efficient (and, perhaps notably, precise!) the new version actually gets noticably better sppeds (in the partially-censored Sydney Radar data set with 129 basis functions and an invariant kernel, the new option had an average likelihood-computation of 0.21361656522750855s, compared to the old one's 0.25794637274742127).
 ***** TODO Investigate this more. is it simply that cholesky decopmosition is _that_ much quicker than QR? What about other implementations/methods for the two decomposers? What about on a GPU?
+****** TODO Take a quick look at Tall-Skinny QR decomposition
 
 *** TODO Also, try finding a data set with which to test /invariant/ kernels
 
@@ -54,10 +55,13 @@ But upon testing, despite ~safe_cholesky~ having a built-in conditional _and_ be
 - Integration is done rather Naively right now (the same as in R-IDE), perhaps a better method could be used?
   
 ** TODO Compare the filters!
-- Especially once the parralel filters are implemented, I want to expand on how they all compare, especially as process & observation dimension change.
+- Especially once the parallel filters are implemented, I want to expand on how they all compare, especially as process & observation dimension change.
+    - At least partially done using the scale tests, with results as you'd expect; sqrt filters are slightly slower than their counterparts (assuming lower precision is ok for all), and the information filter performs significantly better for high data-dimensional cases like the used Sydney Radar data set.
+      - More proper comparisons, gradually increasing the observation dimension, is still necessary.
+      - Now that `util.timejit` is fully working, this should be easy.
 
 ** Other improvements to do
-*** TODO Re-work how covariate data is handled
+*** DONE Re-work how covariate data is handled
 - I'm not happy with the relative clunkyness of it right now.
 *** TODO Improve how data can be placed during the initialisation to automate things like grid placements
 - ~init_model~ will implement this!
@@ -85,5 +89,20 @@ DEADLINE: <2025-04-22 Tue>
 - This has one significant roblem; likelihood computation. If i pre-compute informations (including beta after as in 'informationified X_obs' multiplied by beta), the ztildes still need to be computed for likelihood computation.
   - Again, this could be a not-problem if I was able to write the information form of the likelihood in a way that actually works! For now, lets just power through without.
 
-- To test though, I should try withou tthe covariate problem, to see how much this pre-computation actually makes a difference.
+- To test though, I should try without the covariate problem, to see how much this pre-computation actually makes a difference.
+  - Could I handle covariates differently? I believe they are not directly optimised in R-IDE
+
+
+
+
+
+
+
+
+Seriously get apptainer to work, and use it to restrict core counts!
+Try interactive nodes
+ABC
+wilkinson owen golesby 2015 statistics and computing
+NCC
+
 
