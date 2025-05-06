@@ -1,3 +1,5 @@
+# WARNING: Although this has been made public, it is not ready to use. This code is still a mess. 
+
 # The Model
 
 | Process                                                              | Observations               | Kernel                        |
