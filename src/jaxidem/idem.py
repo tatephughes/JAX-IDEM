@@ -24,6 +24,7 @@ import warnings
 
 # In-Module imports
 from jaxidem.utils import create_grid, place_basis, outer_op, Basis, Grid, st_data
+import jaxidem.utils as utils
 
 import jaxidem.filters as filts
 
@@ -769,13 +770,11 @@ class Model:
     def fit_mle(
         self,
         obs_data: st_data,
-        X_obs: ArrayLike,
         fixed_ind: list = [],
         optimizer=optax.adam(1e-3),
         debug=False,
         max_its: int = 100,
-        target_ll: ArrayLike = jnp.inf,
-        likelihood: str = "partial",
+        target_nll: ArrayLike = -jnp.inf,
         eps=None,
         loading_bar=True,
         method = 'sqrt'
@@ -831,40 +830,14 @@ class Model:
         parameters.
         """
 
-        obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
-        PHI_obs = self.process_basis.mfun(obs_locs)
-        nbasis = self.process_basis.nbasis
-
-        if m_0 is None:
-            m_0 = jnp.zeros(nbasis)
-        if P_0 is None:
-            P_0 = 100 * jnp.eye(nbasis)
-
         bound_di = jnp.max(self.process_grid.ngrids * self.process_grid.deltas)
 
-        ks0 = (
-            jnp.log(self.kernel.params[0]),
-            jnp.log(self.kernel.params[1]),
-            self.kernel.params[2],
-            self.kernel.params[3],
-        )
+        print(f"Initial Parameters:\n\n{format_params(self.params)}\n")
 
-        params0 = (
-            jnp.log(self.Sigma_eta[0, 0]),
-            jnp.log(self.sigma2_eps),
-            ks0,
-            self.beta,
-        )
+        nll_val_grad =  jax.value_and_grad(self.get_log_like(obs_data, method=method, likelihood='partial', negative=True))
 
-        print(f"Initial Parameters:\n\n{format_params(params0)}\n")
-
-        objective = get_log_like(self, obs_data, X_obs, method=method, likelihood='partial', negative=True)
-
-        obj_grad = jax.grad(objective)
-
-        ll = -objective(params0)
-        params = params0
+        nll, _ = nll_val_grad(self.params)
+        params = self.params
         opt_state = optimizer.init(params)
 
         if loading_bar:
@@ -873,263 +846,72 @@ class Model:
             progress = range(max_its)
 
         for i in progress:
-            grad = obj_grad(params)
+            nllprev = nll
+            nll, grad = nll_val_grad(params)
             updates, opt_state = optimizer.update(grad, opt_state, params=params)
             params = optax.apply_updates(params, updates)
             # params = optax.projections.projection_box(params, lower, upper)
-            llprev = ll
-            ll = -objective(params)
-            if eps is not None and (jnp.isclose(ll, llprev, atol=eps)):
+            
+            if eps is not None and (jnp.isclose(nll, nllprev, atol=eps)):
                 print("Likelihood stopped improving. Stopping early...")
                 break
-            if ll > target_ll:
+            if nll < target_nll:
                 print("Achieved target likelihood. Stopping early...")
                 break
             if loading_bar:
                 progress.set_postfix_str(
-                    f"ll: {round(ll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}"
+                    f"ll: {-round(nll)}, offsets: {[round(params[2][2].tolist()[0], 4), round(params[2][3].tolist()[0], 4)]}"
                 )
             if debug & loading_bar:
                 progress.write(f"\nIteration: {i}")
                 progress.write(format_params(params))
-                progress.write(f"Current log-likelihood {ll.tolist()}")
+                progress.write(f"Current log-likelihood {-nll.tolist()}")
             elif debug:
                 print(f"\nIteration: {i}")
                 print(format_params(params))
-                print(f"Current log-likelihood {ll.tolist()}")
+                print(f"Current log-likelihood {-nll.tolist()}")
 
-        logks1, logks2, ks3, ks4 = params[2]
-
-        ks1 = jnp.exp(logks1)
-        ks2 = jnp.exp(logks2)
-
-        new_kernel_params = (ks1, ks2, ks3, ks4)
-
-        new_fitted_model = IDEM(
-            process_basis=self.process_basis,
-            kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
-            process_grid=self.process_grid,
-            Sigma_eta=jnp.exp(params[0]) * jnp.eye(self.process_basis.nbasis),
-            sigma2_eps=jnp.exp(params[1]),
-            beta=params[3],
-        )
-
-        init_ll = -objective(params0)
+        new_fitted_model = self.update(params)
 
         print(
             f"""The log likelihood (up to a constant) of the initial model is
-               {init_ll}"""
+               {-nll}"""
         )
         print(
             f"""The final log likelihood (up to a constant) of the fit model is
-               {-objective(params)}"""
-        )
-
-        print(
-            f"""\nthe final offset parameters are {params[2][2]} and
-               {params[2][3]}\n\n"""
+               {-nll}"""
         )
 
         return (new_fitted_model, params)
     
     def sample_posterior(self,
                          key,
+                         obs_data,
                          n,
                          burnin,
-                         obs_data,
-                         X_obs,
-                         init_params=None,
-                         log_prior_density=None,
-                         inverse_mass_matrix=None,
-                         sampling_method=blackjax.hmc,
-                         num_integration_steps = 5,
-                         step_size = 1e-3,
-                         likelihood_method="kalman"):
+                         init=None,
+                         sampling_kernel=None,):
         
-        if init_params is None:
-            init_params = self.params
-        nparams = sum(arr.size for arr in jax.tree.leaves(init_params))
+        nparams = sum(arr.size for arr in jax.tree.leaves(self.params))
+
+        if sampling_kernel is None:
+
+            log_marginal = model.get_log_like(obs_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(slef.process_basis.nbasis)) 
+       
+            imm = jnp.ones(nparams)
+            num_int = 3
+            samp = blackjax.hmc(log_marginal, 1e-3, imm, num_int)
+            step=samp.step
+            init = samp.init(model.params)
         
-        log_marginal = self.get_log_like(obs_data,
-               X_obs,
-               method=likelihood_method, likelihood='partial')
-
-        if log_prior_density is None:
-            # flat prior by default
-            @jax.jit # really not sure if this is necessary (but it is weirdly funny)
-            def log_prior_density(params): return jnp.array(1)
-
-        if inverse_mass_matrix is None:
-            inverse_mass_matrix = 1*jnp.ones(nparams)
-
-        @jax.jit
-        def log_post_dens(params):
-            return log_prior_density(params) + log_marginal(params)
-
-        sampler = sampling_method(log_post_dens,
-                                  step_size,
-                                  inverse_mass_matrix,
-                                  num_integration_steps = num_integration_steps)
-
-        init_state = sampler.init(init_params)
-        step = jax.jit(sampler.step)
-
-        burn_key, it_key = rand.split(key,2)
-        @scan_tqdm(n, desc='Sampling...')
-        def body_fn_sample(carry, i):
-            nuts_key = jax.random.fold_in(it_key, i)
-            new_state, info = step(nuts_key, carry)
-            return new_state, (new_state, info)
-
-        @scan_tqdm(burnin, desc='Burning in...')
-        def body_fn_burnin(carry, i):
-            nuts_key = jax.random.fold_in(burn_key, i)
-            new_state, info = step(nuts_key, carry)
-            return new_state, (new_state, info)
-
-        burnin_state, _ = jax.lax.scan(body_fn_burnin, init_state, jnp.arange(burnin))
-        _, (param_post_sample,info) = jax.lax.scan(body_fn_sample, burnin_state, jnp.arange(n))
+            def sampling_kernel(carry, i):
+                nuts_key = jax.random.fold_in(rng_key, i)
+                new_state, info = step(nuts_key, carry)
+                return new_state, (new_state, info)
         
-        return (param_post_sample,info)
-
-    def fit_nuts_sqkf(
-        self,
-        key,
-        obs_data: st_data,
-        X_obs: ArrayLike,
-        m_0=None,
-        U_0=None,
-        likelihood="full",
-        fixed_ind=[],
-        burnin=10,
-        n=10,
-    ):
-
-        obs_data_wide = obs_data.as_wide()
-        obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
-        PHI_obs = self.process_basis.mfun(obs_locs)
-        nbasis = self.process_basis.nbasis
-
-        if m_0 is None:
-            m_0 = jnp.zeros(nbasis)
-        if U_0 is None:
-            U_0 = 10 * jnp.eye(nbasis)
-
-        ks0 = (
-            jnp.log(self.kernel.params[0]),
-            jnp.log(self.kernel.params[1]),
-            self.kernel.params[2],
-            self.kernel.params[3],
-        )
-
-        params0 = (
-            jnp.log(self.Sigma_eta[0, 0]),
-            jnp.log(self.sigma2_eps),
-            ks0,
-            self.beta,
-        )
-
-        print(f"Initial Parameters:\n\n{format_params(params0)}\n")
-
-        @jax.jit
-        def log_marginal(params):
-            (
-                log_sigma2_eta,
-                log_sigma2_eps,
-                ks,
-                beta,
-            ) = params
-
-            logks1, logks2, ks3, ks4 = ks
-
-            ks1 = jnp.exp(logks1)
-            ks2 = jnp.exp(logks2)
-
-            sigma2_eta = jnp.exp(log_sigma2_eta)
-            sigma2_eps = jnp.exp(log_sigma2_eps)
-
-            # yes, this looks bad BUT after jit-compilation,
-            # these ifs will be compiled away.
-            if "sigma2_eta" in fixed_ind:
-                sigma2_eta = self.Sigma_eta[0, 0]
-            if "sigma2_eps" in fixed_ind:
-                sigma2_eps = self.sigma2_eps
-            if "ks1" in fixed_ind:
-                ks1 = self.kernel.params[0]
-            if "ks2" in fixed_ind:
-                ks2 = self.kernel.params[1]
-            if "ks3" in fixed_ind:
-                ks3 = self.kernel.params[2]
-            if "ks4" in fixed_ind:
-                ks4 = self.kernel.params[3]
-            if "beta" in fixed_ind:
-                beta = self.beta
-
-            M = self.con_M((ks1, ks2, ks3, ks4))
-
-            # CHECK BELOW
-            ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
-
-            ll, _, _, _, _, _ = filts.sqrt_filter_indep(
-                m_0,
-                U_0,
-                M,
-                PHI_obs,
-                sigma2_eta,
-                sigma2_eps,
-                ztildes,
-                likelihood=likelihood,
-            )
-            return ll
-
-        step_size = 1e-3
-        nparams = sum(leaf.size for leaf in jax.tree.leaves(params0))
-        inverse_mass_matrix = jnp.ones(nparams)
-
-        nuts = blackjax.nuts(log_marginal, step_size, inverse_mass_matrix)
-        init_state = nuts.init(params0)
-
-        step = jax.jit(nuts.step)
+        _, (sample, info) = jax.lax.scan(sampling_kernel, init, jnp.arange(n))
         
-        burn_key, it_key = rand.split(key, 2)
-        @scan_tqdm(burnin, desc='Burn-in...')
-        def body_fn_burnin(carry, i):
-            nuts_key = jax.random.fold_in(burn_key, i)
-            new_state, info = step(nuts_key, carry)
-            return new_state, (new_state, info)
-        @scan_tqdm(n, desc='Sampling...')
-        def body_fn_sample(carry, i):
-            nuts_key = jax.random.fold_in(it_key, i)
-            new_state, info = step(nuts_key, carry)
-            return new_state, (new_state, info)
-
-        # Burnin
-        start_state, _ = jax.lax.scan(body_fn_burnin, init_state, jnp.arange(burnin))
-        # Sample
-        _, (param_post_sample,_) = jl.scan(body_fn_sample, start_state, jnp.arange(n))
-        # print("Done!")
-
-        post_mean = jax.tree.map(lambda x: jnp.mean(x, axis=0), param_post_sample.position)
-
-        logks1, logks2, ks3, ks4 = post_mean[2]
-
-        ks1 = jnp.exp(logks1)
-        ks2 = jnp.exp(logks2)
-
-        new_kernel_params = (ks1, ks2, ks3, ks4)
-        print(new_kernel_params)
-
-        new_fitted_model = IDEM(
-            process_basis=self.process_basis,
-            kernel=param_exp_kernel(self.kernel.basis, new_kernel_params),
-            process_grid=self.process_grid,
-            Sigma_eta=jnp.exp(post_mean[0]) * jnp.eye(self.process_basis.nbasis),
-            sigma2_eps=jnp.exp(post_mean[1]),
-            beta=post_mean[3],
-        )
-
-        return new_fitted_model, post_mean
-
+        return (sample,info)
 
 @partial(jax.jit, static_argnames=["T"])
 def sim_idem(
@@ -1360,38 +1142,70 @@ def gen_example_idem(
         beta=beta,
     )
 
-def init_model(data, n_process_grid=41, n_int_grid=100):
+def init_model(data,
+               n_process_grid=41,
+               n_int_grid=100,
+               basis_type = 'cosine',
+               basis_args=[20],
+               k_spat_inv = True,
+               k_basis_args=[[1,1], [3,3]]):
     #initial variances
     sigma2_eta = jnp.var(data.z)/2
     sigma2_eps = jnp.var(data.z)/2
-    beta = jnp.array([0.]) # only intercept, no covariates
-
-    # stations are stationary and there is no missing data, so there is the same number of observations per time period
-    nobs = data.wide['x'].size 
-    X_obs = jnp.ones((nobs,1)) # intercept
+    beta = jnp.zeros(data.covariates.shape[1])
     
-    process_basis = utils.place_basis(data = data.coords,
-                                      nres = 2,
-                                      min_knot_num = 3,) # defaults to bisquare basis functions
+    if basis_type == 'cosine':
+        process_basis = utils.place_cosine_basis(data = data.coords, N=basis_args[0])
+    elif basis_type == 'bisquare':
+        process_basis = utils.place_basis(data = data.coords,
+                                          nres = basis_args[0],
+                                          min_knot_num = basis_args[1],) # defaults to bisquare basis functions
+    else:
+        raise ValueError(f"Invalid basis_type, {basis_type}, Please select one of ['bisquare', 'cosine'] (only these currently implemented).")
     
-    process_grid = utils.create_grid(data.bounds, jnp.array([41, 41]))
-    int_grid = utils.create_grid(data.bounds, jnp.array([100, 100]))
+    process_grid = utils.create_grid(data.bounds, jnp.array([n_process_grid, n_process_grid]))
+    int_grid = utils.create_grid(data.bounds, jnp.array([n_int_grid, n_int_grid]))
 
     const_basis = utils.constant_basis
-    K_basis = (const_basis,const_basis,const_basis,const_basis)
-    k = (jnp.array([150]) / (process_grid.area*process_grid.ngrid), # kernel scale
-         jnp.array([0.002]) * (process_grid.area*process_grid.ngrid), # kernel shape
-         jnp.array([0.]), # x drift
-         jnp.array([0.])) # y drift
-    kernel = idem.param_exp_kernel(K_basis, k)
 
-    model = idem.Model(process_basis=process_basis,
-                       kernel=kernel,
-                       process_grid=process_grid,
-                       sigma2_eta=sigma2_eta,
-                       sigma2_eps=sigma2_eps,
-                       beta=beta,
-                       int_grid=int_grid)
+    if k_spat_inv:
+        K_basis = (
+            const_basis,
+            const_basis,
+            const_basis,
+            const_basis,
+        )
+        k = (
+            jnp.array([150.0]),
+            jnp.array([0.002]),
+            jnp.array([0.]),
+            jnp.array([0.]),
+        )
+        kernel = param_exp_kernel(K_basis, k)
+    else:
+        K_basis = (
+            const_basis,
+            const_basis,
+            place_basis(data=data.coords, nres=k_basis_args[0][0], min_knot_num=k_basis_args[0][1]),
+            place_basis(data=data.coords, nres=k_basis_args[1][0], min_knot_num=k_basis_args[1][1]),
+        )
+        k = (
+            jnp.array([200]),
+            jnp.array([0.002]),
+            0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
+            0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+        )
+        kernel = param_exp_kernel(K_basis, k)
+
+    model = Model(process_basis=process_basis,
+                  kernel=kernel,
+                  process_grid=process_grid,
+                  sigma2_eta=sigma2_eta,
+                  sigma2_eps=sigma2_eps,
+                  beta=beta,
+                  int_grid=int_grid)
+
+    return model
     
     
 def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):

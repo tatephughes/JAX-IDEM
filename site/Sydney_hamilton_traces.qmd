@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the CSV file using NumPy
-csv_data = np.loadtxt('results/Hamilton/2025-04-30_12:40:21_results.csv', delimiter=',')
+csv_data = np.loadtxt('results/Hamilton/bigruns/2025-05-07_21:30:26_results_rmh.csv', delimiter=',')
 # Convert the NumPy array to a JAX array
 rmh_sample = jnp.array(csv_data)[:,1:]
 
@@ -69,50 +69,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the CSV file using NumPy
-csv_data = np.loadtxt('results/Hamilton/2025-04-30_15:26:53_results_mala.csv', delimiter=',')
+csv_data = np.loadtxt('results/Hamilton/bigruns/2025-05-07_21:44:50_results_hmc.csv', delimiter=',')
 # Convert the NumPy array to a JAX array
 rmh_sample = jnp.array(csv_data)[:,1:]
 
 print(f"Acceptance Ratio: {jnp.mean(csv_data[:,0])}")
-post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
-print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
-
-
-samples = rmh_sample
-
-# Number of parameters (columns in the array)
-num_params = samples.shape[1]
-
-# Create a figure and axes for the stacked trace plots
-fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
-
-# Plot each parameter's trace
-for i in range(num_params):
-    axes[i].plot(samples[:, i], lw=0.8, color='b')
-    axes[i].set_ylabel(f'Parameter {i+1}')
-    axes[i].grid(True)
-
-# Label the x-axis for the last subplot
-axes[-1].set_xlabel('Iteration')
-
-# Add a title to the entire figure
-fig.suptitle('Trace Plots', fontsize=16, y=0.95)
-
-# Adjust spacing
-plt.tight_layout(rect=[0, 0, 1, 0.96]) 
-plt.show()
-```
-
-
-```{python}
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Load the CSV file using NumPy
-csv_data = np.loadtxt('results/Hamilton/2025-04-30_15:10:02_results_hmc.csv', delimiter=',')
-# Convert the NumPy array to a JAX array
-rmh_sample = jnp.array(csv_data)
-
 post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
 print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
 

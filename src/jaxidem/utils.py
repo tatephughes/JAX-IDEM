@@ -383,12 +383,7 @@ class st_data:
         if covariates is None:
             self.covariates = jnp.ones((x.size,1))
         else:
-            self.covariates = jnp.columns_stack([jnp.ones_like(x), jnp.array(covariates)])
-
-        if covariates is None:
-            self.X_obs_stacked = jnp.ones((x.size,1))
-        else:
-            self.X_obs_stacked = jnp.column_stack((jnp.ones_like(x), self.covariates))
+            self.covariates = jnp.column_stack([jnp.ones_like(x), jnp.array(covariates)])
 
         # the logic below works, but _probably_ isn't as efficient as is
         # could be. doesn't really need to be though.
@@ -427,7 +422,7 @@ class st_data:
 
         
         self.zs_tree = [z[jnp.where(self.times==time)] for time in self.full_times]
-        self.X_obs_tree = [self.X_obs_stacked[jnp.where(self.times==time)] for time in self.full_times]
+        self.X_obs_tree = [self.covariates[jnp.where(self.times==time)] for time in self.full_times]
         self.coords_tree = [self.data_array[:,0:2][jnp.where(self.times==time)] for time in self.full_times]
 
         self.tilding_elts = [[self.zs_tree[i], self.X_obs_tree[i]] for i in range(len(self.zs_tree))]

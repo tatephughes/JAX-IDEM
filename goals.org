@@ -5,7 +5,7 @@
 ** TODO Parallel Kalman Filter(s)
 *** TODO Is the parallel square root filter possible?
 
-** TODO It should also be possible to implement a infinite-initial-variance to all(?) or the filters; confirm and implement this!
+** TODO It should also be possible to implement a infinite-initial-variance to all(?) of the filters; confirm and implement this!
 
 ** TODO Smoothers (sqrt, information, and the corresponding lag-1 smoothers)
 *** TODO EM algorithm follows quickly, implement to test
@@ -17,14 +17,18 @@
 
 ** TODO Remove (or at least git-ignore) unnessecary or outdated scripts
 
-** TODO Implement prediction for the filters
-- Is relatively simple wiht these algorithms, just add a new argument to each filter to predict for that many extra time steps. 
+** DONE Implement prediction for the filters
+- Is relatively simple with these algorithms, just add a new argument to each filter to predict for that many extra time steps.
+  - Done, but called 'forecasting' to avoid confusion
 *** TODO Also, backcasting for the smoothers
 
 ** TODO Complete and test the ~fit_mle~ and ~sample_posterior~ interfaces for ~idem.Model~
 
 ** TODO Finish analysing the Sydney Radar explorative example
 - Include visualisation, discussion, complete the two MCMC examples, introduce using BlackJax for HMC, cover using the  ~fit_mle~ and ~sample_posterior~ methods above for ease of use
+
+- Make sure we have some reasonable validation; missing data, intracasting and forecasting using the information filters.
+
 *** TODO As an extra side, I want to look at the German air quality data, due to it's challenging missing data. 
 **** With missing data, sqrt_information filter now works fully. Interestingly, it required what I thought to be a worse method of computation:
 
@@ -106,3 +110,12 @@ wilkinson owen golesby 2015 statistics and computing
 NCC
 
 
+* TODO Start working toward papers
+
+- think about 
+
+Take a closer look at dynamax
+NCC
+clean up code
+think about paper
+same tie next week

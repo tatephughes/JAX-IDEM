@@ -42,54 +42,22 @@ radar_df = pd.read_csv('../data/radar_df.csv')
 We should put this data into `jax-idem`s `st_data` type;
 
 ```{python}
-
+#| output: false
 radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z')
-
 ```
 
 We now create an initial model for this data
 
 ```{python}
-
-# This initialisation logic will soon be packages into idem.init_model
-
-# initial variances
-sigma2_eta = jnp.var(radar_data.z)/2
-sigma2_eps = jnp.var(radar_data.z)/2
-beta = jnp.array([0.]) # only intercept, no covariates
-
-# stations are stationary and there is no missing data, so there is the same number of observations per time period
-nobs = radar_data.wide['x'].size 
-X_obs = jnp.ones((nobs,1)) # intercept
-
-process_basis = utils.place_basis(data = radar_data.coords,
-                                  nres = 2,
-                                  min_knot_num = 3,) # defaults to bisquare basis functions
-
-process_grid = utils.create_grid(radar_data.bounds, jnp.array([41, 41]))
-int_grid = utils.create_grid(radar_data.bounds, jnp.array([100, 100]))
-
-const_basis = utils.constant_basis
-K_basis = (const_basis,const_basis,const_basis,const_basis)
-k = (jnp.array([150]) / (process_grid.area*process_grid.ngrid), # kernel scale
-    jnp.array([0.002]) * (process_grid.area*process_grid.ngrid), # kernel shape
-    jnp.array([0.]), # x drift
-    jnp.array([0.])) # y drift
-kernel = idem.param_exp_kernel(K_basis, k)
-
-model = idem.Model(process_basis=process_basis,
-                   kernel=kernel,
-                   process_grid=process_grid,
-                   sigma2_eta=sigma2_eta,
-                   sigma2_eps=sigma2_eps,
-                   beta=beta,
-                   int_grid=int_grid)
+#| output: false
+model = idem.init_model(data=radar_data)
 ```
 
+This, by default, creates an invariant kernel model with no covariates beside an intercept, with cosine basis function for the process decomposition.
 We can now get the marginal data likelihood function of this model with the `get_log_like` method;
 
 ```{python}
-log_marginal = model.get_log_like(radar_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(process_basis.nbasis))
+log_marginal = model.get_log_like(radar_data, method="sqinf", likelihood='partial')
 ```
 
 We can then use this function to do various inference techniques, like direclty maximising it or Bayesian MCMC methods. It is auto-differentiation compatible, so can easily be dropped into packages like `optax` or `blackjax` for these purposes.
@@ -102,32 +70,22 @@ The function takes, as an input, an object of type `IdemParams`, which is a `Nam
 idem.print_params(model.params)
 ```
 
-## Maximum Likelihood using Optax
+## Maximum Likelihood Estimation
 
-Firstly, we can easily plug this into the `optax` package to use some optimiser to do maximum likelhood estimation. For example, using the `adam` optimiser;
+Once we have this marginal likelihood, there are a few ways to progress.
+A good start is with a maximum likelihood method.
+Obviously, we can no just take this lgo marginal function and maximise it in any way we see fit, but `jaxidem.Model` has a built-in method for this, `Model.fit_mle`. Given data, this will use a method from 'optax' to create a new output model with the fitted parameters.
 
 ```{python}
 #| eval: false
+
 import optax
 
-# create a function to find the value and gradient of the negative log likelihood
-nll_val_grad = jax.value_and_grad(lambda par: -log_marginal(par))
 
-init_nll, _ = nll_val_grad(model.params)
-
-optimizer = optax.adam(1e-1)
-opt_state = optimizer.init(model.params)
-
-params = model.params
-
-for i in range(200):
-    nll, grad = nll_val_grad(params)
-    updates, opt_state = optimizer.update(grad, opt_state, params=params)
-    params = optax.apply_updates(params, updates)
-    print(i, nll)
-
-mle_params = params
-    
+fit_model_mle, mle_params = model.fit_mle(radar_data,
+                                          optimizer = optax.adam(1e-2),
+                                          max_its = 100,
+                                          method = 'sqinf')
 
 ```
 
@@ -139,6 +97,7 @@ mle_params = params
 import pickle
 with open('./pickles/Hamilton/24_4_25/mle_params.pkl', 'rb') as file: 
     mle_params = pickle.load(file)
+fit_model_mle = model.update(mle_params)
 ```
 
 The resulting parameters are then
@@ -147,13 +106,8 @@ The resulting parameters are then
 idem.print_params(mle_params)
 ```
 
-Once we have new parameters, we can update the model with them using idem.Model.update;
-
-```{python}
-fit_model_mle = model.update(mle_params)
-```
-
-[NEXT STEP: implment predictions in all the filters; should be easy. Also, I'm not happy with the way that covariate information is stored, it must be overhauled soon.]
+Of course, we can use any other method to maximmise this.
+We can update the model with new parameters using the method `Model.update`, and `utils.flatten_and_unflatten` (see documentation) allows working with flat arrays instead of PyTrees if needed.
 
 ## Simple Random-Walk MCMC
 
@@ -358,6 +312,34 @@ plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
 ```
+
+## Posterior Sampling
+
+It is obviously desirable to use MCMC methods in order to sample from the posterior distribution.
+This can be done manually using the lgo likelihood, or by using the method `Model.sample_posterior`. 
+We need to provide it with a sampling kernel; that is, a method to get from one state to the next.
+Methods from the package BlackJAX, such as `hmc` can be used as follows;
+
+```{python}
+#| eval: false
+imm = jnp.ones(7) # inverse mass matrix
+num_int = 20 # number of integration steps
+step_size = 1e-3 # step size
+samp = blackjax.hmc(log_marginal, step_size, imm, num_int)
+
+step=samp.step
+init = samp.init(model.params)
+        
+def sampling_kernel(carry, i):
+    key = jax.random.fold_in(rng_key, i)
+    new_state, info = step(key, carry)
+    return new_state, (new_state, info)
+
+sample, info = model.sample_posterior(key, radar_data, n=100, burnin=100, init=init,
+                                      sampling_kernel=sampling_kernel)
+
+```
+
 
 
 ## Using Blackjax
