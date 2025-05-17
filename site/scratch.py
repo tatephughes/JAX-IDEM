@@ -587,3 +587,44 @@ print(times_B.average_time)
 
 
 
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Load the CSV file using NumPy
+csv_data = np.loadtxt('results/Hamilton/bigruns/2025-05-08_09:17:44_results_rmh-32core.csv', delimiter=',')
+csv_data = np.loadtxt('results/bigruns/2025-05-12_22:37:34_results_hmc.csv', delimiter=',')
+csv_data = np.loadtxt('results/bigruns/2025-05-14_11:01:18_results_hmc.csv', delimiter=',')
+csv_data = np.loadtxt('results/2025-05-15_09:35:09_results_hmc', delimiter=',')
+
+# Convert the NumPy array to a JAX array
+rmh_sample = jnp.array(csv_data)[:,1:]
+
+print(f"Acceptance Ratio: {jnp.mean(csv_data[:,0])}")
+post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
+print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
+
+
+samples = rmh_sample
+
+# Number of parameters (columns in the array)
+num_params = samples.shape[1]
+
+# Create a figure and axes for the stacked trace plots
+fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
+
+# Plot each parameter's trace
+for i in range(num_params):
+    axes[i].plot(samples[:, i], lw=0.8, color='b')
+    axes[i].set_ylabel(f'Parameter {i+1}')
+    axes[i].grid(True)
+
+# Label the x-axis for the last subplot
+axes[-1].set_xlabel('Iteration')
+
+# Add a title to the entire figure
+fig.suptitle('Trace Plots', fontsize=16, y=0.95)
+
+# Adjust spacing
+plt.tight_layout(rect=[0, 0, 1, 0.96])
+plt.savefig("figure/hmc_ncc_small.png")

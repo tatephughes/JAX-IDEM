@@ -19,7 +19,9 @@ bibliography: site/Bibliography.bib
 
 ```{python}
 #| output: false
+#| eval: false
 import jax
+import os
 import jax.numpy as jnp
 import jaxidem.utils as utils
 import jaxidem.idem as idem
@@ -30,7 +32,7 @@ seed = 4
 key = jax.random.PRNGKey(seed)
 keys = jax.random.split(key, 10)
 
-process_basis = utils.place_cosine_basis(N = 30)
+process_basis = utils.place_cosine_basis(N = 10)
 
 #Sigma_eta = jnp.diag(0.1*jnp.arange(process_basis.nbasis, dtype="float32"))
 #Sigma_eta = jnp.diag(rand.normal(key, shape=(process_basis.nbasis,))**2)
@@ -40,6 +42,19 @@ model = idem.gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40
 
 # Simulation
 T = 35
+nobs = 50
+
+obs_locs = jax.random.uniform(
+                keys[0],
+                shape=(nobs, 2),
+                minval=bounds[:, 0],
+                maxval=bounds[:, 1],
+            )
+
+obs_locs_tree = [obs_locs for _ in range(T)]
+
+X_obs_tree = [jnp.column_stack([jnp.ones(nobs), obs_locs]) for _ in range(T)]
+
 alpha_0 = jnp.ones(process_basis.nbasis)#.at[1].set(30.0).at[0].set(15.0)
 process_data, obs_data = model.simulate(keys[1], T=T, nobs=50,alpha_0=alpha_0)
 

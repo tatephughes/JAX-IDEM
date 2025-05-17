@@ -104,8 +104,11 @@ import matplotlib.pyplot as plt
 import jaxidem.idem as idem
 import jaxidem.utils as utils
 import jax
+import os
 import jax.random as rand
 import jax.numpy as jnp
+
+
 
 key = jax.random.PRNGKey(2)
 keys = rand.split(key, 2)
@@ -431,7 +434,7 @@ An object of the ```IDEM``` class contains all the necessary information about b
 The ```gen_example_idem``` method creates a simple IDEM object without many required parameters;
 
 ```{python}
-#| eval: true
+#| eval: false
 key = jax.random.PRNGKey(42)
 keys = rand.split(key, 2)
 
@@ -444,7 +447,7 @@ The resulting objects are of class ```st_data```, containing a couple of nicetie
 For example, the ```show_plot```, ```save_plot``` and ```save_gif``` methods provide easy plotting;
 
 ```{python}
-#| eval: true
+#| eval: false
 process_data.save_plot('figure/process_data_example.png')
 obs_data.save_plot('figure/obs_data_example.png')
 ```

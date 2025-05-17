@@ -10,6 +10,8 @@ from jaxtyping import ArrayLike, PyTree
 from typing import Callable, NamedTuple  # , Union
 from functools import partial
 
+import warnings
+
 # Plotting imports
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
@@ -95,7 +97,7 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
     # more jittable way to do this, but linspace is being a bit
     # funky. This is because the 'num' argument must be a concrete value
     # rather than a traced one.since it is a reasonably simple operation,
-    # it should be fine for now, and it won't run inside of loops.
+    # it should be fine for now, and it won't run inside of jax loops.
     axis_linspaces = [gen_range(i) for i in range(dimension)]
 
     grid = jnp.stack(jnp.meshgrid(*axis_linspaces, indexing="ij"), axis=-1).reshape(

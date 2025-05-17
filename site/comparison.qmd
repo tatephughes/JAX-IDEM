@@ -61,6 +61,7 @@ We will fit to the same data, using as much the same as possible, fitting to tar
 
 ```{python}
 # | output: false
+#| eval: false
 
 import jax
 import jax.numpy as jnp

@@ -16,12 +16,19 @@ bibliography: Bibliography.bib
 
 ```{python}
 import jax
+
+import os
+os.environ["JAX_PLATFORMS"] = "cpu"
+
 import jax.numpy as jnp
 import jax.random as rand
 import pandas as pd
 
 import jaxidem.idem as idem
 import jaxidem.utils as utils
+
+
+
 ```
 
 ```{python}
@@ -29,7 +36,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the CSV file using NumPy
-csv_data = np.loadtxt('results/Hamilton/bigruns/2025-05-07_21:30:26_results_rmh.csv', delimiter=',')
+csv_data = np.loadtxt('results/Hamilton/bigruns/2025-05-08_09:17:44_results_rmh-32core.csv', delimiter=',')
 # Convert the NumPy array to a JAX array
 rmh_sample = jnp.array(csv_data)[:,1:]
 
@@ -69,7 +76,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the CSV file using NumPy
-csv_data = np.loadtxt('results/Hamilton/bigruns/2025-05-07_21:44:50_results_hmc.csv', delimiter=',')
+csv_data = np.loadtxt('results/Hamilton/bigruns/2025-05-08_09:18:25_results_hmc-32core.csv', delimiter=',')
 # Convert the NumPy array to a JAX array
 rmh_sample = jnp.array(csv_data)[:,1:]
 

@@ -213,13 +213,73 @@ class Model:
                 self.sigma2_eps_dim = len(jax.tree.flatten(sigma2_eps_tree)[0][0].shape)
                 self.eps_type = "pytree"
 
+    #@partial(jax.jit, static_argnames=["self", "alpha_0"])
+    def simulate_process(self, key, T, alpha_0=None):
+
+        if alpha_0 is None:
+            alpha_0 = jnp.zeros(self.nbasis)
+        
+        M = self.M
+        PHI_proc = self.PHI_proc
+        beta = self.beta
+
+        # Check that M is not explosive
+        if jnp.max(jnp.absolute(jnp.linalg.eig(M)[0])) > 1.0:
+            warnings.warn(
+                """Eigenvalue above the absolute value of 1. Result
+                will be explosive."""
+            )
+
+        
+        match self.sigma2_eta_dim:
+            case 0:
+                U_eta = jnp.sqrt(self.sigma2_eta) * jnp.eye(self.nbasis)
+            case 1:
+                U_eta = jnp.diag(jnp.sqrt(self.sigma2_eta))
+            case 2:
+                U_eta = jnp.linalg.cholesky(self.sigma2_eta)
+
+        @jax.jit
+        def step(carry, key):
+            nextstate = M @ carry + U_eta @ rand.normal(key, shape=(self.nbasis,))
+            return (nextstate, nextstate)
+
+        alpha_keys = rand.split(key, T)
+
+        alpha = jl.scan(step, alpha_0, alpha_keys)[1]
+
+        return alpha
+
+    def simulate_observations(self, key, alphas, obs_locs_tree, X_obs_tree):
+
+        T = len(obs_locs_tree)
+
+        nobs_tree = [obs.shape[0] for obs in obs_locs_tree]
+        
+        match self.sigma2_eps_dim:
+            case 0:
+                U_eps_tree = [jnp.sqrt(self.sigma2_eps) * jnp.eye(nobs_tree[t]) for t in range(T)]
+            case 1:
+                U_eps_tree =jax.tree.map(lambda sig: jnp.diag(jnp.sqrt(sig)), self.sigma2_eps)
+            case 2:
+                U_eps_tree = jax.tree.map(jnp.linalg.cholesky, self.sigma2_eps)
+                
+        PHI_obs_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
+        
+        def get_observation(t):
+        
+            return PHI_obs_tree[t] @ alphas[t,:] + X_obs_tree[t] @ self.beta + U_eps_tree[t] @ rand.normal(keys[t], shape=(nobs_tree[t],))
+
+        keys = jax.random.split(key, T)
+
+        return jax.tree.map(get_observation, list(range(T)))
+        
+                
     def simulate(
         self,
         key,
-        obs_locs=None,
-        fixed_data=True,
-        nobs=100,
-        T=9,
+        obs_locs_tree,
+        X_obs: ArrayLike=None,
         int_grid: Grid = create_grid(bounds, ngrids),
         alpha_0=None,
     ):
@@ -230,17 +290,7 @@ class Model:
         ----------
         key: ArrayLike
             PRNG key
-        obs_locs: ArrayLike (3, n)
-            the observation locations in long format. This should be a
-            (3, n) array where the first column corresponds to time, and
-            the last two to spatial coordinates. If this is not
-            provided, 50 random points per time are chosen in the domain
-            of interest.d
-        fixed_data: Bool
-            Whether the simulated data are randomly place or static across
-            time (unless obs_locs is manually given)
-        T: int
-            The number of time points to simulate
+        obs_locs: 
         int_grid: ArrayLike (3, nint)
             The grid over which to compute the Riemann integral.
         alpha_0: ArrayLike (nbasis,)
@@ -267,57 +317,24 @@ class Model:
                 will be explosive."""
             )
 
-        bounds = jnp.array(
-            [
-                [
-                    jnp.min(process_grid.coords[:, 0]),
-                    jnp.max(process_grid.coords[:, 0]),
-                ],
-                [
-                    jnp.min(process_grid.coords[:, 1]),
-                    jnp.max(process_grid.coords[:, 1]),
-                ],
-            ]
-        )
+        #bounds = jnp.array(
+        #    [
+        #        [
+        #            jnp.min(process_grid.coords[:, 0]),
+        #            jnp.max(process_grid.coords[:, 0]),
+        #        ],
+        #        [
+        #            jnp.min(process_grid.coords[:, 1]),
+        #            jnp.max(process_grid.coords[:, 1]),
+        #        ],
+        #    ]
+        #)
 
         keys = rand.split(key, 3)
 
-        if obs_locs is None:
-            if fixed_data:
-                obs_locs = jnp.column_stack(
-                    [
-                        jnp.repeat(jnp.arange(T), nobs) + 1,
-                        jnp.tile(
-                            rand.uniform(
-                                keys[0],
-                                shape=(nobs, 2),
-                                minval=bounds[:, 0],
-                                maxval=bounds[:, 1],
-                            ),
-                            (T, 1),
-                        ),
-                    ]
-                )
-            else:
-                obs_locs = jnp.column_stack(
-                    [
-                        jnp.repeat(jnp.arange(T), nobs) + 1,
-                        rand.uniform(
-                            keys[0],
-                            shape=(T * nobs, 2),
-                            minval=bounds[:, 0],
-                            maxval=bounds[:, 1],
-                        ),
-                    ]
-                )
-
-            times = jnp.unique(obs_locs[:, 0])
-        else:
-            times = jnp.unique(obs_locs[:, 0])
-
-        nobs = obs_locs.shape[0]
+        T = len(obs_locs_tree)
             
-        match len(self.sigma2_eta.shape):
+        match self.sigma2_eta_dim:
             case 0:
                 Sigma_eta = self.sigma2_eta * jnp.eye(self.nbasis)
             case 1:
@@ -325,7 +342,7 @@ class Model:
             case 2:
                 Sigma_eta = self.sigma2_eta
 
-        match len(self.sigma2_eps.shape):
+        match self.sigma2_eps_dim:
             case 0:
                 Sigma_eps = self.sigma2_eps * jnp.eye(nobs)
             case 1:
@@ -351,6 +368,10 @@ class Model:
                 keys[1], jnp.zeros(nbasis), 0.1 * jnp.eye(nbasis)
             )
 
+        alphas = self.simulate_process(key, T)
+
+        process_data = basis_params_to_st_data(alphas, self.process_basis, self.process_grid).z
+        
         process_vals, obs_vals = sim_idem(
             key=keys[2],
             T=T,
@@ -358,6 +379,7 @@ class Model:
             PHI_proc=PHI_proc,
             PHI_obs=PHI_obs,
             beta=beta,
+            X_obs=X_obs,
             alpha_0=alpha_0,
             obs_locs=obs_locs,
             process_grid=process_grid,
@@ -378,13 +400,13 @@ class Model:
         )
 
         pdata = jnp.column_stack([t_process_locs, jnp.concatenate(process_vals)])
-
+        
         process_data = st_data(
-            x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3]
+            x=pdata[:, 1], y=pdata[:, 2], times=pdata[:, 0], z=pdata[:, 3]
         )
 
         obs_data = st_data(
-            x=obs_locs[:, 1], y=obs_locs[:, 2], t=obs_locs[:, 0], z=obs_vals
+            x=obs_locs[:, 1], y=obs_locs[:, 2], times=obs_locs[:, 0], z=obs_vals
         )
 
         return (process_data, obs_data)
@@ -913,67 +935,36 @@ class Model:
         
         return (sample,info)
 
-@partial(jax.jit, static_argnames=["T"])
+'''@partial(jax.jit, static_argnames=["Sigma_eps_tree, PHI_obs_tree, X_obs_tree"])
 def sim_idem(
     key: ArrayLike,
-    T: int,
     M: ArrayLike,
     PHI_proc: ArrayLike,
-    PHI_obs: ArrayLike,
-    obs_locs: ArrayLike,
     beta: ArrayLike,
     alpha_0: ArrayLike,
     Sigma_eta: ArrayLike,
-    Sigma_eps: ArrayLike,
+    Sigma_eps_tree: PyTree,
+    PHI_obs_tree: PyTree,
+    X_obs_tree: ArrayLike,
     process_grid: Grid = create_grid(bounds, ngrids),
     int_grid: Grid = create_grid(bounds, ngrids),
 ) -> ArrayLike:
     """
     Simulates from a IDE model.
-    For jit-ability, this only takes in certain parameters. For ease of use,
-    use IDEM.simulate.
-
-    Parameters
-    ----------
-    key: ArrayLike (2,)
-        PRNG key
-    T: int
-        The number of time points to simulate
-    M: ArrayLike (r,r)
-        The transition matrix of the proces
-    PHI_proc: ArrayLike (ngrid,r)
-        The process basis coefficient matrix of the points on the process grid
-    PHI_obs: ArrayLike (n*T,r*T)
-        The process basis coefficient matrices of the observation points, in
-        block-diagonal form
-    beta: ArrayLike (p,)
-        The covariate coefficients for the data
-    sigma2_eta: float
-        The variance of the process noise (currently iid, will be a covariance
-        matrix in the future)
-    sigma2_eps: float
-        The variance of the observation noise
-    alpha_0: ArrayLike (r,)
-        The initial value for the process basis coefficients
-    process_grid: Grid
-        The grid at which to expand the process basis coefficients to the
-        process function
-    int_grid: Grid
-        The grid to compute the Riemann integrals over (will be replaced with a
-        better method soon)
+    This is not meant as a user-facing function. For ease of use, use
+    model.simulate.
+    
     Returns
     ----------
     A tuple containing the values of the process and the values of the
     observation.
     """
 
+    nobs_tree = jax.tree.map(lambda PHI: PHI, PHI_obs_tree)
+
     # key setup
     keys = rand.split(key, 5)
-
     nbasis = PHI_proc.shape[1]
-
-    # nobs = obs_locs.shape[1]
-    nobs = obs_locs.shape[0]
 
     # times = jnp.unique(obs_locs[:, 0], size=T)
 
@@ -988,16 +979,19 @@ def sim_idem(
 
     alpha = jl.scan(step, alpha_0, alpha_keys)[1]
 
-    @jax.jit
     def get_process(alpha):
         return PHI_proc @ alpha
 
     vget_process = jax.vmap(get_process)
-
     process_vals = vget_process(alpha)
-    X_obs = jnp.column_stack([jnp.ones(obs_locs.shape[0]), obs_locs[:, -2:]])
 
-    chol_Sigma_eps = jnp.linalg.cholesky(Sigma_eps)
+    U_eps_tree = jax.tree.map(jnp.linalg.cholesky,Sigma_eps_tree)
+    
+    def get_observation(t):
+        
+        return PHI_obs_tree[t] @ alpha[t,:] + X_obs_tree[t] @ beta + U_eps_tree[t] @ rand.normal(key, shape=(nobs_tree[t],))
+        
+
     
     obs_vals = (
         X_obs @ beta
@@ -1005,7 +999,7 @@ def sim_idem(
         + chol_Sigma_eps @ rand.normal(key, shape=(nobs,))
     )
 
-    return (process_vals, obs_vals)
+    return (process_vals, obs_vals)'''
 
 
 @partial(jax.jit, static_argnames=["con_M"])

@@ -118,4 +118,18 @@ Take a closer look at dynamax
 NCC
 clean up code
 think about paper
-same tie next week
+same time next week
+
+
+
+* TODO
+
+- re run all MCMC with length scales fixed/with prior to fix the weird hmc stuff
+
+- paper outline
+  - software paper seperately jss
+  - statistical computing
+  - jcgs
+  - look at them, try to match the style
+
+- report

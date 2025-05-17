@@ -28,7 +28,7 @@ We will start by simulating from a simple IDEM with only three time steps. We ca
 
 ```{python}
 # | output: false
-
+#| eval: false
 import jax
 import jax.random as rand
 import jax.numpy as jnp
@@ -44,7 +44,8 @@ import jaxidem.filters as filts
 
 
 ```{python}
-#| output: false
+#| output: fal
+#| eval: false
 key = jax.random.PRNGKey(2)
 keys = rand.split(key, 3)
 
@@ -85,6 +86,7 @@ In the version of the model used, data is only taken at $t=1,2,3$, while it is a
 Now, after we initialise with a 'guess' baseline model, we can use ```idem.IDEM_model.fit_kalman_filter``` (recomended for fixed data observation locations) or ```fit_information_filter``` to fit the model to the synthetic data.
 
 ```{python}
+#| eval: false
 K_basis = truemodel.kernel.basis
 
 k = (
@@ -111,6 +113,7 @@ model0 = idem.Model(process_basis = process_basis0,
 For context, the true values of the kernel parameters are
 
 ```{python}
+#| eval: false
 print(truemodel.kernel.params)
 ```
 

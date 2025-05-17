@@ -28,12 +28,14 @@ Firstly, we load the relevant libraries and import the data.
 
 ```{python}
 import jax
+import os
 import jax.numpy as jnp
 import jax.random as rand
 import pandas as pd
 
 import jaxidem.idem as idem
 import jaxidem.utils as utils
+
 
 
 radar_df = pd.read_csv('../data/radar_df.csv')

@@ -19,9 +19,9 @@ import os
 dir = os.path.dirname(os.path.abspath(__file__))
 
 
-rmh_n = 100
+rmh_n = 1000
 
-radar_df = pd.read_csv(os.path.join(dir, 'radar_df.csv'))
+radar_df = pd.read_csv(os.path.join(dir, 'data/radar_df.csv'))
 # Censor the data!
 radar_df_censored = radar_df
 
@@ -91,11 +91,13 @@ npars = parshape[0]
 
 
 # Load the CSV file using NumPy
-csv_data = np.loadtxt(os.path.join(dir, 'results/2025-04-30_09:46:25_results.csv'), delimiter=',')
+#rmh_sample_prev = jnp.array(np.loadtxt(os.path.join(dir, 'results/2025-04-30_09:46:25_results.csv'), delimiter=','))
 # Convert the NumPy array to a JAX array
-rmh_sample_arr = jnp.array(csv_data)
+with open(os.path.join(dir, 'pickles/rmh_sample.pkl'), 'rb') as file: 
+    rmh_sample_prev, _ = pickle.load(file)
+    rmh_sample_prev = jnp.array(rmh_sample_prev)
     
-prop_var = (2.38**2/7) *jnp.cov(rmh_sample_arr[:,1:].T)
+prop_var = (2.38**2/7) * jnp.cov(rmh_sample_prev[:,1:].T)
 prop_sd = jnp.linalg.cholesky(prop_var, upper=True)
 
 back_key, sample_key = jax.random.split(rng_key, 2)
@@ -145,3 +147,8 @@ post_mean = jnp.mean(rmh_sample_arr[int(rmh_n/3):,1:], axis=0)
 print(post_mean)
 post_params_mean = unflat(post_mean)
 idem.print_params(post_params_mean)
+
+print("Pickling...")
+with open(os.path.join(dir, 'pickles/rmh_sample.pkl'), 'wb') as file:
+    pickle.dump((rmh_sample, acc_ratio), file)
+print("Done!")
