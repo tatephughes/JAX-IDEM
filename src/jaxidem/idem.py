@@ -171,7 +171,8 @@ class Model:
         process_grid,
         sigma2_eta,
         sigma2_eps,
-        beta,
+        beta=jnp.array([0]),
+        covariate_labels = ['Intercept'],
         int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([100, 100])),
     ):
         self.process_basis = process_basis
@@ -183,6 +184,10 @@ class Model:
         self.GRAM = (self.PHI_proc.T @ self.PHI_proc) * process_grid.area
         self.M = self.con_M(kernel.params)
         self.beta = beta
+        self.covariate_names = covariate_labels
+        if len(beta) != len(covariate_labels):
+            warnings.warn("beta and covariate_names must have the same length; covariate names is only there to make it clear what variables are covariates, so assuming covariates inputted are of the correct length, things will still work; however, please make sure that the correct variables are being used. It is recommended to put a panda dataframe into idem.init_model to avoid these issues.")
+            
         self.nbasis = process_basis.nbasis
 
         trans_kernel_params = (jnp.log(self.kernel.params[0]),
@@ -214,7 +219,7 @@ class Model:
                 self.eps_type = "pytree"
 
     #@partial(jax.jit, static_argnames=["self", "alpha_0"])
-    def simulate_process(self, key, T, alpha_0=None):
+    def simulate_basis(self, key, T, alpha_0=None):
 
         if alpha_0 is None:
             alpha_0 = jnp.zeros(self.nbasis)
@@ -246,10 +251,13 @@ class Model:
 
         alpha_keys = rand.split(key, T)
 
-        alpha = jl.scan(step, alpha_0, alpha_keys)[1]
+        alphas = jl.scan(step, alpha_0, alpha_keys)[1]
 
-        return alpha
+        return alphas
 
+    def simulate_process(self, alphas):
+        return self.PHI_proc @ alphas.T
+    
     def simulate_observations(self, key, alphas, obs_locs_tree, X_obs_tree):
 
         T = len(obs_locs_tree)
@@ -274,12 +282,11 @@ class Model:
 
         return jax.tree.map(get_observation, list(range(T)))
         
-                
     def simulate(
         self,
         key,
         obs_locs_tree,
-        X_obs: ArrayLike=None,
+        X_obs_tree,
         int_grid: Grid = create_grid(bounds, ngrids),
         alpha_0=None,
     ):
@@ -317,100 +324,21 @@ class Model:
                 will be explosive."""
             )
 
-        #bounds = jnp.array(
-        #    [
-        #        [
-        #            jnp.min(process_grid.coords[:, 0]),
-        #            jnp.max(process_grid.coords[:, 0]),
-        #        ],
-        #        [
-        #            jnp.min(process_grid.coords[:, 1]),
-        #            jnp.max(process_grid.coords[:, 1]),
-        #        ],
-        #    ]
-        #)
-
         keys = rand.split(key, 3)
 
         T = len(obs_locs_tree)
-            
-        match self.sigma2_eta_dim:
-            case 0:
-                Sigma_eta = self.sigma2_eta * jnp.eye(self.nbasis)
-            case 1:
-                Sigma_eta = jnp.diag(self.sigma2_eta)
-            case 2:
-                Sigma_eta = self.sigma2_eta
 
-        match self.sigma2_eps_dim:
-            case 0:
-                Sigma_eps = self.sigma2_eps * jnp.eye(nobs)
-            case 1:
-                Sigma_eps = jnp.diag(self.sigma2_eps)
-            case 2:
-                Sigma_eps = self.sigma2_eps
+        alphas = self.simulate_basis(keys[1], T, alpha_0)
 
-            
-        if T != len(times):
-            raise ValueError("The times in obs_locs does not match inputted T")
-
-        obs_locs_tree = jax.tree.map(
-            lambda t: obs_locs[jnp.where(obs_locs[:, 0] == t)][:, 1:], list(times)
-        )
-        PHI_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
-        # really should consider exploring a sparse matrix solution!
-        PHI_obs = jax.scipy.linalg.block_diag(*PHI_tree)
-
-        nbasis = self.process_basis.nbasis
-
-        if alpha_0 is None:
-            alpha_0 = jax.random.multivariate_normal(
-                keys[1], jnp.zeros(nbasis), 0.1 * jnp.eye(nbasis)
-            )
-
-        alphas = self.simulate_process(key, T)
-
-        process_data = basis_params_to_st_data(alphas, self.process_basis, self.process_grid).z
+        process_data = basis_params_to_st_data(alphas, self.process_basis, self.process_grid)
         
-        process_vals, obs_vals = sim_idem(
-            key=keys[2],
-            T=T,
-            M=M,
-            PHI_proc=PHI_proc,
-            PHI_obs=PHI_obs,
-            beta=beta,
-            X_obs=X_obs,
-            alpha_0=alpha_0,
-            obs_locs=obs_locs,
-            process_grid=process_grid,
-            Sigma_eta=Sigma_eta,
-            Sigma_eps=Sigma_eps,
-        )
-
-        # Create st_data object
-        process_grids = jnp.tile(process_grid.coords, (T, 1, 1))
-
-        t_process_locs = jnp.vstack(
-            jl.map(
-                lambda i: jnp.column_stack(
-                    [jnp.tile(i, process_grids[i].shape[0]), process_grids[i]]
-                ),
-                jnp.arange(T) + 1,
-            )
-        )
-
-        pdata = jnp.column_stack([t_process_locs, jnp.concatenate(process_vals)])
+        obs_vals = self.simulate_observations(keys[2], alphas, obs_locs_tree, X_obs_tree)
         
-        process_data = st_data(
-            x=pdata[:, 1], y=pdata[:, 2], times=pdata[:, 0], z=pdata[:, 3]
-        )
-
-        obs_data = st_data(
-            x=obs_locs[:, 1], y=obs_locs[:, 2], times=obs_locs[:, 0], z=obs_vals
-        )
-
         return (process_data, obs_data)
 
+    def resimulate(self, key, data, alpha_0=None):
+        return self.simulate(key, data.coords_tree, self.int_grid, alpha_0)
+    
     def get_log_like(self,
             obs_data,
             method="sqrt",
@@ -1197,6 +1125,7 @@ def init_model(data,
                   sigma2_eta=sigma2_eta,
                   sigma2_eps=sigma2_eps,
                   beta=beta,
+                  covariate_labels = data.covariate_labels,
                   int_grid=int_grid)
 
     return model
@@ -1243,7 +1172,7 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
         )
     )
     pdata = jnp.column_stack([t_locs, jnp.concatenate(vals)])
-    data = st_data(x=pdata[:, 1], y=pdata[:, 2], t=pdata[:, 0], z=pdata[:, 3])
+    data = st_data(x=pdata[:, 1], y=pdata[:, 2], times=pdata[:, 0], z=pdata[:, 3])
     return data
 
 

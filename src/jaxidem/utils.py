@@ -376,7 +376,7 @@ class st_data:
     data, and converting between long and wide formats.
     """
 
-    def __init__(self, x: ArrayLike, y: ArrayLike, times, z: ArrayLike, dt = None, covariates = None):
+    def __init__(self, x: ArrayLike, y: ArrayLike, times, z: ArrayLike, dt = None, covariates = None, covariate_labels = None):
         self.x = x
         self.y = y
         self.times = times
@@ -384,6 +384,7 @@ class st_data:
         self.data_array = jnp.column_stack((self.x, self.y, self.times, self.z))
         if covariates is None:
             self.covariates = jnp.ones((x.size,1))
+            self.covariate_labels = ["Intercept"]
         else:
             self.covariates = jnp.column_stack([jnp.ones_like(x), jnp.array(covariates)])
 
@@ -648,12 +649,12 @@ def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=
     else:
         covariates = None
 
-    
     return st_data(x = jnp.array(df[xlabel]),
                    y = jnp.array(df[ylabel]),
                    times = times,
                    z = jnp.array(df[zlabel]),
-                   covariates = covariates)
+                   covariates = covariates,
+                   covariate_labels = covariate_labels.insert(0, "Intercept"))
 
 def gif_st_grid(
     data: st_data,
