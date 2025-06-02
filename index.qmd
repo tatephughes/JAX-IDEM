@@ -47,16 +47,18 @@ nobs = 50
 obs_locs = jax.random.uniform(
                 keys[0],
                 shape=(nobs, 2),
-                minval=bounds[:, 0],
-                maxval=bounds[:, 1],
+                minval=0,
+                maxval=1,
             )
 
 obs_locs_tree = [obs_locs for _ in range(T)]
 
 X_obs_tree = [jnp.column_stack([jnp.ones(nobs), obs_locs]) for _ in range(T)]
 
-alpha_0 = jnp.ones(process_basis.nbasis)#.at[1].set(30.0).at[0].set(15.0)
-process_data, obs_data = model.simulate(keys[1], T=T, nobs=50,alpha_0=alpha_0)
+alphas = model.simulate_basis(keys[1], T)
+process_data = idem.basis_params_to_st_data(alphas, self.process_basis, self.process_grid)
+
+process_data, obs_data = model.simulate(keys[1], obs_locs_tree = obs_locs_tree, X_obs_tree = X_obs_tree)
 
 dpi = 200
 width = 576 / dpi

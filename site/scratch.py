@@ -8,6 +8,7 @@ import optax
 import importlib
 import jax
 sys.path.append(os.path.abspath('../'))
+import jax.lax as jl
 import jaxidem.idem as idem
 import jaxidem.utils as utils
 import jaxidem.filters as filts
@@ -628,3 +629,40 @@ fig.suptitle('Trace Plots', fontsize=16, y=0.95)
 # Adjust spacing
 plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.savefig("figure/hmc_ncc_small.png")
+
+
+
+
+
+
+
+
+
+
+def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
+
+    PHI_proc = process_basis.mfun(process_grid.coords)
+
+    T = alphas.shape[0]
+    if times is None:
+        times = jnp.arange(T)
+
+    # Hmmm... make a proper error message?
+    assert T == len(times)
+
+    #vals = (PHI_proc@alphas.T).T  # process values
+    vals = alphas @ PHI_proc.T
+    grids = jnp.tile(process_grid.coords, (T, 1, 1))
+    t_locs = jnp.vstack(
+        jl.map(
+            lambda i: jnp.column_stack(
+                [jnp.tile(times[i], grids[i].shape[0]), grids[i]]
+            ),
+            jnp.arange(T),
+        )
+    )
+    pdata = jnp.column_stack([t_locs, jnp.concatenate(vals)])
+    data = utils.st_data(x=pdata[:, 1], y=pdata[:, 2], times=pdata[:, 0], z=pdata[:, 3])
+    return data
+
+process_data = basis_params_to_st_data(alphas, model.process_basis, model.process_grid)

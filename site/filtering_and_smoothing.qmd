@@ -181,6 +181,53 @@ fig3.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), ya
 fig3.show()
 ```
 
+## Pseudo-information filter?
+
+This is a test.
+
+```{python}
+#| label: fig-alt
+#| fig-caption: "The pseudo-infomration filtered means"
+
+i = PHI.T @ zs.T / sigma2_eps
+I = PHI.T @ PHI / sigma2_eps
+
+filt_results_alt = filt.kalman_filter(m_0,
+                                  P_0,
+                                  M,
+                                  I,
+                                  sigma2_eta,
+                                  I,
+                                  i,
+                                  sigma2_eps_dim = 2,
+                                  sigma2_eta_dim = sigma2_eta_dim,
+                                  forecast=0,
+                                  likelihood='full'
+    )
+ms_df_alt = pd.DataFrame(list(filt_results_alt['ms']), columns = ["x", "y"])
+
+combined_df = pd.concat([alphas_df.assign(line='True Process'), ms_df_alt.assign(line='Filtered Process Means')])
+
+# Creating the line plot with custom colors
+fig_alt = px.line(combined_df, x='x', y='y', color='line',
+               color_discrete_sequence=['blue', 'red'], height=200)  # Specify colors here
+
+fig_alt.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
+# Show the plot
+fig_alt.show()
+print(filt_results_alt["ll"])
+```
+
+Let's check if they really are the same;
+
+```{python}
+print(jnp.allclose(filt_results['ms'], filt_results_alt['ms'], atol=1e-04))
+print(jnp.allclose(filt_results['Ps'], filt_results_alt['Ps'], atol=1e-04))
+print(filt_results['ms'][0:5])
+print(filt_results_alt['ms'][0:5])
+```
+
+
 # Information Filter
 
 Similarily, we can apply the information filter.

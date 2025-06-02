@@ -316,8 +316,15 @@ def place_cosine_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
     
     N = float(N)
 
-    L_1 = jnp.abs(data[0,0] - data[1,0])
-    L_2 = jnp.abs(data[0,1] - data[1,1])
+
+    xmin = jnp.min(data[:, 0])
+    xmax = jnp.max(data[:, 0])
+    ymin = jnp.min(data[:, 1])
+    ymax = jnp.max(data[:, 1])
+
+    
+    L_1 = jnp.abs(xmin - xmax)
+    L_2 = jnp.abs(ymin - ymax)
 
     @jax.jit
     def phi(ks, s):
@@ -406,7 +413,7 @@ class st_data:
                     time_indices.append(i)
                 i = i+1
         if len(full_times) != len(time_indices):
-            raise ValueError("Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modleling.")
+            raise ValueError("Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modelling.")
         def associate(time):
             index = jnp.argwhere(jnp.isclose(full_times,time), size=1, fill_value=jnp.nan)
             return index[0][0]
@@ -430,7 +437,7 @@ class st_data:
 
         self.tilding_elts = [[self.zs_tree[i], self.X_obs_tree[i]] for i in range(len(self.zs_tree))]
 
-        self.wide = self.as_wide()
+        # self.wide = self.as_wide()
 
     @partial(jax.jit, static_argnames=["self"])
     def tildify(self,
@@ -468,6 +475,13 @@ class st_data:
         
     def as_wide(self):
         """
+        THIS METHOD IS LIMITED; SEEMS TO GET AN ERROR WITH RELATIVELY LOW DIMENSIONS!
+
+        Will liekly need to implement in a different way, prehaps forgoeing jax
+        methods.
+        For now, this is simply only applied sparingly, in idem.kalman_filter
+        for observation dimension, for example.
+        
         Gives the data in wide format. Any missing data will be represented in
         the returned matrix as NaN.
 
@@ -494,18 +508,6 @@ class st_data:
                 index == -1,
                 lambda x: (jnp.array(jnp.nan), jnp.full((p,), jnp.nan)),
                 lambda x: (self.z[x], self.covariates[x]),
-                index
-            )
-            return tup
-
-        @jax.jit
-        def getval(xy, t):
-            xyt = jnp.hstack((xy, t))
-            index = jnp.argwhere(jnp.all(data_array[:, 0:3] == xyt, axis=1), size=1, fill_value=-1)[0][0]
-            tup = jax.lax.cond(
-                index == -1,
-                lambda x: jnp.full((p+1,), jnp.nan),
-                lambda x: zs_and_covs[x],
                 index
             )
             return tup

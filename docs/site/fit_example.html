@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.30">
+<meta name="generator" content="quarto-1.7.31">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -72,10 +72,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-de070a7b0ab54f8780927367ac907214.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-eaf9f7b2eff0675dc85d7d6a3549247f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-c3ae9e9ee57e86d5658ec2be3249904b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script src="../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
 <link href="../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
 <link href="../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
@@ -249,7 +249,7 @@ window.Quarto = {
 <section id="simple-example-synthetic-simple-data" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Simple example; synthetic simple data</h1>
 <p>We will start by simulating from a simple IDEM with only three time steps. We can quickly make a model using <code>gen_example_idem</code></p>
-<div id="0054ed6e" class="cell" data-execution_count="1">
+<div id="760a67c2" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
@@ -264,7 +264,7 @@ window.Quarto = {
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jaxidem.filters <span class="im">as</span> filts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div id="4b86a3e4" class="cell" data-execution_count="2">
+<div id="21629b10" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">2</span>)</span>
@@ -314,7 +314,7 @@ Figure&nbsp;1: An example target simulation, with the underlying process (left),
 <section id="fitting" class="level2" data-number="2.1">
 <h2 data-number="2.1" class="anchored" data-anchor-id="fitting"><span class="header-section-number">2.1</span> Fitting</h2>
 <p>Now, after we initialise with a ‘guess’ baseline model, we can use <code>idem.IDEM_model.fit_kalman_filter</code> (recomended for fixed data observation locations) or <code>fit_information_filter</code> to fit the model to the synthetic data.</p>
-<div id="5292f530" class="cell" data-execution_count="3">
+<div id="5c38e19c" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>K_basis <span class="op">=</span> truemodel.kernel.basis</span>
@@ -341,7 +341,7 @@ Figure&nbsp;1: An example target simulation, with the underlying process (left),
 </details>
 </div>
 <p>For context, the true values of the kernel parameters are</p>
-<div id="ed9b506f" class="cell" data-execution_count="4">
+<div id="516c0678" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(truemodel.kernel.params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -349,7 +349,7 @@ Figure&nbsp;1: An example target simulation, with the underlying process (left),
 </div>
 <p>So we’ve chosen a model with high prior variance and no flow, with inaccurate guesses for the spread, diffusion, and variances.</p>
 <p>The fitting functions output new <code>IDEM_Model</code> objects, generated using OPTAX to optimise for the likelihood.</p>
-<div id="74ed805e" class="cell" data-execution_count="5">
+<div id="e5ea34a3" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># OUT OF DATE</span></span>
@@ -370,7 +370,7 @@ Figure&nbsp;1: An example target simulation, with the underlying process (left),
 <span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(truemodel.kernel.params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div id="d5817757" class="cell" data-execution_count="6">
+<div id="b0ebcc9e" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ll, ms, Ps, _, _ <span class="op">=</span> model1.kalman_filter(obs_data, X_obs<span class="op">=</span>X_obs)</span>

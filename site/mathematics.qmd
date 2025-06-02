@@ -395,7 +395,7 @@ We then have
 
 $$\begin{split}
 \bv Z_t &= \Phi \bv \alpha_t + X_{t} \bv \beta + \bv \epsilon_t, \quad t = 1,\dots, T,\\
-\bv \alpha_{t+1} &= M\bv \alpha_t + \bv\eta_t,\quad t = 0,2,\dots, T-1,\\
+\bv \alpha_{t+1} &= M\bv \alpha_t + \bv\eta_t,\quad t = 0,1,\dots, T-1,\\
 M &= \int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \int_{\mathcal D_s^2}\bv\phi(\bv s) \kappa(\bv s, \bv r; \bv\theta_\kappa)\bv\phi(\bv r)^\intercal d\bv r d \bv s,
 \end{split}
 $$
@@ -699,10 +699,10 @@ P_{t+1\mid t+1} &= [I- K_{t+1}\Phi_{t+1}]P_{t+1\mid t}.
 $$
 
 Somewhat masked within this equation is two (often very small) variance matrices subtracted from eachother. 
-While analytically, the result is still guarenteed to be positive (semi-)definite, when done in floating point arithmatic (especially in single-precision or lower), the result can often be numerically indefinate.
+While analytically, the result is still guaranteed to be positive (semi-)definite, when done in floating point arithmetic (especially in single-precision or lower), the result can often be numerically indefinite.
 When the variances are very low (as they often become in these Kalman filters), the eigenvalues come out very close to zero and can tick over to becoming negative erroneously.
 This can lead to definiteness issues with all the other variance matrices, most crucially $\Sigma_t$ [@eq-predvar].
-When this happens, computation of the likelihood likely fails (certainly when such a computation involvoes a Cholesky decomposition).
+When this happens, computation of the likelihood likely fails (certainly when such a computation involves a Cholesky decomposition).
 Even if such is rare to happen with 64-bit precision, modern GPU hardware tends to be much more efficient with Single (32-bit) precision, so it may still be desirable to increase stability if it permits using a lower precision.
 The Square-root filter and the SVD filter are such algorithms.
 

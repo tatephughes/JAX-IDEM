@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jaxidem"
-version = "0.1.5"
+version = "0.1.6"
 authors = [
   { name="Evan Tate Paterson Hughes", email="etatephughes@gmail.com" },
 ]
@@ -18,7 +18,6 @@ classifiers = [
 ]
 dependencies = [
     "blackjax>=1.2.5",
-    "jax>=0.5.0",
     "jax-tqdm>=0.3.1",
     "jaxlib>=0.5.0",
     "jaxtyping>=0.3.0",
@@ -26,13 +25,10 @@ dependencies = [
     "matplotlib>=3.7.5",
     "optax>=0.2.4",
     "pandas>=2.0.3",
-    "plotly>=5.24.1",
-    "pyqt5>=5.15.11",
+    "plotly>=6.1.1",
     "pytest>=8.3.5",
-    "python-lsp-server[all]>=1.12.2",
-    "quartodoc>=0.9.1",
+    "quarto>=0.1.0",
     "seaborn>=0.13.2",
-    "setuptools>=75.3.0",
     "tqdm>=4.67.1",
 ]
 

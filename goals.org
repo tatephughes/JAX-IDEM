@@ -2,6 +2,8 @@
 
 * CURRENT GOALS 15/04/25
 
+** Backwards sampling
+
 ** TODO Parallel Kalman Filter(s)
 *** TODO Is the parallel square root filter possible?
 
@@ -133,3 +135,17 @@ same time next week
   - look at them, try to match the style
 
 - report
+
+SVD gradients?
+
+* DONE by next week
+
+- (start to) write up the parallelised kalman filter
+- have a draft of report
+
+
+* 29th May
+
+- run chains in 64 bit as well to be sure
+- write up an initial parallel kalman filter (code and write up)
+- clean up pastoral report

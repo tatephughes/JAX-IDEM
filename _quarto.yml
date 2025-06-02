@@ -5,6 +5,9 @@ project:
 
 bibliography: site/Bibliography.bib
 
+execute:
+  python: ".venv/bin/python"
+  external: true
 
 format:
   html:

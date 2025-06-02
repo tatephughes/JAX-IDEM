@@ -285,10 +285,13 @@ class Model:
     def simulate(
         self,
         key,
-        obs_locs_tree,
-        X_obs_tree,
-        int_grid: Grid = create_grid(bounds, ngrids),
+        x: ArrayLike,
+        y: ArrayLike,
+        times,
+        covariates: ArrayLike = None,
+        covariate_labels = None,
         alpha_0=None,
+        
     ):
         """
         Simulates from the model, using the jit-able function sim_idem.
@@ -331,6 +334,8 @@ class Model:
         alphas = self.simulate_basis(keys[1], T, alpha_0)
 
         process_data = basis_params_to_st_data(alphas, self.process_basis, self.process_grid)
+
+        obs_data = utils.st_data(x, y, times, z=jnp.full(x.shape, jnp.nan), dt = None, covariates=covariates, covariate_labels=covariate_labels)
         
         obs_vals = self.simulate_observations(keys[2], alphas, obs_locs_tree, X_obs_tree)
         
@@ -351,12 +356,13 @@ class Model:
         
         if method in ("sqrt", "kalman"):
                 
-            obs_data_wide = obs_data.wide
+            obs_data_wide = obs_data.as_wide()
 
             if jnp.isnan(obs_data_wide["z_mat"]).any():
                 raise ValueError("Missing data detected. This is not supported for method='kalman' or 'sqrt'. Please use method='inf' or 'sqinf'. Note that errors must be iid for those methods.")
-            z_mat = obs_data.wide['z_mat']
-            X_obs_mat = obs_data.wide['X_obs_mat']
+            wide = obs_data.as_wide
+            z_mat = wide['z_mat']
+            X_obs_mat = wide['X_obs_mat']
             # if not isinstance(X_obs, jax.numpy.ndarray):
             #     raise ValueError("X_obs must be an ndarray for Kalman/square-root filtering. If it is a PyTree, consider method='inf' or 'sqinf', where the spatial stations are allowed to vary with time (hence X_obs is a tree with T elements corresponding to the covariance matrices at each time).")
                          
@@ -849,7 +855,7 @@ class Model:
             log_marginal = model.get_log_like(obs_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(slef.process_basis.nbasis)) 
        
             imm = jnp.ones(nparams)
-            num_int = 3
+            num_int = 5
             samp = blackjax.hmc(log_marginal, 1e-3, imm, num_int)
             step=samp.step
             init = samp.init(model.params)

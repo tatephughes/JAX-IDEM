@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.30">
+<meta name="generator" content="quarto-1.7.31">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -72,10 +72,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-de070a7b0ab54f8780927367ac907214.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-eaf9f7b2eff0675dc85d7d6a3549247f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-c3ae9e9ee57e86d5658ec2be3249904b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script src="site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
 <link href="site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
 <link href="site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
@@ -209,7 +209,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<div id="868bb7bc" class="cell" data-execution_count="1">
+<div id="338d4948" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
@@ -233,40 +233,55 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> idem.gen_example_idem(keys[<span class="dv">0</span>], k_spat_inv<span class="op">=</span><span class="va">False</span>, ngrid<span class="op">=</span>jnp.array([<span class="dv">40</span>, <span class="dv">40</span>]), process_basis <span class="op">=</span> process_basis, sigma2_eta <span class="op">=</span> sigma2_eta)</span>
 <span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulation</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>T <span class="op">=</span> <span class="dv">20</span></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>alpha_0 <span class="op">=</span> jnp.ones(process_basis.nbasis)<span class="co">#.at[1].set(30.0).at[0].set(15.0)</span></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>process_data, obs_data <span class="op">=</span> model.simulate(keys[<span class="dv">1</span>], T<span class="op">=</span>T, nobs<span class="op">=</span><span class="dv">50</span>,alpha_0<span class="op">=</span>alpha_0)</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>dpi <span class="op">=</span> <span class="dv">200</span></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">576</span> <span class="op">/</span> dpi</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>height <span class="op">=</span> <span class="dv">480</span> <span class="op">/</span> dpi</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="co"># plot the objects</span></span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>utils.gif_st_grid(process_data, <span class="st">"site/figure/process.gif"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>utils.gif_st_pts(obs_data, <span class="st">"site/figure/obs.gif"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>model.kernel.save_plot(<span class="st">"site/figure/kernel.png"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>gif1 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'site/figure/process.gif'</span>)</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>gif2 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'site/figure/tardis.gif'</span>)</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>width, height <span class="op">=</span> gif1.size</span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>frames <span class="op">=</span> []</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>num_frames_gif1 <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(ImageSequence.Iterator(gif1)))</span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>num_frames_gif2 <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(ImageSequence.Iterator(gif2)))</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>max_frames <span class="op">=</span> <span class="bu">max</span>(num_frames_gif1, num_frames_gif2)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>T <span class="op">=</span> <span class="dv">35</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>nobs <span class="op">=</span> <span class="dv">50</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>obs_locs <span class="op">=</span> jax.random.uniform(</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>                keys[<span class="dv">0</span>],</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>                shape<span class="op">=</span>(nobs, <span class="dv">2</span>),</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>                minval<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>                maxval<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>obs_locs_tree <span class="op">=</span> [obs_locs <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(T)]</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>X_obs_tree <span class="op">=</span> [jnp.column_stack([jnp.ones(nobs), obs_locs]) <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(T)]</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>alphas <span class="op">=</span> model.simulate_basis(keys[<span class="dv">1</span>], T)</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>process_data <span class="op">=</span> idem.basis_params_to_st_data(alphas, <span class="va">self</span>.process_basis, <span class="va">self</span>.process_grid)</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>process_data, obs_data <span class="op">=</span> model.simulate(keys[<span class="dv">1</span>], obs_locs_tree <span class="op">=</span> obs_locs_tree, X_obs_tree <span class="op">=</span> X_obs_tree)</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>dpi <span class="op">=</span> <span class="dv">200</span></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">576</span> <span class="op">/</span> dpi</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>height <span class="op">=</span> <span class="dv">480</span> <span class="op">/</span> dpi</span>
 <span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(max_frames):</span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>    frame1 <span class="op">=</span> ImageSequence.Iterator(gif1)[i <span class="op">%</span> num_frames_gif1].convert(<span class="st">"RGBA"</span>)</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>    frame2 <span class="op">=</span> ImageSequence.Iterator(gif2)[i <span class="op">%</span> num_frames_gif2].convert(<span class="st">"RGBA"</span>)</span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>    frame2 <span class="op">=</span> frame2.resize((width, height), Image.LANCZOS)</span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>    combined <span class="op">=</span> Image.alpha_composite(frame1, frame2)</span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>    frames.append(combined)</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="co"># plot the objects</span></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>utils.gif_st_grid(process_data, <span class="st">"site/figure/process.gif"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>utils.gif_st_pts(obs_data, <span class="st">"site/figure/obs.gif"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>model.kernel.save_plot(<span class="st">"site/figure/kernel.png"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>gif1 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'site/figure/process.gif'</span>)</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>gif2 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'site/figure/tardis.gif'</span>)</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>width, height <span class="op">=</span> gif1.size</span>
 <span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>frames[<span class="dv">0</span>].save(<span class="st">'site/figure/process.gif'</span>, save_all<span class="op">=</span><span class="va">True</span>, append_images<span class="op">=</span>frames[<span class="dv">1</span>:], duration<span class="op">=</span>gif1.info[<span class="st">'duration'</span>], loop<span class="op">=</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>frames <span class="op">=</span> []</span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>num_frames_gif1 <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(ImageSequence.Iterator(gif1)))</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>num_frames_gif2 <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(ImageSequence.Iterator(gif2)))</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>max_frames <span class="op">=</span> <span class="bu">max</span>(num_frames_gif1, num_frames_gif2)</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(max_frames):</span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>    frame1 <span class="op">=</span> ImageSequence.Iterator(gif1)[i <span class="op">%</span> num_frames_gif1].convert(<span class="st">"RGBA"</span>)</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>    frame2 <span class="op">=</span> ImageSequence.Iterator(gif2)[i <span class="op">%</span> num_frames_gif2].convert(<span class="st">"RGBA"</span>)</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>    frame2 <span class="op">=</span> frame2.resize((width, height), Image.LANCZOS)</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>    combined <span class="op">=</span> Image.alpha_composite(frame1, frame2)</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>    frames.append(combined)</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>frames[<span class="dv">0</span>].save(<span class="st">'site/figure/process.gif'</span>, save_all<span class="op">=</span><span class="va">True</span>, append_images<span class="op">=</span>frames[<span class="dv">1</span>:], duration<span class="op">=</span>gif1.info[<span class="st">'duration'</span>], loop<span class="op">=</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div id="fig-example" class="quarto-layout-panel">
