@@ -292,14 +292,8 @@ class Model:
         y: ArrayLike,
         times,
         covariates: ArrayLike = None,
-<<<<<<< HEAD
-        covariate_labels = None,
-        alpha_0=None,
-        
-=======
         alpha_0 = None,
         dt = None
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
     ):
         """
         Simulates from the model, using the jit-able function sim_idem.
@@ -346,15 +340,9 @@ class Model:
         
         alphas = self.simulate_basis(keys[1], T, alpha_0)
 
-<<<<<<< HEAD
-        process_data = basis_params_to_st_data(alphas, self.process_basis, self.process_grid)
-
-        obs_data = utils.st_data(x, y, times, z=jnp.full(x.shape, jnp.nan), dt = None, covariates=covariates, covariate_labels=covariate_labels)
-=======
         process_values = self.simulate_process(alphas).reshape((T*process_grid.ngrid,))
 
         obs_data_nan = utils.st_data(x, y, times, z=jnp.full(x.shape, jnp.nan), dt = None, covariates=covariates, covariate_labels=self.covariate_labels)
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
         
         obs_vals = jnp.concatenate(self.simulate_observations(keys[2], alphas, obs_data_nan))
 
@@ -385,24 +373,9 @@ class Model:
         
         if method in ("sqrt", "kalman"):
                 
-<<<<<<< HEAD
-            obs_data_wide = obs_data.as_wide()
-
-            if jnp.isnan(obs_data_wide["z_mat"]).any():
-                raise ValueError("Missing data detected. This is not supported for method='kalman' or 'sqrt'. Please use method='inf' or 'sqinf'. Note that errors must be iid for those methods.")
-            wide = obs_data.as_wide
-            z_mat = wide['z_mat']
-            X_obs_mat = wide['X_obs_mat']
-            # if not isinstance(X_obs, jax.numpy.ndarray):
-            #     raise ValueError("X_obs must be an ndarray for Kalman/square-root filtering. If it is a PyTree, consider method='inf' or 'sqinf', where the spatial stations are allowed to vary with time (hence X_obs is a tree with T elements corresponding to the covariance matrices at each time).")
-                         
-            #obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
-            obs_locs = obs_data.coords
-=======
             zs_tree = obs_data.zs_tree
             # ADD A CHECK THAT DATA N AND LOCATION IS CONSTANT
             obs_locs = obs_data.coords_tree[0]
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
             PHI_obs = self.process_basis.mfun(obs_locs)
             
             if m_0 is None:

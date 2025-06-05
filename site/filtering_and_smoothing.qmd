@@ -186,18 +186,11 @@ fig3.show()
 This is a test.
 
 ```{python}
-<<<<<<< HEAD
-#| label: fig-alt
-#| fig-caption: "The pseudo-infomration filtered means"
-
-i = PHI.T @ zs.T / sigma2_eps
-=======
 #| eval: false
 #| label: fig-alt
 #| fig-caption: "The pseudo-infomration filtered means"
 
 i = PHI.T @ zs / sigma2_eps
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
 I = PHI.T @ PHI / sigma2_eps
 
 filt_results_alt = filt.kalman_filter(m_0,
@@ -229,17 +222,10 @@ print(filt_results_alt["ll"])
 Let's check if they really are the same;
 
 ```{python}
-<<<<<<< HEAD
-print(jnp.allclose(filt_results['ms'], filt_results_alt['ms'], atol=1e-04))
-print(jnp.allclose(filt_results['Ps'], filt_results_alt['Ps'], atol=1e-04))
-print(filt_results['ms'][0:5])
-print(filt_results_alt['ms'][0:5])
-=======
 #print(jnp.allclose(filt_results['ms'], filt_results_alt['ms'], atol=1e-04))
 #print(jnp.allclose(filt_results['Ps'], filt_results_alt['Ps'], atol=1e-04))
 print(filt_results['ms'][0:5])
 #print(filt_results_alt['ms'][0:5])
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
 ```
 
 
