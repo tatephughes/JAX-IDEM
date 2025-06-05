@@ -26,9 +26,6 @@ jupyter: python3
 bibliography: Bibliography.bib
 ---
 
-::: {.content-visible unless-format="pdf"}
-[Index](../index.html)
-:::
 
 # Introduction
 

@@ -108,7 +108,7 @@ zs_df = pd.DataFrame(zs, columns = ["x", "y", "z"])
 
 
 alphas = jnp.array(alphas)
-zs = jnp.array(zs)
+zs_tree = zs
 
     
 fig1 = px.line(alphas_df, x='x', y='y', height=200)
@@ -161,7 +161,7 @@ filt_results = filt.kalman_filter(m_0,
                                   PHI,
                                   sigma2_eta,
                                   sigma2_eps,
-                                  zs.T,
+                                  zs_tree,
                                   sigma2_eps_dim = sigma2_eps_dim,
                                   sigma2_eta_dim = sigma2_eta_dim,
                                   forecast=0,
@@ -186,10 +186,18 @@ fig3.show()
 This is a test.
 
 ```{python}
+<<<<<<< HEAD
 #| label: fig-alt
 #| fig-caption: "The pseudo-infomration filtered means"
 
 i = PHI.T @ zs.T / sigma2_eps
+=======
+#| eval: false
+#| label: fig-alt
+#| fig-caption: "The pseudo-infomration filtered means"
+
+i = PHI.T @ zs / sigma2_eps
+>>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
 I = PHI.T @ PHI / sigma2_eps
 
 filt_results_alt = filt.kalman_filter(m_0,
@@ -221,10 +229,17 @@ print(filt_results_alt["ll"])
 Let's check if they really are the same;
 
 ```{python}
+<<<<<<< HEAD
 print(jnp.allclose(filt_results['ms'], filt_results_alt['ms'], atol=1e-04))
 print(jnp.allclose(filt_results['Ps'], filt_results_alt['Ps'], atol=1e-04))
 print(filt_results['ms'][0:5])
 print(filt_results_alt['ms'][0:5])
+=======
+#print(jnp.allclose(filt_results['ms'], filt_results_alt['ms'], atol=1e-04))
+#print(jnp.allclose(filt_results['Ps'], filt_results_alt['Ps'], atol=1e-04))
+print(filt_results['ms'][0:5])
+#print(filt_results_alt['ms'][0:5])
+>>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
 ```
 
 
@@ -298,7 +313,7 @@ filt_results3 = filt.sqrt_filter(m_0,
                                          PHI,
                                          sigma2_eta,
                                          sigma2_eps,
-                                         zs.T,
+                                         zs_tree,
                                          sigma2_eps_dim = sigma2_eps_dim,
                                          sigma2_eta_dim = sigma2_eta_dim,
                                          forecast=0,

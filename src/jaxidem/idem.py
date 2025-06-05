@@ -184,7 +184,7 @@ class Model:
         self.GRAM = (self.PHI_proc.T @ self.PHI_proc) * process_grid.area
         self.M = self.con_M(kernel.params)
         self.beta = beta
-        self.covariate_names = covariate_labels
+        self.covariate_labels = covariate_labels
         if len(beta) != len(covariate_labels):
             warnings.warn("beta and covariate_names must have the same length; covariate names is only there to make it clear what variables are covariates, so assuming covariates inputted are of the correct length, things will still work; however, please make sure that the correct variables are being used. It is recommended to put a panda dataframe into idem.init_model to avoid these issues.")
             
@@ -258,11 +258,14 @@ class Model:
     def simulate_process(self, alphas):
         return self.PHI_proc @ alphas.T
     
-    def simulate_observations(self, key, alphas, obs_locs_tree, X_obs_tree):
+    def simulate_observations(self, key, alphas, data):
 
-        T = len(obs_locs_tree)
+        T = len(data.unique_times)
 
-        nobs_tree = [obs.shape[0] for obs in obs_locs_tree]
+        coords_tree = data.coords_tree
+        X_obs_tree = data.X_obs_tree
+        
+        nobs_tree = [obs.shape[0] for obs in coords_tree]
         
         match self.sigma2_eps_dim:
             case 0:
@@ -272,7 +275,7 @@ class Model:
             case 2:
                 U_eps_tree = jax.tree.map(jnp.linalg.cholesky, self.sigma2_eps)
                 
-        PHI_obs_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
+        PHI_obs_tree = jax.tree.map(self.process_basis.mfun, coords_tree)
         
         def get_observation(t):
         
@@ -289,9 +292,14 @@ class Model:
         y: ArrayLike,
         times,
         covariates: ArrayLike = None,
+<<<<<<< HEAD
         covariate_labels = None,
         alpha_0=None,
         
+=======
+        alpha_0 = None,
+        dt = None
+>>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
     ):
         """
         Simulates from the model, using the jit-able function sim_idem.
@@ -329,15 +337,36 @@ class Model:
 
         keys = rand.split(key, 3)
 
-        T = len(obs_locs_tree)
-
+        unique_times = jnp.unique(times) # automatically sorted
+        if dt is None:
+            dt = jnp.min(jnp.abs(jnp.diff(unique_times)))
+    
+        full_times = jnp.arange(jnp.min(unique_times), jnp.max(unique_times) + dt, dt)
+        T = len(full_times)
+        
         alphas = self.simulate_basis(keys[1], T, alpha_0)
 
+<<<<<<< HEAD
         process_data = basis_params_to_st_data(alphas, self.process_basis, self.process_grid)
 
         obs_data = utils.st_data(x, y, times, z=jnp.full(x.shape, jnp.nan), dt = None, covariates=covariates, covariate_labels=covariate_labels)
+=======
+        process_values = self.simulate_process(alphas).reshape((T*process_grid.ngrid,))
+
+        obs_data_nan = utils.st_data(x, y, times, z=jnp.full(x.shape, jnp.nan), dt = None, covariates=covariates, covariate_labels=self.covariate_labels)
+>>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
         
-        obs_vals = self.simulate_observations(keys[2], alphas, obs_locs_tree, X_obs_tree)
+        obs_vals = jnp.concatenate(self.simulate_observations(keys[2], alphas, obs_data_nan))
+
+        obs_data = utils.st_data(x, y, times, z=obs_vals, dt = None, covariates=covariates, covariate_labels=self.covariate_labels)
+
+        times = jnp.repeat(jnp.arange(1, T + 1), process_grid.ngrid)
+        rep_coords = jnp.tile(process_grid.coords, (T, 1))
+        x = rep_coords[:,0]
+        y = rep_coords[:,1]
+        
+
+        process_data = utils.st_data(x=x,y=y,times=times, z=process_values)
         
         return (process_data, obs_data)
 
@@ -356,6 +385,7 @@ class Model:
         
         if method in ("sqrt", "kalman"):
                 
+<<<<<<< HEAD
             obs_data_wide = obs_data.as_wide()
 
             if jnp.isnan(obs_data_wide["z_mat"]).any():
@@ -368,7 +398,13 @@ class Model:
                          
             #obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
             obs_locs = obs_data.coords
+=======
+            zs_tree = obs_data.zs_tree
+            # ADD A CHECK THAT DATA N AND LOCATION IS CONSTANT
+            obs_locs = obs_data.coords_tree[0]
+>>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
             PHI_obs = self.process_basis.mfun(obs_locs)
+            
             if m_0 is None:
                 m_0 = jnp.zeros(nbasis)
             if P_0 is None:
@@ -385,12 +421,12 @@ class Model:
             @jax.jit
             def objective(params):
                 (
-                          log_sigma2_eta,
                           log_sigma2_eps,
+                          log_sigma2_eta,
                           ks,
                           beta,
                 ) = params
-                ztildes_mat = z_mat - X_obs_mat @ beta
+                ztildes_tree = obs_data.tildify(beta)
                 logks1, logks2, ks3, ks4 = ks
                 ks1 = jnp.exp(logks1)
                 ks2 = jnp.exp(logks2)
@@ -404,7 +440,7 @@ class Model:
                     PHI_obs,
                     sigma2_eta,
                     sigma2_eps,
-                    ztildes_mat,
+                    ztildes_tree,
                     likelihood=likelihood,
                     sigma2_eta_dim = self.sigma2_eta_dim,
                     sigma2_eps_dim = self.sigma2_eps_dim,
@@ -417,12 +453,6 @@ class Model:
                 
         elif method in ("inf", "sqinf"):
 
-            # if isinstance(X_obs, jax.numpy.ndarray):
-            #     raise ValueError(f"X_obs is a JAX array, but for method={method} it must be a PyTree of length T, with each element beingt the covariate matrix for that time. Assuming the spatial stations are stationary across time and no missing data , try [X_obs for _ in range(T)], or consider method'kalman' or 'sqrt'.")
-                
-            #unique_times = jnp.unique(obs_data.t)
-            #T = len(unique_times)
-            #zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
             zs_tree = obs_data.zs_tree
 
             obs_locs_tree = obs_data.coords_tree
@@ -449,8 +479,8 @@ class Model:
             @jax.jit
             def objective(params):
                 (
-                    log_sigma2_eta,
                     log_sigma2_eps,
+                    log_sigma2_eta,
                     ks,
                     beta,
                 ) = params
@@ -488,16 +518,11 @@ class Model:
             params = self.params
         
         if method in ("sqrt", "kalman"):
-                
-            obs_data_wide = obs_data.as_wide()
-
-            if jnp.isnan(obs_data_wide["z"]).any():
-                raise ValueError("Missing data detected. This is not supported for method='kalman' or 'sqrt'. Please use method='inf' or 'sqinf'. Note that errors must be iid for those methods.")
-            if not isinstance(X_obs, jax.numpy.ndarray):
-                raise ValueError("X_obs must be an ndarray for Kalman/square-root filtering. If it is a PyTree, consider method='inf' or 'sqinf', where the spatial stations are allowed to vary with time (hence X_obs is a tree with T elements corresponding to the covariance matrices at each time).")
-                         
-            obs_locs = jnp.column_stack([obs_data_wide["x"], obs_data_wide["y"]])
+            zs_tree = obs_data.zs_tree
+            # ADD A CHECK THAT DATA N AND LOCATION IS CONSTANT
+            obs_locs = obs_data.coords_tree[0]
             PHI_obs = self.process_basis.mfun(obs_locs)
+            
             if m_0 is None:
                 m_0 = jnp.zeros(nbasis)
             if P_0 is None:
@@ -509,8 +534,7 @@ class Model:
                     filterer = filts.sqrt_filter
                 case "kalman":
                     init_mat = P_0
-                    filterer = filts.kalman_filter
-                
+                    filterer = filts.kalman_filter                
 
             (
                 log_sigma2_eta,
@@ -991,6 +1015,7 @@ def gen_example_idem(
     sigma2_eta=0.05**2,
     sigma2_eps=0.1**2,
     beta=jnp.array([0.0, 0.0, 0.0]),
+    covariate_labels = ['Intercept']
 ):
     """
     Creates an example IDE model, with randomly generated kernel on the
@@ -1068,6 +1093,7 @@ def gen_example_idem(
         sigma2_eta=sigma2_eta,
         sigma2_eps=sigma2_eps,
         beta=beta,
+        covariate_labels=covariate_labels,
     )
 
 def init_model(data,

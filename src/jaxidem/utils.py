@@ -388,12 +388,15 @@ class st_data:
         self.y = y
         self.times = times
         self.z = z.astype(y.dtype)
-        self.data_array = jnp.column_stack((self.x, self.y, self.times, self.z))
         if covariates is None:
             self.covariates = jnp.ones((x.size,1))
             self.covariate_labels = ["Intercept"]
         else:
             self.covariates = jnp.column_stack([jnp.ones_like(x), jnp.array(covariates)])
+
+        self.data_array = jnp.column_stack((self.x, self.y, self.times, self.z, self.covariates))
+        sorted_indices = jnp.argsort(self.data_array[:, 2]) # always sort by time
+        self.data_array = self.data_array[sorted_indices] 
 
         # the logic below works, but _probably_ isn't as efficient as is
         # could be. doesn't really need to be though.
@@ -431,7 +434,7 @@ class st_data:
         self.bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
 
         
-        self.zs_tree = [z[jnp.where(self.times==time)] for time in self.full_times]
+        self.zs_tree = [self.data_array[:,3][jnp.where(self.times==time)] for time in self.full_times]
         self.X_obs_tree = [self.covariates[jnp.where(self.times==time)] for time in self.full_times]
         self.coords_tree = [self.data_array[:,0:2][jnp.where(self.times==time)] for time in self.full_times]
 

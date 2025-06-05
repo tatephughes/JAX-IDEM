@@ -32,7 +32,7 @@ def kalman_filter(
         PHI: ArrayLike,
         sigma2_eta: ArrayLike,
         sigma2_eps: ArrayLike,
-        zs: ArrayLike,
+        zs_tree: PyTree,
         sigma2_eta_dim: int,
         sigma2_eps_dim: int,
         forecast: int = 0,
@@ -40,7 +40,7 @@ def kalman_filter(
 ) -> tuple:
 
     r = m_0.shape[0]
-    nobs = zs.shape[0]
+    nobs = zs_tree[0].size
     
     @jax.jit
     def step(carry, z_t):
@@ -124,7 +124,7 @@ def kalman_filter(
     carry, seq = jl.scan(
         step,
         (m_0, P_0, m_0, P_0, 0, jnp.zeros((r, nobs))),
-        zs.T,
+        jnp.column_stack(zs_tree).T,
     )
 
     ll, ms, Ps, mpreds, Ppreds, Ks = (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
@@ -342,7 +342,7 @@ def sqrt_filter(
         PHI: ArrayLike,
         sigma2_eta: ArrayLike,
         sigma2_eps: ArrayLike,
-        zs: ArrayLike,  # data matrix, with time across columns
+        zs_tree: PyTree,
         sigma2_eta_dim: int,
         sigma2_eps_dim: int,
         forecast:int = 0,
@@ -350,7 +350,7 @@ def sqrt_filter(
 ) -> tuple:
 
     r = m_0.shape[0]
-    nobs = zs.shape[0]
+    nobs = zs_tree[0].size
 
     match sigma2_eta_dim:
         case 0:
@@ -442,7 +442,7 @@ def sqrt_filter(
     carry, seq = jl.scan(
         step,
         (m_0, U_0, m_0, U_0, 0, jnp.zeros((r, nobs))),
-        zs.T,
+        jnp.column_stack(zs_tree).T,
     )
 
     ll, ms, Us, mpreds, Upreds, Ks = (carry[4], seq[0], seq[1], seq[2], seq[3], seq[5])
@@ -659,6 +659,221 @@ def sqrt_information_filter(
     
     return filt_results
 
+
+
+@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
+def pkalman_filter(
+        m_0: ArrayLike,  # initial information vector
+        P_0: ArrayLike,  # initial information matrix
+        M: ArrayLike,
+        PHI_tree: tuple,
+        sigma2_eta: ArrayLike,
+        sigma2_eps_tree: tuple,
+        zs_tree: tuple,
+        sigma2_eta_dim: int,
+        sigma2_eps_dim: int,
+        forecast: int = 0,
+        likelihood: str = "partial",
+) -> tuple:
+
+    mapping_elts = jax.tree.map(
+        lambda t: (
+            zs_tree[t],
+            PHI_tree[t],
+            sigma2_eps_tree[t]
+        ),
+        tuple(range(len(zs_tree))),
+    )
+
+    r = nu_0.shape[0]
+
+    # Get first filtering elements
+    
+    m1pred = M@m_0
+    
+    match sigma2_eta_dim:
+        case 0:
+            P1pred = M@P_0@M.T + sigma2_eta*jnp.eye(r)
+        case 1:
+            P1pred = M@P_0@M.T + jnp.diag(sigma2_eta)
+        case 2:
+            P1pred = M@P_0@M.T + sigma2_eta
+
+    match sigma2_eps_dim:
+        case 0:
+            P_oprop = PHI_tree[0]@P1pred@PHI_tree[0].T
+            H1chol =  jax.scipy.linalg.cho_factor(jnp.fill_diagonal(
+                P_oprop, sigma2_eps_tree[0] + jnp.diag(P_oprop), inplace=False
+            ))
+        case 1:
+            P_oprop = PHI_tree[0]@P1pred@PHI_tree[0].T
+            H1chol =  jax.scipy.linalg.cho_factor(jnp.fill_diagonal(
+                P_oprop, sigma2_eps_tree[0] + jnp.diag(P_oprop), inplace=False
+            ))
+        case 2:
+            H1chol =  jax.scipy.linalg.cho_factor(
+                PHI_tree[0]@P1pred@PHI_tree[0].T + sigma2_eps_tree[0]
+            )
+    
+    B1 = (jnp.linalg.cho_solve(H1chol, PHI_tree[0])@P1pred.T).T
+    A1 = jnp.zeros((r,r))
+    b1 = m1pred + B1@zs_tree[0]
+
+
+    
+            
+    def get_element(tup: tuple):
+        z_k = tup[0]
+        PHI_k = tup[1]
+        sigma2_eps_k = tup[2]
+
+        match sigma2_eps_dim:
+            case 0|1:
+                i_k = PHI_k.T/sigma2_eps_k @ z_k    
+                I_k = PHI_k.T/sigma2_eps_k @ PHI_k
+            case 2:
+                i_k = PHI_k.T @ jnp.linalg.solve(sigma2_eps_k, z_k)
+                I_k = PHI_k.T @ jnp.linalg.solve(sigma2_eps_k, PHI_k)
+
+        
+        return jnp.vstack((i_k, I_k))
+
+    def is_leaf(node):
+        return jax.tree.structure(node).num_leaves == 3
+
+    scan_elts = jnp.array(jax.tree.map(informationify, mapping_elts, is_leaf=is_leaf))
+
+    # This is one situation where I do not know how to avoid inverting
+    # a matrix explicitly...
+    Minv = jnp.linalg.solve(M, jnp.eye(r))
+
+    def step(carry, scan_elt):
+        nu_tt, Q_tt, _, _ = carry
+
+        i_tp = scan_elt[0, :]
+        I_tp = scan_elt[1:, :]
+
+        S_t = Minv.T @ Q_tt @ Minv
+
+        match sigma2_eta_dim:
+            case 0:
+                J_t = jnp.linalg.solve((S_t + sigma2_eta_inv*jnp.eye(r)).T, S_t.T).T
+            case 1:
+                J_t = jnp.linalg.solve((S_t + jnp.diag(sigma2_eta_inv)).T, S_t.T).T
+            case 2:
+                J_t = jnp.linalg.solve((S_t + sigma2_eta_inv).T, S_t.T).T
+        
+        nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu_tt
+        Q_pred = (jnp.eye(r) - J_t) @ S_t
+
+        nu_up = nu_pred + i_tp
+        Q_up = Q_pred + I_tp
+
+        return (nu_up, Q_up, nu_pred, Q_pred), (
+            nu_up,
+            Q_up,
+            nu_pred,
+            Q_pred,
+        )
+
+    carry, seq = jl.scan(
+        step,
+        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
+        scan_elts,
+    )
+
+    mapping_elts = jax.tree.map(
+        lambda t: (seq[0][t], PHI_tree[t], sigma2_eps_tree[t]),
+        tuple(range(len(zs_tree))),
+    )
+
+    if likelihood in ("full", "partial"):
+        mapping_elts = jax.tree.map(
+            lambda t: (
+                zs_tree[t],
+                PHI_tree[t],
+                sigma2_eps_tree[t],
+                seq[2][t],
+                seq[3][t],
+            ),
+            tuple(range(len(zs_tree))),
+        )
+
+        def likelihood_func(tree):
+            z = tree[0]
+            nobs = z.shape[0]
+            PHI = tree[1]
+            sigma2_eps = tree[2]
+            nu_pred = tree[3]
+            Q_pred = tree[4]
+            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+            
+            match sigma2_eps_dim:
+                case 0:
+                    P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+                    Sigma_t = jnp.fill_diagonal(
+                        P_oprop, sigma2_eps + jnp.diag(P_oprop), inplace=False
+                    )
+                    chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+                case 1:
+                    P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+                    Sigma_t = jnp.fill_diagonal(
+                        P_oprop, jnp.diag(sigma2_eps) + jnp.diag(P_oprop), inplace=False
+                    )
+                    chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+                case 2:
+                    chol_Sigma_t = jnp.linalg.cholesky(
+                        PHI @ jnp.linalg.solve(Q_pred, PHI.T) + sigma2_eps
+                    )
+                    
+            z = st(chol_Sigma_t, e, lower=True)
+
+            match likelihood:
+                case 'full':
+                    ll = (
+                        -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+                        - 0.5 * jnp.dot(z, z)
+                        - 0.5 * nobs * jnp.log(2 * jnp.pi)
+                    )
+                case 'partial':
+                    ll = (
+                        -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+                        - 0.5 * jnp.dot(z, z)
+                    )
+
+            return ll
+
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(
+            jax.tree.map(likelihood_func, mapping_elts, is_leaf=is_leaf)
+        )
+        ll = jnp.sum(lls)
+    elif likelihood == "none":
+        ll = jnp.nan
+    else:
+        raise ValueError(
+            "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
+        )
+
+    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
+    
+    fc_scan_elts = jnp.repeat(jnp.expand_dims(jnp.zeros((r+1, r)), axis=0), forecast, axis=0)
+    carry_pred, seq_pred = jl.scan(
+        step,
+        (nus[-1], Qs[-1], jnp.zeros(r), jnp.eye(r)),
+        fc_scan_elts,)
+
+    filt_results = {"ll": ll,
+                    "nus": nus,
+                    "Qs": Qs,
+                    "nupreds": nupreds,
+                    "Qpreds": Qpreds,
+                    "nuforecast": seq_pred[0],
+                    "Qforecast": seq_pred[1]}
+
+    return filt_results
 
 @jax.jit
 def kalman_smoother(ms, Ps, mpreds, Ppreds, M):

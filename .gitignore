@@ -81,4 +81,5 @@ jax.iml
 /share/
 /.quarto/
 
-# test files
+# results
+site/results/*

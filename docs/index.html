@@ -209,7 +209,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
+<<<<<<< HEAD
 <div id="338d4948" class="cell" data-execution_count="1">
+=======
+<div id="7fe165c5" class="cell" data-execution_count="1">
+>>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
@@ -236,13 +240,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>T <span class="op">=</span> <span class="dv">35</span></span>
 <span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>nobs <span class="op">=</span> <span class="dv">50</span></span>
 <span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<<<<<<< HEAD
 <span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>obs_locs <span class="op">=</span> jax.random.uniform(</span>
+=======
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>coords <span class="op">=</span> jax.random.uniform(</span>
+>>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
 <span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>                keys[<span class="dv">0</span>],</span>
 <span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>                shape<span class="op">=</span>(nobs, <span class="dv">2</span>),</span>
 <span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>                minval<span class="op">=</span><span class="dv">0</span>,</span>
 <span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>                maxval<span class="op">=</span><span class="dv">1</span>,</span>
 <span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>            )</span>
 <span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<<<<<<< HEAD
 <span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>obs_locs_tree <span class="op">=</span> [obs_locs <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(T)]</span>
 <span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>X_obs_tree <span class="op">=</span> [jnp.column_stack([jnp.ones(nobs), obs_locs]) <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(T)]</span>
@@ -251,6 +260,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>process_data <span class="op">=</span> idem.basis_params_to_st_data(alphas, <span class="va">self</span>.process_basis, <span class="va">self</span>.process_grid)</span>
 <span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>process_data, obs_data <span class="op">=</span> model.simulate(keys[<span class="dv">1</span>], obs_locs_tree <span class="op">=</span> obs_locs_tree, X_obs_tree <span class="op">=</span> X_obs_tree)</span>
+=======
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>times <span class="op">=</span> jnp.repeat(jnp.arange(<span class="dv">1</span>, T <span class="op">+</span> <span class="dv">1</span>), coords.shape[<span class="dv">0</span>])</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>rep_coords <span class="op">=</span> jnp.tile(coords, (T, <span class="dv">1</span>))</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rep_coords[:,<span class="dv">0</span>]</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rep_coords[:,<span class="dv">1</span>]</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>process_data, obs_data <span class="op">=</span> model.simulate(keys[<span class="dv">1</span>], x, y, times,</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>                                        covariates <span class="op">=</span> jnp.column_stack([x,y]),</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>                                        covariate_labels<span class="op">=</span>[<span class="st">'Intercept'</span>, <span class="st">'x'</span>, <span class="st">'y'</span>])</span>
+>>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
 <span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>dpi <span class="op">=</span> <span class="dv">200</span></span>
 <span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">576</span> <span class="op">/</span> dpi</span>
