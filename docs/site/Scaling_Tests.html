@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.31">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Evan Tate Paterson Hughes">
+
+<title>Scaling Comparisons for the filtering algorithms – Integro-Difference Equation Models in Python-JAX</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-eaf9f7b2eff0675dc85d7d6a3549247f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script type="text/javascript">
+MathJax = {
+  tex: {
+    macros: {
+      var: "{\\mathbb{V}\\mathrm{ar}}",
+      cov: "{\\mathbb{C}\\mathrm{ov}}",
+      eqc: ["{\\stackrel{c}{=}}", 0],
+      bv: ["{\\boldsymbol{\\mathbf{#1}}}", 1]
+    }
+  }
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Integro-Difference Equation Models in Python-JAX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../site/mathematics.html"> 
+<span class="menu-text">The Maths</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../reference/index.html"> 
+<span class="menu-text">Docs</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+    <div class="dropdown">
+      <a href="" title="" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label=""><i class="bi bi-github"></i></a>
+      <ul class="dropdown-menu" aria-labelledby="quarto-navigation-tool-dropdown-0">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://github.com/tatephughes/JAX-IDEM">
+            Source
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://github.com/tatephughes/JAX-IDEM/issues">
+            Issues
+            </a>
+          </li>
+      </ul>
+    </div>
+  <a href="" class="quarto-reader-toggle quarto-navigation-tool px-1" onclick="window.quartoToggleReader(); return false;" title="Toggle reader mode">
+  <div class="quarto-reader-toggle-btn">
+  <i class="bi"></i>
+  </div>
+</a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        
+    <div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="Scaling_Tests.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Scaling Comparisons for the filtering algorithms</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Evan Tate Paterson Hughes </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Currently, the Kalman filter, the Information filter, the Square-root filter, and the square-root-information filter are all implemented.</p>
+<p>We will use a simulated data set, from cosine basis functions over 100 frequencies and invariant kernel. See figure (?) for the 6 time points of the simulated process.</p>
+<p>We then filter this data, and time the implemented filters to compute the marginal log likelihood. We run the alogrithms with a sequence of model parameters that are close to the ones used to simulate the data, with added noise to avoid the memoisation the JAX uses.</p>
+<p>We simulate <span class="math inline">\(n=300\)</span> observations per time point in total, and redact observations in order to show the compute times for each <span class="math inline">\(n\)</span> between 50 and 300. These are computed in 64 bit for stability, and the results are in figure (?)</p>
+<p>Additionally, to demonstrate the square root filters stability, we also fix <span class="math inline">\(n\)</span> and progressively increase <span class="math inline">\(n\)</span>. The data is simulated from a high-dimensional process basis, and then filtered using models with a lower <span class="math inline">\(r\)</span>, increasing in square between <span class="math inline">\(5^2\)</span> and <span class="math inline">\(15^2\)</span>. The results are shown in figure (?).</p>
+<div id="7a030d76" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.express <span class="im">as</span> px</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">'data/scale_tests_ncc_32.csv'</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> px.line(</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    df, </span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span><span class="st">"n"</span>,  <span class="co"># X-axis: values of n</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>df.columns[<span class="dv">3</span>:<span class="dv">7</span>],  <span class="co"># Y-axis: all time columns</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span>{<span class="st">"n"</span>: <span class="st">"number of observations"</span>, <span class="st">"value"</span>: <span class="st">"Time (seconds)"</span>},</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"Filters Comparison with Varying n (32 bit)"</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Show the plot</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>fig.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display">
+        <script type="text/javascript">
+        window.PlotlyConfig = {MathJaxConfig: 'local'};
+        if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}
+        </script>
+        <script type="module">import "https://cdn.plot.ly/plotly-3.0.1.min"</script>
+        
+</div>
+<div class="cell-output cell-output-display">
+<div>            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script type="text/javascript">if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>                <div id="2b2aee29-8085-48ec-917b-e49d75374ea6" class="plotly-graph-div" style="height:525px; width:100%;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("2b2aee29-8085-48ec-917b-e49d75374ea6")) {                    Plotly.newPlot(                        "2b2aee29-8085-48ec-917b-e49d75374ea6",                        [{"hovertemplate":"variable=kalman_run\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"kalman_run","line":{"color":"#636efa","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"kalman_run","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"AAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002f"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=sqrt_run\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"sqrt_run","line":{"color":"#EF553B","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"sqrt_run","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"aML1KMy4gT\u002f7rUfh+s+BP8GjcD0a5oE\u002fMArXo1jZgT9Mj8L1cFCCP\u002fKE61HgHoI\u002f8NajcO0Zgj8UMzMzi8WDPwtcj8Id14M\u002fth6F66HMgz8IMzMzO\u002fuDP1cUrkfRy4M\u002f99ajcN0chD+89ShcbyuEP6D1KFxP94M\u002fnszMzDzPhD\u002fzhOtRwOaEPzi4HoVzx4Q\u002fiR6F6\u002fEGhT\u002flKFyPItiEP9t6FK4XBoU\u002fBzMzM1MZhT9qPQrXkzWFP6CjcD2qloY\u002fkh6F66nThj\u002f+\u002f\u002f\u002f\u002fR+KGP7ZRuB7lyoY\u002fdZmZmakahz+O9ShczwGHP3LC9ShktYc\u002fhUfherwdhz9uFK5HodyHPwkzMzMb64c\u002fO7gehQsliD+lzMzMTAqIPweuR+FKeog\u002fuvUoXMcxiD+MHoXriUyIP531KFzXIYg\u002fEzMzM7vpiT8tMzMzE+yJP3XC9SgExYk\u002fh8L1KHzgiT8t4XoUVk2KPwtcj8ItI4o\u002fhJmZmYlAij\u002fTUbge9SKKP\u002futR+H6L4s\u002fPArXo7Aliz9ymZmZIVGLPwaF61EoLos\u002fCtejcEUkiz9\u002f61G47qGLPzdmZmbuTos\u002fzMzMzNwQiz+ZmZmZsZeEP3NwPQqv0IQ\u002f4dajcAXqhD\u002fL\u002f\u002f\u002f\u002fZxGFP5WZmZlBFIU\u002fFjMzM0sthT+FcD0KJyyFP8t6FK5PXoU\u002fZGZmZr5khT8B16NwdXGFP0qPwvWwgIU\u002fcsL1KHyLhT\u002fgrUfhuquFP+pRuB7Fw4U\u002fxczMzOTDhT9Zj8L1kNaFP8ijcD0Sa4Y\u002fBq5H4Xpmhj+UR+F6pJ2GP7LMzMyUeoY\u002fbsL1KPyThj9U61G45qWGP4jC9ShkyoY\u002fMTMzM4Pvhj8hCtejcOmGP+8oXI\u002fCDoc\u002fzihcj0Ijhz+SR+F69EmHP72jcD2yPIc\u002fbnA9Cl9dhz+1UbgeDWWHP2E9CtfDaoY\u002fyFG4Hn1Ohz8JhetRuHmHP5xwPQrvkoc\u002fGwrXozDShz8jXI\u002fCzaeHP4qZmZnBzYc\u002fShSuR6m7hz\u002fCKFyP6s6HP43C9Si854c\u002fN4\u002fC9UAfiD+rR+F6hBqIPxvhehTmc4g\u002f8luPwqVciD8kj8L1AGqIP+koXI+Sg4g\u002fi3A9Cj+BiD9S61G4RjaJP+NRuB69Qok\u002fO4\u002fC9bhEiT+IR+F6VHOJP7b1KFxHaok\u002fnPUoXN+riT\u002fs\u002f\u002f\u002f\u002ft5iJP9l6FK53xok\u002fuczMzIzfiT8ahetRcO2JPzNmZmaGBYo\u002fG4XrUUAZij\u002fPo3A9GjyKP7t6FK6HVoo\u002fs6NwPQJKij+KmZmZ0RmJP7NRuB5NxYk\u002fa8L1KGQOij83ZmZm9giKP0tmZmY+MIo\u002fKwrXo\u002fBHij+vHoXrkVGKP6geheuZdIo\u002fD4XrUeBiij\u002fsUbgeZauKP98oXI\u002fquoo\u002f7f\u002f\u002f\u002f6fUij8mCtejsNiKP6zMzMxM8Yo\u002fCgrXo4j6ij+XmZmZ+RmLPzYK16OA+oo\u002fk\u002fUoXCfPiz8OXI\u002fCvb6LP61H4Xo05os\u002fbj0K1\u002fNkjD\u002fOehSu7x2MPzy4HoX7UIw\u002fi0fheuRWjD8iCtejUEmMPzFmZmbWgYw\u002faJmZmYmkjD9GuB6Fo8mMP5WZmZlBtIw\u002f3VG4HpXpjD8Krkfh4g+NP\u002fwyMzPj5ow\u002fxKNwPboNjD9Jj8L12OqMPy8zMzPT04w\u002fYmZmZg75jD8I16NwnSKNP6FH4XrsJY0\u002fqEfhevxIjT\u002fa\u002f\u002f\u002f\u002fT3GNP0sUrkeBGY0\u002fUutRuCZmjT9iPQrXm6iNP\u002fqE61HQoY0\u002fNWZmZj6rjT\u002fkKFyPKqqNPzzhehRO2Y0\u002fKbgehYsHjj94FK5HSfWNP5n1KFxHPo4\u002fBQrXo1B1jj8kuB6FU4qOP\u002flbj8Klc44\u002flvUoXM9wjj+PR+F6VLKOPzq4HoUzt44\u002fKzMzM1O8jj\u002f1rUfh4gKPP1cUrkfhF48\u002fQGZmZsYTjz+7zMzMPAOPP11mZmamZ48\u002faD0K1+Npjz9P61G4ljKPP2g9CtfL444\u002f6Shcj4oxkD+w9ShcL1GQPzi4HoVzT5A\u002fJjMzM\u002fdlkD814XoUVnCQP05mZmbCgJA\u002fqEfheuSSkD\u002fLzMzM\u002fJiQP5dH4Xo4upA\u002fuszMzGzHkD\u002fr\u002f\u002f\u002f\u002f99iQPzPhehSa3ZA\u002fvPUoXHv2kD\u002fz\u002f\u002f\u002f\u002fz\u002fWQP6\u002f1KFw3B5E\u002fc+tRuJ4XkT\u002fNo3A9ajiRPzMK16P0S5E\u002fe+tRuIJDkT\u002fFo3A9imGRP+3\u002f\u002f\u002f+rYZE\u002fkXA9CmORkT+gHoXroX+RP4KZmZnhnpE\u002f\u002f61H4XK1kT8WhetR\u002fMyRPwquR+H61ZE\u002fqEfhevTakT\u002f4rUfhZgeSPyEK16NkDpI\u002fO7gehSMTkj9CuB6FF7eRP9J6FK5fSZI\u002fBoXrURxbkj\u002fsKFyPKnWSP0O4HoUDjpI\u002f3lG4HmGMkj\u002fCzMzMVLCSPxlcj8ItlZI\u002fG1yPwu28kj9kZmZmwtWSP9p6FK5b75I\u002fCIXrUeTkkj+iR+F6vA2TP\u002ff\u002f\u002f\u002f8zIpM\u002feetRuN4ukz8OrkfhYh+TP47C9SiML5M\u002f\u002f9ajcNFokz+AmZmZIWOTPy0zMzMHfZM\u002f0qNwPbqDkz9Ej8L1lIKTPyozMzNrupM\u002fmJmZmdG\u002fkz\u002fOo3A9RruTP4GZmZn90ZM\u002fuMzMzLT5kz9zwvUoPPuTP\u002f\u002f\u002f\u002f\u002f8zGZQ\u002fpEfheoAWlD9Zj8L1mByUP9KjcD2+NJQ\u002fYmZmZvrfkz9NZmZm7jeUP5lH4XoQVJQ\u002f0noUrnNqlD\u002f\u002frUfhcmmUP2Y9CtcPlZQ\u002fCq5H4fqBlD96wvUoWJWUPw2F61E4mZQ\u002fbD0K10OtlD\u002fUo3A9eseUP2k9CtenzpQ\u002fMuF6FKrZlD\u002fIo3A9HvqUPxtcj8Lh6ZQ\u002f6f\u002f\u002f\u002fzf9lD8rMzMzX\u002f+UP4nC9Sg0NpU\u002fy3oUrlMrlT\u002fIehSux0iVPwuF61GAG5U\u002fS4\u002fC9XhqlT8RhetRrGGVP3PrUbiahpU\u002f\u002fK1H4epjlT824XoUFqCVP6FH4XrYrJU\u002f13oUrqeulT8RXI\u002fCOcWVPyIK16Mw1ZU\u002f4FG4Hg3XlT9I4XoUls2VP+NRuB6p6ZU\u002fBtejcMkVlj8bhetRRDKWPwuuR+G+MpY\u002fw\u002fUoXHNLlj\u002fTo3A9mm+WP55wPQqvZpY\u002ftfUoXGtrlj+UmZmZUWiWP024HoWnjZY\u002fPLgeheuglj++o3A9gpiWP6FH4XrotJY\u002f"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=inf_run\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"inf_run","line":{"color":"#00cc96","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"inf_run","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"AAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002f"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=sqinf_run\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"sqinf_run","line":{"color":"#ab63fa","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"sqinf_run","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"AAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002f"},"yaxis":"y","type":"scattergl"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"title":{"text":"number of observations"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"Time (seconds)"}},"legend":{"title":{"text":"variable"},"tracegroupgap":0},"title":{"text":"Filters Comparison with Varying n (32 bit)"}},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('2b2aee29-8085-48ec-917b-e49d75374ea6');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+<div id="90dd2764" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.express <span class="im">as</span> px</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">'data/scale_tests_ncc_64.csv'</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> px.line(</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    df, </span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span><span class="st">"n"</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>df.columns[<span class="dv">3</span>:<span class="dv">7</span>], </span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span>{<span class="st">"n"</span>: <span class="st">"number of observations"</span>, <span class="st">"value"</span>: <span class="st">"Time (seconds)"</span>},</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"Average compute time Filters with Varying n (64 bit)"</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Show the plot</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>fig.write_image(<span class="st">"figure/scale_test.png"</span>)</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>fig.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script type="text/javascript">if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>                <div id="84a10af7-b6fa-45ee-b465-d21818930f11" class="plotly-graph-div" style="height:525px; width:100%;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("84a10af7-b6fa-45ee-b465-d21818930f11")) {                    Plotly.newPlot(                        "84a10af7-b6fa-45ee-b465-d21818930f11",                        [{"hovertemplate":"variable=kalman_run\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"kalman_run","line":{"color":"#636efa","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"kalman_run","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"elG4HkWrYT+3\u002f\u002f\u002f\u002fH3JhPxVcj8K1e2E\u002fQShcj+LWYT\u002fcZWZmpgliP4wehetxRmI\u002fn3oUroe6Yj9L9ShcL1tjP9LgehQOcGM\u002fUsL1KNyXYz+cMjMzM8hjP8VlZmbGVGQ\u002f8VuPwrUgZD9kUbgeZdZkPyIUrkdBH2U\u002fGx6F6zEGZT9lrUfh2kRlP+z0KFxPcGU\u002fXT0K12PjZT9ahOtR+MllPzD1KFzvzmY\u002fhcL1KLxIZj+GR+F6tHtmP2H\u002f\u002f\u002f8fXmg\u002fLMzMzAyTaD9RuB6FC3poP9B6FK6nG2k\u002fHTMzM1MeaT\u002f0MjMz84tpP83\u002f\u002f\u002f8fj2k\u002fv9ajcJ2saT9Uo3A9KpFpPxFRuB7lgWo\u002fT5mZmfn7aT9pmZmZWXBqP12tR+H6bWo\u002fduB6FM4saz+iehSuB7pqP8tRuB4F8Go\u002fCHA9CncBbD9V61G4vvNrP271KFxPHmw\u002fK3oUrocKbD+ZMjMzk4BsP\u002fxlZmYm5Ww\u002fOPUoXM8FbT+KR+F6FFNtP\u002fnLzMwsAm0\u002f1289CjeYbT9nUbge5XVtP0uE61EYlG0\u002foMzMzAzjbT\u002fgehSuZ0luPwuF61F4UW4\u002fZpmZmbmIbj8WuB6FO05yP0wUrkdR\u002fXE\u002fX8zMzPwncj+zzMzMXPRxP2fMzMzcjnI\u002f8v\u002f\u002f\u002f\u002f8xcj9RcD0KV79yP27C9SjsV3M\u002fM2ZmZoa1cj92o3A9ipRyP5P\u002f\u002f\u002f8fB3M\u002fmtajcM3tcj8Bj8L1yCBzP1c9CtdD7HI\u002ff0fheqRIcz9gPQrX4xJzPw+4HoU7z3M\u002f3uB6FE6ecz8Pj8L16NZzP4\u002fC9Shcv3M\u002fu6NwPerycz8BMzMzIyZ0P2H1KFwfNHQ\u002fKzMzM1M8dD+IehSut1l0P9MoXI+iYnQ\u002fKI\u002fC9VivdD+jehSu55F0P9J6FK5nu3Q\u002f061H4Zq1dD+m\u002f\u002f\u002f\u002fb9h0PzLhehS+znQ\u002fRmZmZtZmdT9McD0KB3x1PzzhehQ+fXU\u002fwaNwPQradT+jzMzMjPJ1P7LWo3B9FnY\u002ficzMzDxCdj874XoUft11P6zWo3BdH3Y\u002faj0K14M5dj9fHoXrwUB2PwkK16PAWHY\u002f6yhcj1Jrdj8A16NwnZN2PzKZmZn5v3Y\u002f0HoUrrd\u002fdj\u002fhrUfhmlN3P47\u002f\u002f\u002f\u002ffV3c\u002fl1G4HkVndz9hR+F6xGR3P8V6FK4nzXc\u002fRD0K19OSdz+JKFyP4sx3PzMzMzMzo3c\u002fNj0K19NkeD\u002f8W4\u002fCNV94PwePwvX4i3g\u002faHA9CheceD8U4XoU3op4P66tR+G60ng\u002fmvUoXB\u002fMeD8qPQrXY6p4P\u002fr\u002f\u002f\u002f\u002ffeHw\u002fpszMzCwKfD+cKFyPQoJ8P6ooXI9CUHw\u002fhx6F6yHDfD89ZmZmFph8P5UehetB+Xw\u002fZR6F69GjfD\u002f8\u002f\u002f\u002f\u002ff\u002fB8P6X\u002f\u002f\u002f+P8Hw\u002fQ7gehfsnfT+eUbgeVfp8P5xwPQr3vH0\u002fxHoUrldpfT98ehSuV7N9P\u002fHWo3DNgX0\u002fy9ajcA0Xfj\u002fFW4\u002fCxep9PzFmZmbWaX4\u002fQj0K1yM3fj+vUbge5Vt+PzkUrkcRQH4\u002fCDMzMyPFfj\u002fYehSul3Z+P4AehesxuH4\u002frkfhehSufj9dR+F6VBl\u002fP8xbj8LVvX4\u002funoUrscmfz8vPQrXsy1\u002fPwAK16PwZX8\u002flB6F62ERfz\u002fX1qNwTZV\u002fP7h6FK4Hp38\u002fTbgehZvefz+N9Shc76F\u002fPyePwvWY\u002f38\u002frf\u002f\u002f\u002f4\u002fvfz+LR+F6\u002fAyAP2HrUbgmDIA\u002fgh6F69kRgD+ezMzMPC+APyi4HoWzOYA\u002fBYXrUVgygD+1o3A90j2AP0mPwvXgXIA\u002fKDMzM7NMgD++zMzM3EKAP9R6FK4fwYA\u002fkkfhevyjgD8bMzMzi7SAP7t6FK6HroA\u002fxaNwPYrJgD8v4XoUHteAP\u002fKtR+FS74A\u002fOeF6FLbDgD9ZZmZmPvaAPzo9Ctc7BoE\u002ffOtRuG4igT+VcD0K7yOBP\u002fIoXI9KSIE\u002fDArXo0A4gT+CwvUoLE2BPxIzMzPTL4E\u002fUGZmZobBgj8zZmZmlqGCP9L\u002f\u002f\u002f9nyII\u002fKOF6FBaOgj+xo3A9WuCCPxRcj8Llz4I\u002fjfUoXPcLgz9QPQrXM9GCPy0K16PAE4M\u002fxKNwPboFgz9+61G4Hi6DP6l6FK4f94I\u002fvFG4Hh04gz+S9ShcPy2DP1C4HoUrWoM\u002fsh6F6zkbgz+89Shcb6ODP0VmZmYGc4M\u002fCtejcDWggz85PQrXU5SDPwwzMzOTwIM\u002f3lG4Hl2rgz\u002fgKFyPytqDP5CZmZnxsIM\u002fSmZmZkbqgz8UhetRMN6DP\u002fbWo3D99IM\u002fv3oUrhfigz9DuB6FAxqEP8vMzMwEI4Q\u002fI4\u002fC9RA+hD8bCtejOPSDP2E9CtfDYoQ\u002f16NwPQJthD\u002forUfhmoqEP50ehespgoQ\u002fLuF6FEaphD8ehetRwLCEPznhehS2w4Q\u002fUWZmZlathD90cD0Kf9SEP+X\u002f\u002f\u002f\u002fH5YQ\u002f\u002fFuPwiXzhD\u002fj1qNwveeEPxcK16O4JIU\u002fpczMzFwGhT8wMzMzsyOFP8SjcD2i34Q\u002fsHoUri9KhT\u002fTo3A9ileFP4jC9ShceIU\u002fHrgehRtthT8RMzMz84+FP8D1KFzfjoU\u002fGQrXo4CehT\u002fo1qNw\u002fYaFP\u002fz\u002f\u002f\u002f+XzoU\u002fgpmZmfHahT8LrkfhwveFP1VmZmbW5IU\u002fvVG4Hv3\u002fhT85j8L1CBmGP6seheshLoY\u002fgpmZmeHehT+6UbgeXeiJP3DrUbgG6ok\u002fDDMzM6NEij+CmZmZ2eyJPw0K16M4Xoo\u002fEoXrUYBSij\u002f61qNwfXSKP6D1KFxXQYo\u002ftB6F6\u002fGYij\u002fqhOtRGJaKP5dH4XpUqYo\u002fIzMzM3tvij9WZmZmvtaKPyozMzODsIo\u002f\u002fP\u002f\u002f\u002f3\u002f4ij+A61G43p2KP6SjcD0qBos\u002fPrgehaPqij8HMzMzWxuLP1w9CteD64o\u002fG7gehYMniz\u002fgKFyPwoCLP\u002fzWo3A9dIs\u002fJwrXo5AYiz+McD0KH1mLP0uPwvWITos\u002fUY\u002fC9aiFiz8kj8L1AGKLP45wPQrPjIs\u002fqkfherS2iz8rj8L1CLOLP0+PwvXwb4s\u002fVBSuR1EUjD92FK5HkR+MP8pRuB4dPow\u002fcHA9CvcajD8yMzMzU1uMP6jMzMzcRYw\u002f6Chcj6JnjD\u002frhOtR8EOMP9GjcD3ao4w\u002fRLgehdt\u002fjD+XzMzMPKiMP43C9Si0lYw\u002f"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=sqrt_run\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"sqrt_run","line":{"color":"#EF553B","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"sqrt_run","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"U4\u002fC9Xg5gz\u002ffKFyP8nSDP\u002fPWo3B1i4M\u002fn\u002fUoXG+\u002fgz\u002fs1qNwdbSDP0ZmZmbu9IM\u002f7FG4HoXrgz+kzMzMdFyFP2KZmZlJnYU\u002fI7gehWuAhT\u002fXehSup7qFP68eheuhvYU\u002fK7gehUOthT+rR+F6fOCFP0iPwvXw4IU\u002fr3oUrj+Ohj9\u002f61G45ueGP7lRuB6N5IY\u002fehSuR\u002fkIhz\u002fxW4\u002fCrQ6HP0RmZmY2D4c\u002fKOF6FAY6hz9pmZmZYTqHP+f\u002f\u002f\u002f9vH4k\u002fJbgehSMWiT8WXI\u002fCpTeJP5+jcD3aKok\u002f3yhcj\u002fJUiT8ouB6Fy2+JPxGuR+Hycok\u002f69ajcJWUiT+i9ShcH4OKP8\u002f\u002f\u002f\u002f\u002fHOIo\u002feRSuRyG7ij8l4XoUjlyKP\u002fP\u002f\u002f\u002f\u002fXz4o\u002flczMzJSeij92mZmZeb6KP58ehevJkYo\u002fH+F6FFbniz9rcD0KrxmMPx+F61GoQow\u002fGYXrUYgzjD8pj8L1MFWMP+OtR+FKX4w\u002fHYXrUehyjD9lPQrXM46MP7L1KFzfcI0\u002fEq5H4eKGjT9hmZmZcY+NP2zrUbieiI0\u002fWutRuA5\u002fjT8xuB6Fg6yNPzdmZmb22I0\u002fmpmZmYG7jT9BuB6FQ8qHP7B6FK4nwIc\u002fZBSuRxHChz+GmZmZYd6HP9nWo3ANDYg\u002fDTMzM4smiD+WmZmZITyIPyO4HoVjLog\u002fdpmZmYFQiD+ZR+F6BHWIP+etR+HSoIg\u002flPUoXP+ciD8BhetR2LKIP4SZmZmR0og\u002fdXA9Ck\u002fgiD9sPQrXO\u002f+IP5ZH4Xp8S4k\u002fepmZmQFQiT\u002fJehSur36JP2sUrkcJf4k\u002fYxSuRymYiT9owvUo1LKJPwUzMzOrz4k\u002fnR6F6xHUiT9X61G4fuuJP3NwPQqnDoo\u002fs6NwPRogij9p61G4Fj+KP+StR+E6U4o\u002fJ7geheNdij8nuB6F442KPzQK16PAaoo\u002fjB6F63G+ij9RFK5HwfiKP0XhehQWAos\u002fBjMzM3sbiz90mZmZ0ZyLP\u002fHWo3DNiYs\u002fFwrXo7h8iz+\u002fKFyPYoWLP4mZmZnhlYs\u002fwihcjwKliz9cFK5HIbeLP8N6FK5\u002f64s\u002fCjMzM9vqiz9qmZmZQRqMP2E9CtfLLIw\u002fpqNwPdI3jD\u002fnhOtRgKCMP0CPwvUQoow\u002fN4\u002fC9UC3jD8x4XoU1tyMP8v\u002f\u002f\u002f9PG40\u002f\u002fq1H4ZrvjD96mZmZASCNP3XC9Sj0QI0\u002ficL1KDRWjT+tehSuh4CNPw8zMzM7ko0\u002fb+tRuC6kjT\u002feUbgeZb2NP7z1KFx35Y0\u002ftnoUrj\u002f9jT\u002f61qNwbeiNPwKF61G4yo4\u002fox6F60nZjj91FK5HwcOOPyHhehQObY8\u002fMgrXo\u002fggjz\u002fU1qNwtQ+PPyzhehR+R48\u002fxyhcj0JEjz\u002fj\u002f\u002f\u002f\u002f\u002f1uPP\u002futR+ECgo8\u002fCArXo9CMjz92mZmZea6PPwQzMzO7248\u002fRbgehbv3jz\u002fsUbgeZQuQP4\u002fC9ShsC5A\u002fcOtRuP4vkD8QrkfhCj2QPxCuR+EOSpA\u002f6VG4HtVLkD+dHoXrFV2QPwjXo3CBc5A\u002fmnA9CiN4kD\u002f41qNwxYqQP8mjcD0Cj5A\u002f1HoUrg+lkD8YMzMz\u002f82QPzbhehQiu5A\u002f3yhcj+7HkD9Dj8L1tNKQP7TMzMwwzZA\u002fr\u002fUoXDfPkD\u002fWehSu16KQP+ZRuB5Rz5A\u002ff8L1KJjIkD93wvUowOeQP896FK7H25A\u002flHA9CgP1kD8yMzMzZ\u002fSQP189Ctcf\u002fpA\u002fZz0K1+sTkT+DwvUoFBORPw6F61EIOZE\u002fNOF6FG4ukT9jZmZm1k6RP51H4XqAU5E\u002fUrgehfdQkT9MZmZmHkyRPwOF61GQkJE\u002ftB6F6\u002fm2kT9z61G4qqaRP+koXI+GsJE\u002f9NajcGHCkT8v4XoUHseRP1ZmZmayx5E\u002fnkfhekC3kT+TcD0KO9+RPyQK16Pw8JE\u002f8Shcj2LukT+EwvUo7BiSP5ZH4XpgEJI\u002fl5mZmQURkj8yCtejBCySPx8zMzP\u002f9JE\u002fH1yPwlGNkj8iMzMzm5eSP0i4HoVTrZI\u002fQI\u002fC9RS7kj\u002fGzMzMxMOSP51H4Xpo5ZI\u002fmZmZmZ3ikj+4zMzMuOKSP3rC9ShcBpM\u002fpB6F6yk5kz9Ej8L1iEOTP7v1KFyfL5M\u002fgetRuK5Bkz+UR+F6sFiTPy8K16OAc5M\u002fPArXo7Bpkz\u002f11qNwMZKTP6\u002f1KFw\u002fvZM\u002fTLgehbuykz+nR+F6HMmTPw+uR+FG2JM\u002fmnA9Civ+kz9NZmZm\u002fgeUP36ZmZlhF5Q\u002f7Shcj\u002foglD884XoUWjyUP7b1KFxTOZQ\u002fwPUoXPtplD8YMzMz74mUP9pRuB7tl5Q\u002fHFyPwrWClD+pR+F61IqUP68eheut4JQ\u002fwaNwPSLwlD+tHoXr4QGVP3vrUbh+CpU\u002fCoXrUZAPlT91wvUoDDOVP\u002fr\u002f\u002f\u002f\u002fTMZU\u002fZj0K1ydTlT\u002f7\u002f\u002f\u002f\u002ft0KVP+r\u002f\u002f\u002f8XaZU\u002f3FG4HqV1lT\u002fdKFyPJo6VP4xwPQovrZU\u002fYmZmZv7AlT8C16NwccCVPydcj8IxsJU\u002fcT0K14vWlT8aXI\u002fCAQ6WPzzhehROAZY\u002fJFyPwqEYlj8dhetR9AmWP109CtdjS5Y\u002fLzMzM79Glj9aPQrXv3aWP4lwPQp\u002ffZY\u002f8P\u002f\u002f\u002fzuZlj+RcD0Kd46WP\u002fYoXI\u002fCtZY\u002flHA9CgPhlj8CrkfhBuqWP9KjcD3C3ZY\u002fJDMzM1\u002fslj9rFK5HDTiXP4DC9SiIRJc\u002fRuF6FOpmlz\u002fAo3A9SlaXP3TrUbh6epc\u002fd+tRuBadlz9WPQrXY5iXPzsK16PQqZc\u002fQo\u002fC9bzElz8KhetRjP6XP5ZwPQq\u002f75c\u002f01G4Hu3klz9\u002f61G48gqYPxhcj8JFH5g\u002fdxSuR10SmD894XoUJhOYP95RuB5xWJg\u002fmJmZmck9mD8chetRHGSYPwuuR+HWYJg\u002foUfhetSHmD+FmZmZeXSYP6oehetRhpg\u002f5Chcj0KkmD+BwvUoUMaYP\u002fUoXI\u002faz5g\u002f7yhcj7bPmD+cHoXrQfCYP1ePwvXgBpk\u002fVWZmZt4emT8OrkfhVviYP8HMzMx4HZk\u002fObgehWdQmT8IrkfhNnGZPwXXo3Dxb5k\u002f\u002fq1H4aqDmT81CtejqLCZP6z1KFyfsZk\u002f3Shcj0KVmT\u002fu\u002f\u002f\u002f\u002fc6uZP2w9CtdX4pk\u002f8v\u002f\u002f\u002f\u002f\u002fVmT+CmZmZ6dyZP4lwPQqX+5k\u002f"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=inf_run\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"inf_run","line":{"color":"#00cc96","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"inf_run","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"ROtRuC5ieD8X4XoUflJ4P0HC9Sgsfng\u002f1VG4HqVWeT9bj8L1SOR4P80J16MAIXk\u002fWY\u002fC9ZhIeT8X61G4bjh4P+3Wo3BdFng\u002fKQrXo0BkeD+iKFyPUkV4P5ajcD0KsHg\u002f6lG4HrVHeD\u002fRCdejgJB4P2VmZmaGTng\u002fbsL1KAwweD+FR+F6xE94P0tmZmY2bng\u002fTmZmZsaBeD8VXI\u002fCtXt4P3ejcD1qbHg\u002fiZmZmel\u002feD\u002fDW4\u002fCFb93P01wPQrnw3g\u002f\u002f9ajcN2TeD86wvUoLI94P0nC9SgsbXg\u002frYTrUYiCeD94R+F6lIV4P4FH4XpUtHg\u002fCoXrUZhpeD8t61G4Tn14P+YoXI\u002fyo3g\u002fLTMzMwO4eD9GFK5HQVp4P3UUrkexT3k\u002f2a1H4cpweD8L4XoUDoh4PzYUrkdx6Hc\u002fQrgehSuUeD8nj8L1mG94Px3rUbiec3g\u002fqfUoXB9KeD\u002fZhOtRWIB4PxAUrkfBcXg\u002fJj0K1wODeD\u002f3W4\u002fC5at4P8RRuB4FgXg\u002fC+F6FA6IeD9XcD0Kh6p4P\u002fHgehSuc3g\u002fbcL1KCyIeD+Lo3A9itF4P5ujcD1qt3g\u002f1oTrUcgMeD+cUbgelYp6P9tRuB7VUXo\u002fzDIzM4O1ej9bHoXrQVF6P+63HoW7k3o\u002fnPUoXN9Lej+QR+F6RK56PygUrkdxKno\u002fchSuRyGcej99R+F65Eh6P6J6FK4Hano\u002f8tajcJ01ej9AZmZmtn96P2DrUbhOJno\u002f57cehcuoej96ehSul5N5P4j1KFyvsno\u002fq1G4HnVAej\u002ft1qNwXdZ6P0pmZmZmOno\u002fGjMzM8N6ej87uB6FK2V6P2DC9Sj8XXo\u002fXnA9Cocpej+uKFyPsmt6P4+jcD36LHo\u002fPpmZmVk2ej8nuB6F2yN6P62tR+Haeno\u002fwtajcD00ej+xKFyPUmN6P53Wo3BttXk\u002fYmZmZgbPej+7\u002f\u002f\u002f\u002fj216P66jcD262Ho\u002f1f\u002f\u002f\u002f\u002f+Vej9iZmZmBq96PyC4HoXbpHo\u002fqB6F65HKej8luB6FG3R6P\u002f1bj8IVl3o\u002fGhSuR1GUej+wrUfhar56P\u002fK3HoU7o3o\u002fo3oUruexej+Z\u002f\u002f\u002f\u002fT5J6P1PrUbge3Ho\u002f747C9UjjeT\u002f6hOtR2Kt6P+Nbj8K1cno\u002fHI\u002fC9Rjhej\u002fCo3A96sF6P5bMzMxs7Ho\u002f34TrUZhvej8jwvUoXK56PyjC9Si8lXo\u002fCmZmZkaLej9mFK5HwaV6P5JRuB7ln3o\u002fD4XrUfiAej9KPQrX88l6P089CtdDbXo\u002fenoUrpdzej+fR+F6JNR5Pzo9CtdDUHw\u002fj5mZmQlXfD9I61G4jsl8PyrC9Sh8RXw\u002fiXoUrpeRfD8wPQrXo0l8Py+4HoXLrnw\u002fC4\u002fC9WgXfD9vo3A9eqF8P6zWo3BdL30\u002fjh6F6yGSfD89ZmZmFlh8PwjXo3CNnnw\u002fp3oUrldNfD9QR+F6JJ98P\u002f\u002f\u002f\u002f\u002f8fyHs\u002fyFG4HmWYfD9f9ShcT3B8Py24HoUbo3w\u002faT0K16NRfD+k1qNwbcR8PxThehTeenw\u002fCK5H4SqyfD8twvUo\u002fDR8P2FH4XrUuHw\u002fMRSuRyF1fD8Fj8L1OIx8PzfrUbj+V3w\u002fkszMzPygfD8jCtejIF18P7jMzMy8e3w\u002fcetRuO6bez+qrUfhOsN8P0xmZmYWhnw\u002f4NajcB3IfD+KmZmZyVd8P9\u002fgehQulnw\u002fzjIzMzNxfD9EmZmZeZ18P9mtR+HKQHw\u002fq1G4HnVAfD+9W4\u002fC5UN8PyPC9Shssnw\u002foihcj3ItfD\u002fUo3A9aq98P4koXI\u002fSeHw\u002f1wnXo6BnfD+fR+F6NAh8P2gUrkeBtXw\u002fIgrXozBxfD9McD0KB7x8P131KFyflHw\u002fuMzMzKynfD9THoXrUXZ8P6J6FK4Xrnw\u002fo61H4UpofD9\u002fcD0K95B8P+j\u002f\u002f\u002f9fW3w\u002fZOtRuL5xfD+qo3A9WmF8P6UehesBd3w\u002fehSuRwFjfD\u002fjhOtRCKt8P3GZmZk5x3s\u002foXoUrieifj90ehSudyx+Pw+uR+FKaX4\u002f1QnXo\u002fDrfT\u002fQCdejkKR+P7dbj8LF\u002fH0\u002fzlG4HpWDfj\u002fm1qNwPQ9+P2fMzMzsYn4\u002f8dajcK35fT+mR+F6NFd+P5xRuB6V6n0\u002f9q1H4bpYfj9GwvUofCF+P5KZmZmZan4\u002fWXA9CkdqfT+LHoXrkZ5+P8CjcD1KOn4\u002fcD0K18OIfj9y9Shcvxl+P1FwPQpHS34\u002fgEfhenQsfj\u002fC1qNwPXR+PwUzMzOj9X0\u002f\u002fY7C9Vhlfj9MHoXrUTd+P4soXI+SaH4\u002foP\u002f\u002f\u002f08Rfj+sKFyP8mt+Pw6F61EINX4\u002fJutRuF6Cfj+8W4\u002fCJYR9P6N6FK73ZX4\u002fjqNwPSpZfj9OHoXrIZt+P2tH4Xp0L34\u002fJRSuR8GOfj89ZmZmNmB+PxNcj8L1i34\u002f+ITrUShAfj8dj8L1+Kh+P4xH4XrETn4\u002fsChcj2Knfj+OzMzMjCV+P5ijcD26i34\u002fgXoUrpdyfj94ehSu54d+P2Y9CtcTnn0\u002frMzMzFzlfj9qPQrXk31+P9T\u002f\u002f\u002f8fnn4\u002fDbgehYtjfj\u002f\u002ftx6Fe6F+P5RH4XrEjX4\u002fGGZmZjaVfj9TcD0KB2t+P9syMzNz334\u002fJD0K11NXfj9Q61G4fnR+PybhehReWH4\u002f2Chcj9Kdfj9jzMzMbJN+PyXhehR+kH4\u002fcEfheqSafT+AHoXrMTiAP4DC9SiEC4A\u002fVj0K12MkgD\u002ft1qNwTeJ\u002fP0W4HoWzPYA\u002fRhSuRykEgD+eHoXr6UmAPx8zMzPzBYA\u002fH7gehQs5gD9+wvUozA2APyHhehQWN4A\u002fKRSuR0Hefz\u002fGUbgevU6AP+qE61EYBoA\u002fAYXrUdhKgD\u002fY\u002f\u002f\u002f\u002ff4V\u002fP6mjcD1iM4A\u002fv6NwPWoCgD82ZmZmJjWAP\u002fWOwvWI8n8\u002fP7gehZNOgD+3zMzM1BmAP9zWo3ClSoA\u002fb5mZmZEFgD\u002fy\u002f\u002f\u002f\u002f90+AP9B6FK6vBYA\u002fCIXrUfBHgD+rHoXrMfJ\u002fP\u002fytR+HSNYA\u002faD0K19MNgD97wvUoNDCAP8aE61EIP38\u002fTT0K14s\u002fgD\u002f4rUfhch6AP10UrkcRI4A\u002fZT0K10MigD+CwvUoNGeAPwLXo3BdK4A\u002fZT0K10NCgD9rwvUobBiAP5BwPQqHKoA\u002fvFG4HhUGgD\u002fw1qNw3U2AP1KPwvWQH4A\u002f"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=sqinf_run\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"sqinf_run","line":{"color":"#ab63fa","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"sqinf_run","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"AAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002f8v\u002f\u002f\u002f\u002f8xjD8Trkfhon6NP79RuB69b40\u002fGbgehcthjT+lHoXrCVmNP2E9CtfLhI0\u002ffutRuBZcjT+HR+F6dIONP+qE61EQPI0\u002f661H4UpujT8jj8L1GECNPw0zMzN7oo0\u002fofUoXEc9jT9p61G4Fo+NPyJcj8LdG40\u002fAAAAAPhNjT8jMzMzg2GNP7H1KFzvhI0\u002fu3oUrpdCjT\u002fIo3A9EpONP6MehetBZ40\u002fZRSuR9l7jT\u002fiUbge3WqNP1XrUbjOh40\u002flPUoXA8pjT9zwvUoXHuNP4lwPQqPTY0\u002f\u002f9ajcNUpjT8mj8L1qEONP4CZmZkhd40\u002feRSuRxlRjT\u002fe1qNwbXSNPy9mZmYG7ow\u002fiZmZmdmLjT\u002fqrUfhajaNP3aZmZmJko0\u002fGOF6FD5ajT9z61G4ppmNP57MzMw8n40\u002f3HoUrv+HjT8FCtejUK2NP1YUrkf5dY0\u002fuMzMzLSJjT\u002fjKFyPWnaNP0LhehR2Yo0\u002fM+F6FJ6OjT9IPQrXQ3aNP471KFzXe40\u002fV2ZmZo4yjT\u002f3\u002f\u002f\u002f\u002fP7GNP2FmZmYWm40\u002f3HoUrv+PjT824XoUFmyNPyBcj8Ilho0\u002frkfhehx4jT\u002fZehSub2yNP189CtcTb40\u002faML1KMyIjT9G4XoU3puNP3vrUbiOmo0\u002fPQrXo4hzjT8yuB6FU4iNPxIzMzPDc40\u002f4q1H4YqnjT8EXI\u002fCFSaNP\u002f2E61FYi44\u002fSLgehTtHjj8PXI\u002fCna6OP8NRuB4dJ44\u002fXmZmZoZfjj8QMzMzEziOP9B6FK6fkY4\u002f4Chcj8pKjj9t61G4fpiOP2NmZmbmTo4\u002f8NajcNWLjj+oo3A9msmOP6HMzMzcZo4\u002fiEfhemyJjj+LR+F6\u002fIyOP5fMzMw88I0\u002fUhSuR4Ggjj94R+F6lJ2OP6KjcD1ywI4\u002fAq5H4RpXjj8OhetRAJuOP96tR+ECVo4\u002f94TrUUjgjj\u002fk1qNwfVeOP6z1KFync44\u002ffetRuE5ijj+YzMzMJEqOP7nMzMx8g44\u002fa3A9Cq+pjj8LCtejcFyOPz89Ctd7vY4\u002f31G4HkUdjj9qFK5HOZuOP6PMzMyclo4\u002f5FG4HpWYjj8yCtejEE+OP8V6FK4ntY4\u002fUbgehRNsjj\u002fMzMzM7JSOP\u002fz\u002f\u002f\u002f9\u002fOI4\u002fmJmZmcmFjj8PMzMzQ3yOPxMzMzOzb44\u002fLuF6FEZRjj+IR+F6ZKeOPxqF61FQdY4\u002fEIXrUcCajj+bzMzMtC2OP9QoXI9iqo4\u002fqvUoXP9pjj+WcD0Kt42OPxqF61FYT44\u002fNwrXo2Byjj\u002fJehSur4aOP8qjcD3SUo4\u002ffetRuC56jj9pPQrXq4uOPy5mZmZGbo4\u002f0noUrndnjj\u002ffKFyP+maOP1SPwvVIjY4\u002fXz0K1yNzjj8pXI\u002fC5XyOP76jcD2CCI4\u002fMQrXoyh9jz9YPQrXCzaPP7rMzMxci48\u002fl\u002fUoXJ9Mjz8B16NwfZOPP0y4HoXLIo8\u002fj\u002fUoXL9djz8NMzMzc2CPP72jcD2qQo8\u002ftB6F69kajz\u002fM\u002f\u002f\u002f\u002fP3ePP8IoXI\u002f6Ao8\u002f69ajcIV4jz8sMzMzO9aOPwMzMzPrX48\u002fTRSuR0nrjj\u002fdKFyPQmGPP9dRuB5NSI8\u002fOj0K1zNUjz\u002fb1qNwzRyPP1K4HoXrSY8\u002fIgrXo0Atjz+RmZmZ2YqPP756FK4fTI8\u002fUbgehQuqjz9fwvUoFHSPP4XrUbgetY8\u002fR+F6FNZJjz9Mj8L1aGaPP+woXI8Sc48\u002fHuF6FH5xjz\u002f+MjMzkyKPP2uZmZkRno8\u002fFIXrUSi8jz+HcD0K35GPP0yPwvVwmI8\u002fzXoUrhdYjz+fR+F6HGqPPzzhehROuY8\u002f\u002fv\u002f\u002f\u002f0cyjz8V4XoUxkyPP5pH4XrMTo8\u002fWmZmZiZ4jz9qFK5HOVOPP8Z6FK4PT48\u002f4FG4Hi2fjz\u002f0KFyPCpCPP1yPwvUgMo8\u002fYcL1KNx9jz8buB6Fe32PP9X\u002f\u002f\u002f8HqI8\u002fWsL1KMSojz97mZmZyZmPP9YoXI8imo8\u002f3f\u002f\u002f\u002f+d2jz8pXI\u002fC\u002fXqPP2FmZmYuqY8\u002fnUfhemR8jz9+61G4Hp6PP4+ZmZkZg48\u002fTz0K10unjz9PZmZmpnmPPxZcj8KddY8\u002fEgrXo4AHjz\u002fx1qNwzVGQP\u002fitR+FyKpA\u002fqvUoXOdDkD9oFK5HiQuQP\u002f7Wo3DxTJA\u002fEYXrUaBOkD\u002f+1qNw6WKQPwauR+FyGJA\u002fJgrXo8BAkD91wvUo\u002fCKQP37rUbgWQJA\u002fxKNwPa42kD\u002fuKFyPzj2QPzEzMzNzI5A\u002fANejcJ1HkD+yehSu5\u002f+PP6EeheudNpA\u002fA4XrUYQ5kD8oMzMzy0KQP\u002fL\u002f\u002f\u002f\u002fnJ5A\u002fXD0K13NHkD8JrkfhHjOQP4WZmZlxGpA\u002f0qNwPa4ckD8ArkfhVkaQP6JwPQoPHpA\u002fUo\u002fC9YRMkD\u002fbKFyPgimQP+VRuB5hT5A\u002fJlyPwmUxkD\u002fmKFyP4lOQP1MUrkdp6o8\u002fPbgehcNekD9mZmZmgj2QP6wehesBOpA\u002fF4XrUbw0kD\u002fXUbgeUUWQP58ehevhI5A\u002fdRSuR6VokD+hR+F64BqQPxiF61GwMZA\u002fEYXrUaAukD+kHoXrMVuQP\u002fYoXI+qM5A\u002f"},"yaxis":"y","type":"scattergl"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"title":{"text":"number of observations"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"Time (seconds)"}},"legend":{"title":{"text":"variable"},"tracegroupgap":0},"title":{"text":"Average compute time Filters with Varying n (64 bit)"}},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('84a10af7-b6fa-45ee-b465-d21818930f11');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+<div id="01fbaeb3" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.express <span class="im">as</span> px</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">'data/scale_tests_ncc_64.csv'</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> px.line(</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    df, </span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span><span class="st">"n"</span>,</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>df.columns[<span class="dv">7</span>:], </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span>{<span class="st">"n"</span>: <span class="st">"number of observations"</span>, <span class="st">"value"</span>: <span class="st">"Time (seconds)"</span>},</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"Compuile Time of Filters Varying n (64 bit)"</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Show the plot</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>fig.write_image(<span class="st">"figure/scale_test_compile.png"</span>)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>fig.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script type="text/javascript">if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>                <div id="34aab5ef-0b82-41ff-9555-246dad594663" class="plotly-graph-div" style="height:525px; width:100%;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("34aab5ef-0b82-41ff-9555-246dad594663")) {                    Plotly.newPlot(                        "34aab5ef-0b82-41ff-9555-246dad594663",                        [{"hovertemplate":"variable=kalman_comp\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"kalman_comp","line":{"color":"#636efa","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"kalman_comp","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"AAAAAM\u002fx5D8AAADAKRLwPwAAAIC4V+U\u002fAAAAgDav4j8AAACAaO\u002fiPwAAAIC+0OI\u002fAAAAgMaC5T8AAACAYlXkPwAAAIC53uM\u002fAAAAgGRY4z8AAAAAqEXjPwAAAIAa3+M\u002fAAAAgOe44z8AAACAS0jjPwAAAACpreM\u002fAAAAgFYG5z8AAACAry3kPwAAAIAWUOc\u002fAAAAgHVF5D8AAACA1CXkPwAAAACoaOQ\u002fAAAAgAOm5T8AAAAARqPmPwAAAIBlSuU\u002fAAAAgAVC5j8AAAAA4i3lPwAAAIA7cOU\u002fAAAAAEs26D8AAACAJw7pPwAAAIDBBOY\u002fAAAAADNJ5z8AAAAA9kjlPwAAAIA6f+U\u002fAAAAAOAM5T8AAAAAvyzmPwAAAACA+uQ\u002fAAAAACkb5z8AAAAAhNDlPwAAAIDShOc\u002fAAAAgFz45T8AAACArUHlPwAAAIDfIOU\u002fAAAAABBv6T8AAAAA4hznPwAAAAApnOc\u002fAAAAgJ\u002f55j8AAAAAhOPnPwAAAABeKeU\u002fAAAAAGrc5z8AAACAc+foPwAAAIA7muk\u002fAAAAgEUw6D8AAACAR3bmPwAAAICxq+U\u002fAAAAAB83AkAAAACA7IjmPwAAAIAoueY\u002fAAAAgDz15j8AAACAx+PrPwAAAAA7oOc\u002fAAAAAAEM5j8AAACAv8jlPwAAAIBXUOU\u002fAAAAgKK56D8AAAAAOZblPwAAAAB5+uU\u002fAAAAgKDR5j8AAACAa9voPwAAAABLkuc\u002fAAAAAIC+5j8AAAAA4GrmPwAAAIBm\u002f+U\u002fAAAAAA9N5z8AAAAA6cHpPwAAAIDROuc\u002fAAAAgHes6j8AAACATRjqPwAAAIBoT+k\u002fAAAAAFwy5j8AAACAmRnqPwAAAAA0Tuc\u002fAAAAgPtN6D8AAAAASdXoPwAAAADY6PI\u002fAAAAQNE09j8AAAAAg8nlPwAAAADB5uk\u002fAAAAAKUO6z8AAAAAlXHoPwAAAAAYEuo\u002fAAAAgCjr5z8AAACAA1LrPwAAAAB4I+k\u002fAAAAgMwK5z8BAAAAoxPuPwAAAIAcPOc\u002fAAAAABDE5j8AAACABQPrPwAAAICqfek\u002fAAAAgHbc6z8AAAAA6zvqPwAAAICI6+o\u002fAAAAgBJK6j8AAAAAsS3pPwAAAKAfxgBAAAAAAMQB6j8AAACAOV\u002foPwAAAABqMec\u002fAAAAgCTG5j8AAACA9DPqPwAAAACg4\u002fA\u002fAAAAgKs65j8AAAAA5ybqPwAAAIDU+Oc\u002fAAAAANga6j8AAACAC6npPwAAAIAbJ+Y\u002fAAAAAJA+6T8AAACA74fmPwAAAADtZOk\u002fAAAAgOdb6j8AAACAagLnPwAAAACxd\u002f8\u002fAAAAAHNo6j8AAACAiF\u002fqPwAAAIAeReo\u002fAAAAALdU5z8AAAAA8SDrPwAAAAC\u002fq+Y\u002fAAAAQBoy9j8AAAAAJ7HoPwAAAID\u002f0uk\u002fAAAAAMcD6T8AAAAAQxbyPwAAAIA5HOc\u002fAAAAAIjd5j8AAAAgLtwCQAAAAIAeveY\u002fAAAAgDDA5j8AAAAAQ6zoPwAAAADtxug\u002fAAAAgGhb5j8AAACA5O3lPwAAAIBbKeo\u002fAAAAAHKp6D8AAACAVfDsPwAAAABaQug\u002fAAAAgM0y5z8AAACA9L3pPwAAAIBOVf0\u002f\u002f\u002f\u002f\u002ff3On7T8AAAAAszDrPwAAAEAt\u002fPQ\u002fAAAAANih6z8AAAAAhZDqPwAAAID50Ok\u002fAAAAgIQl5z8AAACAqnjrPwAAAIB5deg\u002fAAAAgP5E6j8AAACAJOzoPwAAAABbdek\u002fAAAAABTI6D8AAACA1zbnPwAAAADaY+Y\u002fAAAAAMRl5z8AAACA4hzrPwAAAIBsquY\u002fAAAAgO4t6T8AAACAGlfpPwAAAADEo+k\u002fAAAAAETc7T8AAACA81vpPwAAAABP++k\u002fAAAAAH3z6D8BAABAPNPyPwAAAAC\u002fOek\u002fAAAAgK4a5j8AAAAAowfqPwAAAACa3ec\u002fAAAAACy36D8AAAAAQILpPwAAAIDeweY\u002fAAAAALLD6j8AAAAA\u002ffDoPwAAAAA6Qes\u002fAAAAANcy5z8AAADgkNwUQAAAAAAIS+o\u002fAAAAgF6W5z8AAAAAc5PmPwAAAACER+o\u002fAAAAAPK86T8AAABAoUHyPwAAAIBdGeo\u002fAAAAgHmg5j8AAACAcxvrPwAAAIChyOc\u002fAAAAgB6r5z8AAACAWW\u002fnPwAAAID6yek\u002f\u002f\u002f\u002f\u002ff8bW7j8AAAAAoHjoPwAAAAAzOeo\u002fAAAAwKkT8j8AAAAAJsfoPwAAAACJiuc\u002fAAAAAC2x5j8AAACAvP3mPwAAAAAXBec\u002fAAAAAAhW6z8AAAAAKJTnPwAAAACSMec\u002fAAAAAID25j8AAACA7xPmPwAAAACXjeg\u002fAAAAgNzb6D8AAAAAMWDpPwAAAACVpec\u002fAAAAAPNj6T8AAACAaF\u002fnPwAAAIBkXOk\u002fAAAAABc+6z8AAAAAJsb1PwAAAEDZOvA\u002fAAAAgKg05z8AAACAnanxPwAAAEC3LPw\u002fAAAAgMft+T8AAAAAn4XqPwAAAIDPkes\u002fAAAAgGkx5z8AAAAAWSznPwAAAIAc5Oc\u002fAAAAABwd5z8AAAAAv27nPwAAAIDroug\u002fAAAAgMeN5z8AAACAPOLqPwAAAIBn\u002fOY\u002fAAAAAHfO5j8AAAAAGELnPwAAAAAQnec\u002fAAAAgBuJ5z8AAACAorznPwAAAADYW+c\u002fAAAAoGkJAEAAAACARDLwPwAAAICpkfk\u002fAAAAgG0b6D8AAAAAXGnqPwAAAAA1Ne0\u002fAAAAgJOY6D8AAAAADZvoPwAAAICfMuw\u002fAAAAALxF6z8AAAAAo+LpPwAAAAAvmug\u002fAAAAANVQ6z\u002f\u002f\u002f\u002f\u002f\u002fLcLtPwAAAACSJ+s\u002fAAAAAOjW5z8AAACAya3nPwAAAIB8JvE\u002fAAAAgAlP6D8AAAAA3YnnPwAAAIBhgug\u002fAAAAgHj89D8AAACAryDrPwAAAIBOGek\u002fAAAAAIZD6D8AAAAA9\u002fXnPwAAAAAIn+o\u002fAAAAgL4L6D8AAAAAgHfnPwAAAADfkuk\u002fAAAAACDM5z8AAACAF\u002fznPwAAAADTGec\u002fAAAAADJv6z8AAAAAg7jqPwAAAAD04uo\u002fAAAAgEdv6z8AAACAZovtPwAAAICKyug\u002f\u002f\u002f\u002f\u002ff7YM7T8AAACAVbnnPwAAAACXnec\u002fAAAAAMeR6D8AAACATYHsPwAAAADQ5Oc\u002f"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=sqrt_comp\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"sqrt_comp","line":{"color":"#EF553B","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"sqrt_comp","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"AAAAALWY5z8AAAAA2hHkPwAAAIDAA+Q\u002fAAAAAHqu5D8AAAAAIYDkPwAAAIACL+Q\u002fAAAAgC435T8AAACAC6rpPwAAAMCOhfE\u002fAAAAAKKS6T8AAACAX2HmPwAAAADgTek\u002fAAAAAHDG5z8AAAAAmrDoPwAAAICBSOk\u002fAAAAgAin5j8AAAAAupbmPwAAAADgEec\u002fAAAAgGjF5j8AAACAtpnpPwAAAIAiO+o\u002fAAAAgGZO6z8AAACACnvmPwAAAIBMuOs\u002fAQAAAN4E7z8AAAAA6lToPwAAAADnZ+o\u002fAQAAgDNF7T8AAAAApLHqPwAAAICvNeg\u002fAAAAAFV76D8AAACAo0\u002fsPwAAAAD57us\u002fAAAAgI755z8AAACAeXbrPwAAAADHheg\u002fAAAAgCHa6D8AAAAAMIbsPwAAAIC3\u002f+g\u002fAAAAgNbq6D8AAAAADdztPwAAAIDjbu0\u002fAAAAgBgR6T8AAACA0PHpPwAAAADWfek\u002fAAAAgPtp6D8AAAAAOdHnPwAAAIApZuk\u002fAAAAgLg86D8AAAAALeLoPwAAAAA49+s\u002fAAAAgKoE6D8AAAAAI1joPwAAAAACOus\u002fAAAAgF8h5D8AAAAAJHHpPwAAAIBRRe0\u002fAAAAAI0g6j\u002f\u002f\u002f\u002f\u002f\u002fm9rsPwAAAABlPuk\u002fAAAAgB\u002fC6D8AAAAA8j3tPwAAAADcuuo\u002fAAAAAEJU6T8AAACAgsTpPwAAAAAON+w\u002fAAAAgIm16T8AAACAP3joPwAAAADlBOk\u002fAAAAgGdw7j8AAAAAWpfrPwAAAAAb9Og\u002fAAAAgOQf6T8AAAAA6XLoPwAAAIDJ8Og\u002fAAAAgCNB6D8AAAAAlWfoPwAAAAD0p+g\u002fAAAAgARS6j8AAAAAOILoPwAAAIBvNOk\u002fAAAAgJup6D8AAAAAlhfoPwAAAAB2COg\u002fAAAAAIcE6D8AAAAANOXqPwAAAAC+cec\u002fAAAAAPxQ6T8AAACAPWnpPwAAAAAfvuk\u002fAAAAAGj86T8AAACAi1HpPwAAAABPDuo\u002fAAAAAAsK6T8AAACAtpPoPwAAAIDeaeo\u002fAAAAAB6m6j8AAAAA25zpPwAAAAAvguk\u002fAAAAANYI6T8AAACAnZroPwAAAAATxek\u002fAAAAAF6y6D8AAAAA+GXpPwAAAIA3C+o\u002f\u002f\u002f\u002f\u002f\u002f2BB7j8AAACAZyzpPwAAAABr2eg\u002fAAAAAH5n6z8AAAAAoDfpPwAAAIAq6Og\u002fAAAAgNXd6T8BAAAAXOfuPwAAAACXu+g\u002fAAAAAFgS6D8AAAAAqxHpPwAAAAA3vOs\u002fAAAAgAVw6T8AAAAAhlPtPwAAAAA2Fuk\u002fAAAAAKia6T8AAAAAzqfpPwAAAADv1uk\u002fAAAAgBr36T8AAACAGtTtPwAAAAAxu+s\u002f\u002f\u002f\u002f\u002ffzpk7j8AAACAxh3pPwAAAABD9+0\u002fAAAAAEFJ6T8AAACAhVzpPwAAAACy0+k\u002fAAAAgEmp6T8AAAAAgNrpPwAAAIDbweo\u002fAAAAAIU+7D8AAAAA1jbpP\u002f\u002f\u002f\u002f382VO4\u002fAAAAgBMK7T8AAACApr3oPwAAAIBPhOk\u002fAAAAgCjv6T8AAAAAEC7pPwAAAABgp+k\u002fAAAAgDUH6T8AAACAir3pPwAAAADI3eg\u002fAAAAgL+G6T8AAACAF\u002fDoPwAAAICRHek\u002fAAAAgAva6D8AAACAdK3qPwAAAABDEOo\u002fAAAAgFzL6T8AAAAAxY7qPwAAAIBVTes\u002fAAAAAL817D8AAAAArOfpPwAAAABaM+k\u002fAAAAgEdW6j8AAACAdinpPwAAAIAk9uk\u002fAAAAgCZw6j8AAACAi7jpPwAAAAC\u002fJeo\u002fAAAAAOFA6j8AAACAcqvpPwAAAIBci+8\u002fAAAAgF1y6T8AAACAFQzqPwAAAAB3zOo\u002fAAAAALyQ6T8AAAAAKILpPwAAAAD6e+k\u002fAAAAgGbz6D8AAAAAYKzpPwAAAICseeo\u002fAAAAAOkU6z8AAACAjJfrPwAAAICGuOk\u002fAAAAAFyB6T8AAACA09TqPwAAAABecOg\u002fAAAAAA6Z6j8AAAAAuBfqPwAAAACIu+o\u002fAQAAAN7y7D8AAACAHhbqPwAAAIDqP+o\u002fAAAAAErz6T8AAACAeuzpPwAAAIAD6+k\u002fAAAAgMa66T8AAAAAG2XqPwAAAAAY++k\u002fAAAAgKrx6T8AAACAUQHqPwAAAACFa+o\u002f\u002f\u002f\u002f\u002f\u002f9ry7j8AAAAA78DqPwAAAIA1Qeo\u002fAAAAABKN6T8AAACAK8DsPwAAAIAFpek\u002fAAAAANyo6z8AAACAw87pPwAAAIAB7uk\u002fAQAAgPwG7T8AAAAA7YHsPwAAAACj3eg\u002fAAAAgMH16T8AAABALKHwPwEAAID+De4\u002fAAAAgH7K6z8AAAAA633qPwAAAADlq+o\u002fAAAAACmB6j8AAACAfE3qPwAAAAA8bes\u002fAAAAgObG6j8AAAAAWMXqPwAAAADcKuo\u002fAAAAAHjn6T8AAAAA6gvrPwAAAABFkOo\u002fAAAAgJRU6j8AAAAAz4bqPwAAAIDpPu0\u002fAAAAALfN6j8AAAAAsQzqPwAAAADVYOo\u002fAAAAABmu6T8BAAAA3HjtPwAAAICfmus\u002f\u002f\u002f\u002f\u002ffzpI7j8BAAAAUn3uPwAAAICQr+k\u002fAAAAAC1C6j8AAACAV3XqPwAAAIBNJuo\u002fAAAAgJpP7D8AAADAUFXxPwEAAIA7W+0\u002fAAAAAKYc6j8BAAAAbCHuPwAAAAC20ek\u002fAAAAgFSd6T8AAAAAymTqPwAAAICiG+s\u002fAAAAAD3L7D8AAAAAsjbrPwAAAAAIquo\u002f\u002f\u002f\u002f\u002ff\u002fWH7T8AAADAt1LzPwAAAAC7oO0\u002fAQAAAF7D7T8BAACAcMfvPwAAAIC0lOw\u002fAAAAgHK96z8AAAAAagHrPwAAAIADw+o\u002fAAAAAAVl7T8AAACA4hzrPwAAAIDlU+s\u002fAAAAAH0m8z8AAAAAabjrPwAAAIDRbPY\u002f\u002f\u002f\u002f\u002f\u002fyES7z8AAACAWaLrPwAAAADl2+o\u002fAAAAgPHs7D8AAACAlE7tPwAAAIDsCus\u002fAAAAgP0m6j\u002f\u002f\u002f\u002f9\u002fvrvtPwAAAAArmOo\u002fAAAAAFfB6j8AAACAYOzqPwAAAICwRuw\u002fAAAAAPIw7T\u002f\u002f\u002f\u002f\u002f\u002f7E7tPwAAAAD6Dus\u002fAAAAAKDK6z8AAACAGcbvP\u002f\u002f\u002f\u002f3\u002fEou4\u002fAAAAgCO\u002f6z8BAAAAWtXuPwAAAIDQ0O4\u002fAAAAALIn6z8AAACAvfnqPwAAAABQ0+s\u002f"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=inf_comp\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"inf_comp","line":{"color":"#00cc96","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"inf_comp","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"AQAAQG7oAkAAAAAg0YoDQAAAAIAGiAVAAAAAwCL3AkAAAACAgOwFQAAAAECOOgRAAAAAYAUPAkABAABAKK79PwAAAIABSwFAAAAAgG7o\u002fT8AAADgjTkDQAEAAGDDRABAAAAAgAuUAED\u002f\u002f\u002f+\u002fwmT+PwAAAEBn\u002fQBAAAAAoCONAkAAAAAg3hICQAAAAADN7QNAAAAAYOZPAEAAAACAkz7+PwAAAMB1KwJAAgAAgCp\u002f\u002fj8AAAAAU74CQAEAAKAFMAVAAAAAQCFIAUAAAADAA4MBQAAAAAADPARAAAAAAH1ZAkAAAACAkOUDQAAAACCr9QJAAQAAoBT+A0AAAACAgdcCQAAAAIABZwJAAAAAQMjcAUD\u002f\u002f\u002f9f6+MDQP\u002f\u002f\u002fz8J5wFAAAAAQPBoBUAAAABA15wCQAAAAKDYywNAAAAAwARlBEAAAAAAGbkEQAAAACC0cgNAAAAAwK0BBkAAAABAJ08DQAAAAADbcAVAAAAAoH8EA0ABAABAPQwFQAAAAABPngJAAAAAQPJWBUAAAAAAIZUDQAAAAOB6IgZAAAAAYL88AkD\u002f\u002f\u002f+fYOsDQAAAAMBBQANAAAAAgPwJBUAAAACgVk8CQAAAAIDBzwZAAAAAIN4TAUAAAADABCsHQAAAAED8LAVAAAAAwCLGBUABAABgfvoAQAAAAAA2SAdAAAAAwP1PA0AAAABgeDwGQAAAACCb7gVAAAAAQNA6BkAAAACgjOAFQAAAAGAeMghAAAAAIMblAEAAAABAaMkHQAEAAKBsSwRAAAAAALplCEAAAAAAPeQCQAEAAEDz3QZAAAAAAPnFBUAAAACgBOcIQAAAAABE1AZAAAAAwHRwCUAAAACgYXADQAAAAABmwghAAAAAYCkPA0AAAADAsawKQAAAAKCHZwpAAAAAQIg9CUAAAABARskCQAAAACDABQtAAAAAAGFMBEAAAABgJ0kKQAAAAGDiqAdAAAAAoDAtCkAAAADARjgHQAAAAKD\u002fjQlAAQAAIE8oAkAAAABAck4HQAAAAOASpgZAAAAAINs1B0AAAACANQEEQAEAAKCx\u002fgZAAAAAwOJSBEAAAAAAv1gGQAEAAMB8qQhAAAAAQJgACEAAAABAwR8EQAAAACAkZQdAAAAAQOUaBkAAAABArCEFQP\u002f\u002f\u002fz\u002fjuwZAAAAAIPagAkAAAABgqr4EQAAAAEAKMQdAAAAAAII\u002fBEAAAAAAf9wCQAAAAIAW6wZA\u002f\u002f\u002f\u002fH9qIB0AAAACAKhwGQAAAAADofghAAAAAQAeCBUAAAAAA70cHQAAAAMA+vAtAAAAAwG0\u002fBUABAAAA7NcAQAAAAGBovgZAAAAAYA4KA0AAAADAMNICQAAAAKAA+gZAAAAAQCzOBUAAAABgF54DQAAAAKDpxwhAAAAAoO0RAUABAABA2poFQAAAAAAB0whAAAAAYJJpAUAAAADgL8ECQAAAAGAXBQpAAAAAgNbNB0AAAAAgdO8BQAAAAIB8lQlAAAAAYIYoB0AAAACALccCQAAAAKCB+ghAAAAAYO53AUAAAABAnL4FQAEAAGA0BwVAAAAAIO9kA0AAAADAp3IFQAAAAED7MgdAAAAAwD+cAkAAAAAgJssBQAAAAIAyxwJAAAAAYC0dBkAAAACgvnIDQAAAAKAJFgRAAAAAoLhpA0AAAADA6OYFQAAAAEAFtAhAAAAAYIeXAkAAAADg5JUDQAAAAABIJgdAAAAAwO0kBEAAAACA06MIQAAAAEA1lQRAAAAAABz8BkD\u002f\u002f\u002f8fA5UAQAAAAKCIGQVAAAAA8OIpG0AAAACg66oGQAAAAADQqAJAAAAAYDEqAkAAAABAXOkAQAAAAKBNUwhAAAAAYJQUAUAAAACA2egDQAAAACAXGQFAAAAAgCJMCEAAAAAAIWIFQAAAAKDdwARAAAAAQNM3BUAAAABgMWMHQAEAAGD+5QNAAAAAwEh8BUAAAAAgweoAQAAAAOAftgZAAAAAwIjBAEAAAACgKvIDQAAAAGAtSQZAAAAAIMuUCEAAAAAAQ\u002fQCQAAAACDItgVAAAAAAPF9AkAAAADgkKMJQAAAAEDiWwFAAAAAQMOZAUABAAAg6KwEQAEAACDtZQdAAAAAIN1RB0AAAAAg64kBQAAAAODIWAVAAAAAQMP7BUAAAADAKVYEQAAAAMA\u002fVQZA\u002f\u002f\u002f\u002fHwNEAUAAAAAg0+sBQP\u002f\u002f\u002f79CugFAAAAAIKcfAUAAAACA+OwJQAAAACDWnwdAAAAAoKW7BkABAADgmysEQAAAACC0WQJAAAAAwLTABkAAAABAClcEQAAAAOC7hwdAAAAAIIQnA0AAAACg0xEHQAAAAGDM6AhAAAAAIF4ZA0AAAAAg+6oCQAAAAOCiZwhAAAAAIGLOAEAAAABgoocJQAAAAMBGMgVAAAAAQKuLBUD\u002f\u002f\u002f9fD+AAQAAAAIAQNAdAAAAAINMOCkAAAADATroBQAAAAKA7gAFAAAAAoGNEB0AAAAAAXrQAQAAAAGDNZAdAAAAAoNlSAUAAAADA+iEEQAAAACB2WgVAAAAA4PZgAkABAACABPMKQAAAAEBUnAdAAAAAgO1tBEAAAADAdLYEQAEAAMD3kwFAAAAAYBhCCkAAAACA0E0DQAEAAMDQQwlAAAAAICaVBEAAAABAxrsDQAAAAKAiDwNAAAAAoD+7BEAAAADAHh4BQAAAAKC1aQlAAAAAALkqCEAAAABg8ygFQAAAAEDK9QVAAAAAQObHAkAAAABgFzoDQAAAAACbiglAAQAAYGDzA0ABAADgYHUJQAAAACCTXANAAAAAICOFAkAAAABgxTsCQAAAAOAKOghAAQAAAK3bA0AAAABgHY8FQAAAACAHfQhAAAAAIJuwA0AAAADAyx4EQAAAAODrjgpA\u002f\u002f\u002f\u002fPyOJAUABAACgVdIBQAAAAMDiZQdAAAAAoCR0CEAAAACAO2ECQAAAAIBRJglA\u002f\u002f\u002f\u002f\u002f3fQAUAAAAAABBcEQAAAAOAAQQdAAAAAoBZwBEAAAAAgS9sGQAAAAODG0AlAAAAAAErXA0AAAABgOq4IQAAAAAByFANAAAAA4P46A0AAAADgWDMCQAAAAGCsLgtAAAAAAMAOBEAAAABgiEsIQAAAAKB4DglAAQAAQD2sBEAAAADgCUMFQP\u002f\u002f\u002f\u002f\u002fyyQlA"},"yaxis":"y","type":"scattergl"},{"hovertemplate":"variable=sqinf_comp\u003cbr\u003enumber of observations=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"sqinf_comp","line":{"color":"#ab63fa","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"sqinf_comp","showlegend":true,"x":{"dtype":"i2","bdata":"CgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC\u002fAMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA\u002fQD+AP8AAAEBAQIBAwEEAQUBBgEHAQgBCQEKAQsBDAENAQ4BDwEQAREBEgETARQBFQEWARcBGAEZARoBGwEcAR0BHgEfASABIQEiASMBJAElASYBJwEoASkBKgErASwB"},"xaxis":"x","y":{"dtype":"f8","bdata":"AAAAQKGc\u002fz8AAADg0hUAQAAAAOA6lABA\u002f\u002f\u002f\u002fv6sjAUAAAAAgeI0BQAAAAKC83QNAAAAA4EA3AUAAAACAOocDQAEAAEB98AJAAAAAIJUpAkD\u002f\u002f\u002f+fGyECQAAAAOAS6gNAAAAAQJgTA0ABAAAADjoAQAAAAGBy3AJAAAAAAP\u002faAUAAAADArOgDQAAAACDLmwJAAAAAoEdlBEAAAADABBkDQAAAAOADHwRAAAAAAA1vAUAAAAAAO4QCQAAAAECCmQZAAQAAAK2kA0AAAADA9DUFQAAAAECQRgNAAAAAYByZA0D\u002f\u002f\u002f8\u002fY4gDQAEAAOD9rwRAAAAAgG3mA0AAAABAdPIDQAAAAGATiQRAAAAAwGUOBUAAAADgmSQEQAAAAAAZywdAAAAAAPrCA0AAAADg3g0EQAAAAKDA5gNAAAAAIIYyBUAAAADg6lEEQAAAACD\u002fwwRAAAAAIAoFBkAAAAAAS7QBQAAAAEDiNwZAAAAAoGq1A0AAAAAgiDoJQAAAAIAqKARAAAAAAHWeB0AAAABgJ6cBQAAAAACErQdAAAAAQBLSAUAAAABA0IEIQAAAAAB+qARAAAAAAGhdBUAAAADg6\u002f0DQAAAAOCoCwhAAAAAgEu3BUAAAADgN38KQAAAACCIUghAAAAA4DSICkAAAAAAm64CQAAAAKAcxQhAAQAAQD3KAkAAAABAyCcKQAAAAIBo+QVAAAAAYJPSCUAAAAAA+ZAEQAAAAAAFBgtAAAAAYILgAkAAAACA6t4KQAAAAGCHewZAAAAA4OHiC0ABAACgymgDQAAAAMCWbQlAAAAAYIwPBUAAAACAAOYKQAAAAEAmxwZAAAAAID0hC0AAAACgsEIDQAAAAEDc8glAAAAAoIkRB0AAAACgcE8KQAAAAEDdyQZAAAAA4MnUDkAAAAAAqC8IQAEAAMC8sgtAAAAAgMv\u002fA0AAAADwOkIQQAEAAACiygtAAAAAsBBZEEAAAABAB9UDQAAAAICFPwlAAAAAwEx7BEABAABg\u002flMHQAAAAOBYWAlAAAAAgFFHBUAAAACAAcgFQP\u002f\u002f\u002f3+L3gxAAAAAIFs2BkAAAABA6SQHQAAAAEDUmQtA\u002f\u002f\u002f\u002fv+soCUAAAABgJ9ADQAAAAECeXgxAAAAAYMIRCkAAAADA4YIJQAAAAACC8QtAAAAAIEfEBEAAAABgGSoIQAAAAODrIAtAAAAAgL2YBUAAAACgrzIHQAAAAIBTHwpAAAAAwGGVCUABAAAAjocJQAAAAEAWrgpAAAAA4ErcA0AAAAAAGlkIQAEAAGD5UgpAAAAAgBKqCEAAAADAxjcDQAAAAEDegQxAAAAAAGoWB0AAAACAQTkFQAAAACC4QA1AAAAAQM8kCEABAAAA3dUDQAAAAID6fAtAAAAAAPY6BkAAAAAAbjoJQAAAAOA+LwxAAAAAwKPwA0AAAADgVRIHQAAAAECSSw1AAAAAwEhJB0AAAADAT0wFQP\u002f\u002f\u002f7+CrwtAAQAAQLOCCUAAAAAg8WcDQAEAAMAMSg5AAAAAAD3fA0AAAAAApuMIQAAAAKC0ywdAAAAAQAEkCUAAAACgPq8IQAAAAIAlEA1AAAAAQA+PA0AAAADA8bwHQAAAAABYCgVA\u002f\u002f\u002f\u002fP7XrDUAAAADgCoAJQAEAAIBrvwdAAAAAIHfUBEAAAADgk2EKQAAAACBe0wlAAAAAYEv9BEAAAACAEdUEQAAAAABQ6QxAAAAAoGqLBkAAAADguOgKQAAAAGBh9gdAAAAAYJ6\u002fDUAAAACgqE0EQAEAAACnLApAAAAAIFKsC0AAAAAgoFkMQAAAAOBFogVAAAAAgPxIB0AAAACA8DAHQAAAAGC2VQ1AAAAAwAlaBkAAAACgAesIQAAAAGAwswhAAAAAgCgCD0AAAADgN8IJQAAAAGCZaApA\u002f\u002f\u002f\u002fP8SjBUAAAADgBXYLQAAAAAC\u002fiQdAAAAAwPBMCUAAAAAguFkGQAAAAMBz\u002fgxAAAAAAJaaBEAAAAAARksIQAAAAABXIgpAAAAAQHvlDEAAAADAi6YFQAAAAAAecwlAAAAAoHc3BEAAAACAUUsMQAAAAGBZEwdAAQAAwPyUB0ABAABgBO4IQAAAAMBfPQxAAAAAAGP+CkD\u002f\u002f\u002f8fw64HQAAAAACv5gdAAAAAAOUPCUAAAACAjVMHQAAAAABKFAtAAQAAwFBHB0AAAABAwWAFQAAAAACWbAdAAAAAYGwaCUAAAAAA3i4LQAAAAOCz3QpAAQAAYLnhCUABAADgJfkGQAEAAAAtWAVAAAAAQEd9C0AAAADwr98fQAAAAKDMsgpAAAAAAHuHBEAAAACg\u002f2MLQAAAAICAGwxAAAAA4F\u002fkBUAAAABgSFQEQAEAAGC+OwxA\u002f\u002f\u002f\u002fH1pzBkAAAACgC+oLQAAAAEAPdApAAQAAAA4PCkAAAADgyjUGQP\u002f\u002f\u002f9\u002fV0wxAAAAAYFl+DUAAAABg6e8FQAAAAECiuwVAAAAAYNAbCkAAAABg0IcEQAAAAIAlswxAAAAAIGlCCEAAAADgDAsJQAAAAEBn0wlA\u002f\u002f\u002f\u002fvxKwBUABAACARasNQAEAAKCUIQxAAAAAIEh0B0AAAAAAn4cKQAAAAIDxTQlAAAAAQOY3D0AAAABgCEIFQP\u002f\u002f\u002f\u002f9yeQ5AAAAAYBAMCkAAAADg40MGQAAAAAD01wZAAAAAgH0WCkAAAADg5jQFQAAAAODqywxAAAAAgNxPC0AAAAAgY\u002fUKQAAAAGDLmQpAAAAAQOlAB0AAAAAA1tAHQAAAAKAJww5AAAAAwAn4CUAAAACgWVQOQAAAAMCZighAAAAAIPdLBkAAAABgWnMFQAAAAEAG2Q1AAAAAAIG3BUAAAAAAsZIKQAAAAOAj4QtAAAAAIGF7BkAAAADAIdQIQP\u002f\u002f\u002f99Lwg1AAAAAoBOoBkAAAABgDJ4GQP\u002f\u002f\u002f\u002f+y2gpAAAAAQAACDkAAAAAAS7kFQAEAAODHuw1AAAAAoM44CEAAAABg6hcIQP\u002f\u002f\u002f18KsgdA\u002f\u002f\u002f\u002fX+utCED\u002f\u002f\u002f+ffOYMQAAAAOAZOw9AAAAAoCsoCEAAAAAA0xUMQP\u002f\u002f\u002f\u002f+jFAZAAAAAgK9dB0AAAACgdeAIQAAAAPCkIRBAAAAAIDVICEAAAADgKIIMQAAAACCnIwxAAAAAoNhDCUAAAADANlQKQAAAAEC7OA9A"},"yaxis":"y","type":"scattergl"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"title":{"text":"number of observations"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"Time (seconds)"}},"legend":{"title":{"text":"variable"},"tracegroupgap":0},"title":{"text":"Compuile Time of Filters Varying n (64 bit)"}},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('34aab5ef-0b82-41ff-9555-246dad594663');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+<div id="8004f1cc" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.express <span class="im">as</span> px</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">'data/scale_tests_ncc_r_32.csv'</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> px.line(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    df, </span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span><span class="st">"i"</span>, </span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>df.columns[<span class="dv">3</span>:<span class="dv">7</span>], </span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span>{<span class="st">"n"</span>: <span class="st">"number of observations"</span>, <span class="st">"value"</span>: <span class="st">"Time (seconds)"</span>},</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"Filters Comparison with Varying r (nbasis is r^2)"</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Show the plot</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>fig.write_image(<span class="st">"figure/scale_test_r.png"</span>)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>fig.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script type="text/javascript">if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>                <div id="548de389-a2cc-4cec-a4ba-0bfbd09951c5" class="plotly-graph-div" style="height:525px; width:100%;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("548de389-a2cc-4cec-a4ba-0bfbd09951c5")) {                    Plotly.newPlot(                        "548de389-a2cc-4cec-a4ba-0bfbd09951c5",                        [{"hovertemplate":"variable=kalman_run\u003cbr\u003ei=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"kalman_run","line":{"color":"#636efa","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"kalman_run","orientation":"v","showlegend":true,"x":{"dtype":"i1","bdata":"AAECAwQFBgcICQoLDA0ODxAREg=="},"xaxis":"x","y":{"dtype":"f8","bdata":"WML1KBzHWj8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8="},"yaxis":"y","type":"scatter"},{"hovertemplate":"variable=sqrt_run\u003cbr\u003ei=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"sqrt_run","line":{"color":"#EF553B","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"sqrt_run","orientation":"v","showlegend":true,"x":{"dtype":"i1","bdata":"AAECAwQFBgcICQoLDA0ODxAREg=="},"xaxis":"x","y":{"dtype":"f8","bdata":"9WVmZiamWT9tPQrXI7FhPwgUrkfBwmk\u002fO7gehQv9ej\u002f4\u002f\u002f\u002f\u002fD72EP18UrkexooU\u002fxXoUrjdZiT\u002f4rUfhakSMPyhcj8IZZpI\u002fHzMzMwNmlz8mMzMz\u002fyOcP3UUrke1cKE\u002fH1yPwtMHpT8cXI\u002fCvWCpPwuuR+G+gK0\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8="},"yaxis":"y","type":"scatter"},{"hovertemplate":"variable=inf_run\u003cbr\u003ei=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"inf_run","line":{"color":"#00cc96","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"inf_run","orientation":"v","showlegend":true,"x":{"dtype":"i1","bdata":"AAECAwQFBgcICQoLDA0ODxAREg=="},"xaxis":"x","y":{"dtype":"f8","bdata":"slG4HoVTZD\u002fDPArXw5BkP5pwPQo3nWY\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8="},"yaxis":"y","type":"scatter"},{"hovertemplate":"variable=sqinf_run\u003cbr\u003ei=%{x}\u003cbr\u003eTime (seconds)=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"sqinf_run","line":{"color":"#ab63fa","dash":"solid"},"marker":{"symbol":"circle"},"mode":"lines","name":"sqinf_run","orientation":"v","showlegend":true,"x":{"dtype":"i1","bdata":"AAECAwQFBgcICQoLDA0ODxAREg=="},"xaxis":"x","y":{"dtype":"f8","bdata":"H3A9ClfWaT9cmZmZGWJrPxXhehSuDm8\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fwAAAAAAAPh\u002fAAAAAAAA+H8="},"yaxis":"y","type":"scatter"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"title":{"text":"i"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"Time (seconds)"}},"legend":{"title":{"text":"variable"},"tracegroupgap":0},"title":{"text":"Filters Comparison with Varying r (nbasis is r^2)"}},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('548de389-a2cc-4cec-a4ba-0bfbd09951c5');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+
+
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

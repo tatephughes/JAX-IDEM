@@ -16,7 +16,7 @@ dir = os.path.dirname(os.path.abspath(__file__))
 from datetime import datetime
 
 import sys
-hmc_n = 100
+hmc_n = 1_00
 
 
 print("This is HMC with a strong prior on shape and scale.")
@@ -54,9 +54,10 @@ beta = jnp.array([0.]) # only intercept, no covariates
 # stations are stationary and there is no missing data, so there is the same number of observations per time period
 #nobs = radar_data.as_wide()['x'].size 
 
-process_basis = utils.place_basis(data = radar_data.coords,
-                                  nres = 2,
-                                  min_knot_num = 3,) # defaults to bisquare basis functions
+#process_basis = utils.place_basis(data = radar_data.coords,
+#                                  nres = 2,
+#                                  min_knot_num = 3,) # defaults to bisquare basis functions
+process_basis = utils.place_cosine_basis(data = radar_data.coords, N=10)
 
 process_grid = utils.create_grid(radar_data.bounds, jnp.array([41, 41]))
 int_grid = utils.create_grid(radar_data.bounds, jnp.array([100, 100]))
@@ -122,12 +123,12 @@ with open(os.path.join(dir,'./pickles/adaptive_params_prior.pkl'), 'rb') as file
 back_key, sample_key = jax.random.split(rng_key, 2)
 
 # Build the kernel
-step_size = 5e-3
+step_size = 0.08
 inverse_mass_matrix = prop_cov# / (5.6644/7)
 
 import blackjax
 
-hmc = blackjax.hmc(lambda flatpars: log_post(unflat(flatpars)), step_size, inverse_mass_matrix, num_integration_steps=10)
+hmc = blackjax.hmc(lambda flatpars: log_post(unflat(flatpars)), step_size, inverse_mass_matrix, num_integration_steps= 20)
 
 # Initialize the state
 state = hmc.init(init_mean)

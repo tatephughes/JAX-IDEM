@@ -3,7 +3,7 @@ title: "Sydney Radar Data"
 author: "Evan Tate Paterson Hughes"
 format:
   html:
-    code-fold: false
+    code-fold: true
     toc: true
     inclue-in-header: header.html
     mathjax: 
@@ -36,16 +36,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the CSV file using NumPy
-csv_data = np.loadtxt('data/Chains/HMCchainA.csv', delimiter=',')
+csv_data = np.loadtxt('data/Chains/HMC_chain_32.csv', delimiter=',')
 # Convert the NumPy array to a JAX array
-rmh_sample = jnp.array(csv_data)[:,1:]
+hmc_sample_32 = jnp.array(csv_data)[10000:60000,1:]
 
 print(f"Acceptance Ratio: {jnp.mean(csv_data[:,0])}")
-post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
+post_mean = jnp.mean(hmc_sample_32, axis=0)
+post_var = jnp.var(hmc_sample_32, axis=0)
 print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
+print(f"Posterior Variance of (transformed) parameters: \n{post_var}")
 
-
-samples = rmh_sample
+samples = hmc_sample_32
 
 # Number of parameters (columns in the array)
 num_params = samples.shape[1]
@@ -76,16 +77,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the CSV file using NumPy
-csv_data = np.loadtxt('data/Chains/HMCchainB.csv', delimiter=',')
+csv_data = np.loadtxt('data/Chains/HMC_chain_64.csv', delimiter=',')
 # Convert the NumPy array to a JAX array
-rmh_sample = jnp.array(csv_data)[:,1:]
+hmc_sample_64 = jnp.array(csv_data)[10000:60000,1:]
 
 print(f"Acceptance Ratio: {jnp.mean(csv_data[:,0])}")
-post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
+post_mean = jnp.mean(hmc_sample_64, axis=0)
+post_var = jnp.var(hmc_sample_64, axis=0)
 print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
+print(f"Posterior Variance of (transformed) parameters: \n{post_var}")
 
-
-samples = rmh_sample
+samples = hmc_sample_64
 
 # Number of parameters (columns in the array)
 num_params = samples.shape[1]
@@ -110,176 +112,3 @@ plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 ```
 
-
-## New Stuff
-
-### AM chain
-
-```{python}
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Load the CSV file using NumPy
-csv_data = np.loadtxt('data/Chains/AMchainA_prior.csv', delimiter=',')
-# Convert the NumPy array to a JAX array
-rmh_sample = jnp.array(csv_data)[:,1:]
-
-print(f"Acceptance Ratio: {jnp.mean(csv_data[:,0])}")
-post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
-print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
-
-
-samples = rmh_sample
-
-# Number of parameters (columns in the array)
-num_params = samples.shape[1]
-
-# Create a figure and axes for the stacked trace plots
-fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
-
-# Plot each parameter's trace
-for i in range(num_params):
-    axes[i].plot(samples[:, i], lw=0.8, color='b')
-    axes[i].set_ylabel(f'Parameter {i+1}')
-    axes[i].grid(True)
-
-# Label the x-axis for the last subplot
-axes[-1].set_xlabel('Iteration')
-
-# Add a title to the entire figure
-fig.suptitle('Trace Plots', fontsize=16, y=0.95)
-
-# Adjust spacing
-plt.tight_layout(rect=[0, 0, 1, 0.96]) 
-plt.show()
-```
-
-## HMC chain prior (with variance from AM)
-
-
-```{python}
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Load the CSV file using NumPy
-csv_data = np.loadtxt('data/Chains/HMCchain_prior1.csv', delimiter=',')
-
-# Convert the NumPy array to a JAX array
-rmh_sample = jnp.array(csv_data)[:,1:]
-
-print(f"Acceptance Ratio: {jnp.mean(csv_data[:,0])}")
-post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
-print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
-
-
-samples = rmh_sample
-
-# Number of parameters (columns in the array)
-num_params = samples.shape[1]
-
-# Create a figure and axes for the stacked trace plots
-fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
-
-# Plot each parameter's trace
-for i in range(num_params):
-    axes[i].plot(samples[:, i], lw=0.8, color='b')
-    axes[i].set_ylabel(f'Parameter {i+1}')
-    axes[i].grid(True)
-
-# Label the x-axis for the last subplot
-axes[-1].set_xlabel('Iteration')
-
-# Add a title to the entire figure
-fig.suptitle('Trace Plots', fontsize=16, y=0.95)
-
-# Adjust spacing
-plt.tight_layout(rect=[0, 0, 1, 0.96]) 
-plt.show()
-```
-
-
-
-## Hamilton 64-bit comparison
-
-
-```{python}
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Load the CSV file using NumPy
-csv_data = np.loadtxt('data/Chains/HMCchain_prior2_64.csv', delimiter=',')
-
-# Convert the NumPy array to a JAX array
-rmh_sample = jnp.array(csv_data)[:,1:]
-
-print(f"Acceptance Ratio: {jnp.mean(csv_data[:,0])}")
-post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
-print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
-
-
-samples = rmh_sample
-
-# Number of parameters (columns in the array)
-num_params = samples.shape[1]
-
-# Create a figure and axes for the stacked trace plots
-fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
-
-# Plot each parameter's trace
-for i in range(num_params):
-    axes[i].plot(samples[:, i], lw=0.8, color='b')
-    axes[i].set_ylabel(f'Parameter {i+1}')
-    axes[i].grid(True)
-
-# Label the x-axis for the last subplot
-axes[-1].set_xlabel('Iteration')
-
-# Add a title to the entire figure
-fig.suptitle('Trace Plots (HMC, 64-bit)', fontsize=16, y=0.95)
-
-# Adjust spacing
-plt.tight_layout(rect=[0, 0, 1, 0.96]) 
-plt.show()
-```
-
-
-
-```{python}
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Load the CSV file using NumPy
-csv_data = np.loadtxt('data/Chains/HMCchain_prior3.csv', delimiter=',')
-
-# Convert the NumPy array to a JAX array
-rmh_sample = jnp.array(csv_data)[:,1:]
-
-print(f"Acceptance Ratio: {jnp.mean(csv_data[:,0])}")
-post_mean = jnp.mean(jnp.array(rmh_sample[int(len(rmh_sample)/3):, :]), axis=0)
-print(f"Posterior Mean of (transformed) parameters: \n{post_mean}")
-
-
-samples = rmh_sample
-
-# Number of parameters (columns in the array)
-num_params = samples.shape[1]
-
-# Create a figure and axes for the stacked trace plots
-fig, axes = plt.subplots(num_params, 1, figsize=(10, 2 * num_params), sharex=True)
-
-# Plot each parameter's trace
-for i in range(num_params):
-    axes[i].plot(samples[:, i], lw=0.8, color='b')
-    axes[i].set_ylabel(f'Parameter {i+1}')
-    axes[i].grid(True)
-
-# Label the x-axis for the last subplot
-axes[-1].set_xlabel('Iteration')
-
-# Add a title to the entire figure
-fig.suptitle('Trace Plots (HMC, 32-bit)', fontsize=16, y=0.95)
-
-# Adjust spacing
-plt.tight_layout(rect=[0, 0, 1, 0.96]) 
-plt.show()
-```

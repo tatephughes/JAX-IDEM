@@ -254,7 +254,7 @@ def random_basis(
         key,
         knot_num=3,
         data=jnp.array([[0, 0], [1, 1]]),
-        aperture=1.25,
+        aperture=10,
         basis_fun=bisquare,
 ):
     """
@@ -295,7 +295,7 @@ def random_basis(
     
     params=jnp.hstack([jax.random.uniform(keys[0], shape=(knot_num,1), minval=xmin, maxval=xmax),
                        jax.random.uniform(keys[1], shape=(knot_num,1), minval=ymin, maxval=ymax),
-                       jnp.full((knot_num, 1), w)])
+                       jnp.full((knot_num, 1), w)*aperture])
     
     nbasis = params.shape[0]
 
@@ -393,6 +393,7 @@ class st_data:
             self.covariate_labels = ["Intercept"]
         else:
             self.covariates = jnp.column_stack([jnp.ones_like(x), jnp.array(covariates)])
+            self.covariate_labels = covariate_labels.insert(0, "Intercept")
 
         self.data_array = jnp.column_stack((self.x, self.y, self.times, self.z, self.covariates))
         sorted_indices = jnp.argsort(self.data_array[:, 2]) # always sort by time
@@ -546,24 +547,21 @@ class st_data:
         
     def show_plot(self):
         nrows = int(jnp.ceil(self.T / 3))
-
+        
         # Create a figure and axes for the subplots
         with plt.style.context("seaborn-v0_8-dark-palette"):
             fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
             axes = axes.flatten()
 
-            data_array = jnp.column_stack([self.x, self.y, self.t, self.z])
-
             vmin = jnp.min(self.z)
             vmax = jnp.max(self.z)
 
             # Loop through each time point and create a scatter plot
-            for i, time in enumerate(self.times):
+            for i in range(self.T):
                 # fairly sure this should use jnp.where or similar
-                time_data = data_array[data_array[:, 2] == time]
-                x = time_data[:, 0]
-                y = time_data[:, 1]
-                values = time_data[:, 3]
+                x = self.coords_tree[i][:, 0]
+                y = self.coords_tree[i][:, 1]
+                values = self.zs_tree[i]
 
                 scatter = axes[i].scatter(
                     x,
@@ -573,7 +571,7 @@ class st_data:
                     vmin=vmin,
                     vmax=vmax,
                 )
-                axes[i].set_title(f"Time = {time}", fontsize=11)
+                axes[i].set_title(f"Time = {i}", fontsize=11)
                 # axes[t].set_xlabel("x", fontsize=9)
                 # axes[t].set_ylabel("y", fontsize=9)
                 axes[i].tick_params(
@@ -588,24 +586,21 @@ class st_data:
 
     def save_plot(self, filename, width=6, height=1.5, dpi=300):
         nrows = int(jnp.ceil(self.T / 3))
-
+        
         # Create a figure and axes for the subplots
         with plt.style.context("seaborn-v0_8-dark-palette"):
-            fig, axes = plt.subplots(nrows, 3, figsize=(width, nrows * height))
+            fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
             axes = axes.flatten()
-
-            data_array = jnp.column_stack([self.x, self.y, self.t, self.z])
 
             vmin = jnp.min(self.z)
             vmax = jnp.max(self.z)
 
             # Loop through each time point and create a scatter plot
-            for i, time in enumerate(self.times):
+            for i in range(self.T):
                 # fairly sure this should use jnp.where or similar
-                time_data = data_array[data_array[:, 2] == time]
-                x = time_data[:, 0]
-                y = time_data[:, 1]
-                values = time_data[:, 3]
+                x = self.coords_tree[i][:, 0]
+                y = self.coords_tree[i][:, 1]
+                values = self.zs_tree[i]
 
                 scatter = axes[i].scatter(
                     x,
@@ -615,7 +610,7 @@ class st_data:
                     vmin=vmin,
                     vmax=vmax,
                 )
-                axes[i].set_title(f"Time = {time}", fontsize=11)
+                axes[i].set_title(f"Time = {i}", fontsize=11)
                 # axes[t].set_xlabel("x", fontsize=9)
                 # axes[t].set_ylabel("y", fontsize=9)
                 axes[i].tick_params(
@@ -632,7 +627,7 @@ class st_data:
         """UNIMPLEMENTED"""
         return None
 
-def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=[]):
+def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=None):
 
     if pd.api.types.is_datetime64_any_dtype(df[tlabel]):
         print("Time inputted is of datetime type. This will be converted to a number corresponding to the seconds since the earliest time.")
@@ -649,17 +644,17 @@ def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=
             )
         times = jnp.array(df[tlabel])
 
-    if len(covariate_labels) != 0:
-        covariates = jnp.column_stack([jnp.array(df[col]) for col in covariate_labels])
-    else:
+    if covariate_labels is None:
         covariates = None
+    else:
+        covariates = jnp.column_stack([jnp.array(df[col]) for col in covariate_labels])
 
     return st_data(x = jnp.array(df[xlabel]),
                    y = jnp.array(df[ylabel]),
                    times = times,
                    z = jnp.array(df[zlabel]),
                    covariates = covariates,
-                   covariate_labels = covariate_labels.insert(0, "Intercept"))
+                   covariate_labels = covariate_labels)
 
 def gif_st_grid(
     data: st_data,
@@ -807,6 +802,8 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
     """
 
     func_jit = jax.jit(func)
+
+    failed = False
     
     tot_time = 0
     progress_bar = tqdm(range(n+1), desc = desc)
@@ -827,8 +824,13 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
 
         if check_nans(result):
             warnings.warn("The function has returned a PyTree/array with nan.")
+            failed=True
+
+    if failed:
+        average_time = jnp.nan
+    else:
+        average_time = tot_time / n
         
-    average_time = tot_time / n
     #print(f"Compile time: {compile_time}s")
     #print(f"Average time: {av_time}s")
     return TimeResults(compile_time, average_time, tot_time)

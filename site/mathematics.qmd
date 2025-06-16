@@ -401,7 +401,7 @@ Writing $\tilde{\bv{Z}}_t = \bv Z_t - X_t \bv \beta$,
 
 $$\begin{split}
 \tilde{\bv Z}_t &= \Phi_{t} \bv \alpha_t + \bv \epsilon_t,\quad &t = 1,2,\dots, T,\\
-\bv \alpha_{t+1} &= M \bv \alpha_t + \bv\eta_t,\quad &t = 0,1, \dots, T.\\
+\bv \alpha_{t+1} &= M \bv \alpha_t + \bv\eta_t,\quad &t = 0,1, \dots, T-1.\\
 \end{split}
 $$ {#eq-stateidem}
 

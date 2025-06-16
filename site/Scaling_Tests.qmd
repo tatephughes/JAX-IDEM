@@ -1,0 +1,131 @@
+---
+title: "Scaling Comparisons for the filtering algorithms"
+author: "Evan Tate Paterson Hughes"
+format:
+  html:
+    code-fold: true
+    toc: true
+    include-in-header: header.html
+    mathjax: 
+      extensions: ["breqn", "bm", "ams"]
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    keep-tex: true
+    include-in-header: header.tex
+    documentclass: report
+    geometry:
+      - left=20.0mm
+      - right=20.0mm
+      - marginparsep=7.7mm
+      - marginparwidth=70.3mm
+      - top=20mm
+    fig-pos: 'h'
+jupyter: python3
+bibliography: Bibliography.bib
+---
+
+
+Currently, the Kalman filter, the Information filter, the Square-root filter, and the square-root-information filter are all implemented.
+
+We will use a simulated data set, from cosine basis functions over 100 frequencies and invariant kernel.
+See figure (?) for the 6 time points of the simulated process.
+
+We then filter this data, and time the implemented filters to compute the marginal log likelihood.
+We run the alogrithms with a sequence of model parameters that are close to the ones used to simulate the data, with added noise to avoid the memoisation the JAX uses.
+
+We simulate $n=300$ observations per time point in total, and redact observations in order to show the compute times for each $n$ between 50 and 300.
+These are computed in 64 bit for stability, and the results are in figure (?)
+
+Additionally, to demonstrate the square root filters stability, we also fix $n$ and progressively increase $n$.
+The data is simulated from a high-dimensional process basis, and then filtered using models with a lower $r$, increasing in square between $5^2$ and $15^2$.
+The results are shown in figure (?).
+
+```{python}
+import jax
+import jax.numpy as jnp
+import pandas as pd
+import plotly.express as px
+
+df = pd.read_csv('data/scale_tests_ncc_32.csv')
+
+fig = px.line(
+    df, 
+    x="n",  # X-axis: values of n
+    y=df.columns[3:7],  # Y-axis: all time columns
+    labels={"n": "number of observations", "value": "Time (seconds)"},
+    title="Filters Comparison with Varying n (32 bit)"
+)
+
+# Show the plot
+fig.show()
+```
+
+
+```{python}
+import jax
+import jax.numpy as jnp
+import pandas as pd
+import plotly.express as px
+
+df = pd.read_csv('data/scale_tests_ncc_64.csv')
+
+fig = px.line(
+    df, 
+    x="n",
+    y=df.columns[3:7], 
+    labels={"n": "number of observations", "value": "Time (seconds)"},
+    title="Average compute time Filters with Varying n (64 bit)"
+)
+
+# Show the plot
+fig.write_image("figure/scale_test.png")
+fig.show()
+```
+
+
+
+```{python}
+import jax
+import jax.numpy as jnp
+import pandas as pd
+import plotly.express as px
+
+df = pd.read_csv('data/scale_tests_ncc_64.csv')
+
+fig = px.line(
+    df, 
+    x="n",
+    y=df.columns[7:], 
+    labels={"n": "number of observations", "value": "Time (seconds)"},
+    title="Compuile Time of Filters Varying n (64 bit)"
+)
+
+# Show the plot
+fig.write_image("figure/scale_test_compile.png")
+fig.show()
+```
+
+
+
+```{python}
+import jax
+import jax.numpy as jnp
+import pandas as pd
+import plotly.express as px
+
+df = pd.read_csv('data/scale_tests_ncc_r_32.csv')
+
+fig = px.line(
+    df, 
+    x="i", 
+    y=df.columns[3:7], 
+    labels={"n": "number of observations", "value": "Time (seconds)"},
+    title="Filters Comparison with Varying r (nbasis is r^2)"
+)
+
+# Show the plot
+fig.write_image("figure/scale_test_r.png")
+fig.show()
+```

@@ -95,7 +95,7 @@ div.csl-indent {
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-c3ae9e9ee57e86d5658ec2be3249904b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-eaf9f7b2eff0675dc85d7d6a3549247f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script src="../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
 <link href="../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
 <link href="../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
@@ -474,7 +474,7 @@ M &amp;= \int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \int_
 <p>Writing <span class="math inline">\(\tilde{\bv{Z}}_t = \bv Z_t - X_t \bv \beta\)</span>,</p>
 <p><span id="eq-stateidem"><span class="math display">\[\begin{split}
 \tilde{\bv Z}_t &amp;= \Phi_{t} \bv \alpha_t + \bv \epsilon_t,\quad &amp;t = 1,2,\dots, T,\\
-\bv \alpha_{t+1} &amp;= M \bv \alpha_t + \bv\eta_t,\quad &amp;t = 0,1, \dots, T.\\
+\bv \alpha_{t+1} &amp;= M \bv \alpha_t + \bv\eta_t,\quad &amp;t = 0,1, \dots, T-1.\\
 \end{split}
 \tag{10}\]</span></span></p>
 <p>We should also initialise <span class="math inline">\(\bv \alpha_0 \sim \mathcal N^{r}(\bv m_{0}, \Sigma_{0})\)</span>, and fix simple distributions to the noise terms,</p>
@@ -492,11 +492,7 @@ M &amp;= \int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \int_
 <p>We can now use the above to simulate easily from such models; once we have chosen the appropriate decompositions, we simply compute <span class="math inline">\(M\)</span> and propagate <span class="math inline">\(\bv \alpha_t\)</span> as we would when simulating any other linear dynamic system. We then use the spectral coefficients to generate <span class="math inline">\(Y_t(\bv s)\)</span> and <span class="math inline">\(Z_t(\bv s)\)</span> in the obvious way.</p>
 <p><code>jaxidem</code> implements this in the function <code>sim_idem</code>, or through the more user-friendly method <code>idem.IDEM.simulate</code>. An object of the <code>IDEM</code> class contains all the necessary information about basis decompositions, and the simulate methods calls <code>simIDEM</code> without compromising its jit-ability (although just-in-time computation obviously isn’t as important for simulation, the jit-ed function could save compile time if someone want to simulate from many models).</p>
 <p>The <code>gen_example_idem</code> method creates a simple IDEM object without many required parameters;</p>
-<<<<<<< HEAD
-<div id="0062276a" class="cell" data-execution_count="3">
-=======
-<div id="48e6c984" class="cell" data-execution_count="3">
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
+<div id="c49f5720" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">42</span>)</span>
@@ -508,11 +504,7 @@ M &amp;= \int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \int_
 </details>
 </div>
 <p>The resulting objects are of class <code>st_data</code>, containing a couple of niceties for handling spatio-temporal data, while still storing all data as JAX arrays. For example, the <code>show_plot</code>, <code>save_plot</code> and <code>save_gif</code> methods provide easy plotting;</p>
-<<<<<<< HEAD
-<div id="e8d559f8" class="cell" data-execution_count="4">
-=======
-<div id="bf668851" class="cell" data-execution_count="4">
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
+<div id="09b0c714" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>process_data.save_plot(<span class="st">'figure/process_data_example.png'</span>)</span>
@@ -600,11 +592,7 @@ K_{t+1} = P_{t+1\mid t}\Phi_{t+1}^\intercal [\Phi_{t+1} P_{t+1\mid t} \Phi_{t+1}
 \]</span></p>
 <p>Summing these across time, we get the log likelihood for all the data.</p>
 <p>A simplified example of the Kalman filter function, written to be JAX compatible, used in the package is this;</p>
-<<<<<<< HEAD
-<div id="e751f91f" class="cell" data-execution_count="5">
-=======
-<div id="92cbbd8f" class="cell" data-execution_count="5">
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
+<div id="62764453" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@jax.jit</span></span>

@@ -149,3 +149,36 @@ SVD gradients?
 - run chains in 64 bit as well to be sure
 - write up an initial parallel kalman filter (code and write up)
 - clean up pastoral report
+
+
+
+* 5th June
+
+Patrick Kidger PatDB
+Consider whether time should be the first index 
+
+** TODO Finish Pastoral Report
+
+** More chains
+
+** Research students conference
+
+- louis not here next two week
+
+
+
+
+
+* 12th June
+
+** Run other MCMC and check posteriors
+
+** Run MCMC with other filters 
+
+** Decaying variance on frequencies?
+
+** Think about forward filter-backward sample (and/or lackthereof) to get proper variances
+
+** Send an abstract to RSC (filters)
+
+** Send pastoral report tommorrow afternoon

@@ -57,19 +57,15 @@ rep_coords = jnp.tile(coords, (T, 1))
 x = rep_coords[:,0]
 y = rep_coords[:,1]
 
-<<<<<<< HEAD
 X_obs_tree = [jnp.column_stack([jnp.ones(nobs), obs_locs]) for _ in range(T)]
 
 alphas = model.simulate_basis(keys[1], T)
 process_data = idem.basis_params_to_st_data(alphas, self.process_basis, self.process_grid)
 
 process_data, obs_data = model.simulate(keys[1], obs_locs_tree = obs_locs_tree, X_obs_tree = X_obs_tree)
-=======
 process_data, obs_data = model.simulate(keys[1], x, y, times,
                                         covariates = jnp.column_stack([x,y]),
                                         covariate_labels=['Intercept', 'x', 'y'])
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
-
 dpi = 200
 width = 576 / dpi
 height = 480 / dpi

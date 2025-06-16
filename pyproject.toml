@@ -4,11 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jaxidem"
-<<<<<<< HEAD
-version = "0.1.6"
-=======
-version = "0.1.7"
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
+version = "0.1.9"
 authors = [
   { name="Evan Tate Paterson Hughes", email="etatephughes@gmail.com" },
 ]
@@ -26,16 +22,14 @@ dependencies = [
     "jaxlib>=0.5.0",
     "jaxtyping>=0.3.0",
     "jupyter>=1.1.1",
+    "kaleido==0.2.1",
     "matplotlib>=3.7.5",
     "optax>=0.2.4",
     "pandas>=2.0.3",
     "plotly>=6.1.1",
     "pytest>=8.3.5",
     "quarto>=0.1.0",
-<<<<<<< HEAD
-=======
     "quarto-cli>=1.7.31",
->>>>>>> 9deb318 (Testing and re-writing simulation and st_data)
     "seaborn>=0.13.2",
     "tqdm>=4.67.1",
 ]

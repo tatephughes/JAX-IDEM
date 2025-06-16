@@ -5,7 +5,7 @@ from jaxtyping import ArrayLike, PyTree
 from typing import Tuple
 from functools import partial
 
-st = jax.scipy.linalg.solve_triangular 
+from jax.scipy.linalg import solve_triangular as st
 
 @jax.jit
 def qr_R(A, B):
@@ -264,24 +264,25 @@ def information_filter(
             sigma2_eps = tree[2]
             nu_pred = tree[3]
             Q_pred = tree[4]
-            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+            cholQ = jax.scipy.linalg.cho_factor(Q_pred)
+            e = z - PHI @ jax.scipy.linalg.cho_solve(cholQ, nu_pred)
             
             match sigma2_eps_dim:
                 case 0:
-                    P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+                    P_oprop = PHI @ jax.scipy.linalg.cho_solve(cholQ, PHI.T)
                     Sigma_t = jnp.fill_diagonal(
                         P_oprop, sigma2_eps + jnp.diag(P_oprop), inplace=False
                     )
                     chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
                 case 1:
-                    P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+                    P_oprop = PHI @ jax.scipy.linalg.cho_solve(cholQ, PHI.T)
                     Sigma_t = jnp.fill_diagonal(
                         P_oprop, jnp.diag(sigma2_eps) + jnp.diag(P_oprop), inplace=False
                     )
                     chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
                 case 2:
                     chol_Sigma_t = jnp.linalg.cholesky(
-                        PHI @ jnp.linalg.solve(Q_pred, PHI.T) + sigma2_eps
+                        PHI @ jax.scipy.linalg.cho_solve(cholQ, PHI.T) + sigma2_eps
                     )
                     
             z = st(chol_Sigma_t, e, lower=True)
@@ -519,8 +520,9 @@ def sqrt_information_filter(
         match sigma2_eps_dim:
             case 0:
                 i_k = PHI_k.T @ z_k / sigma2_eps_k
-                #R_k = jnp.linalg.qr((PHI_k / jnp.sqrt(sigma2_eps_k)), mode="r")
-                R_k = safe_cholesky(PHI_k.T @ PHI_k / sigma2_eps_k)
+                # Below cholseky _should_ be faster, but is much less stable; why?
+                R_k = jnp.linalg.qr((PHI_k), mode="r") / jnp.sqrt(sigma2_eps_k)
+                #R_k = safe_cholesky(PHI_k.T @ PHI_k / sigma2_eps_k)
             case 1:
                 sigma_eps = jnp.diag(jnp.sqrt(sigma2_eps_k))
                 i_k = PHI_k.T @ st(sigma_eps, st(sigma_eps.T, z_k, lower=False), lower=True)

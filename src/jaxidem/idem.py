@@ -362,12 +362,12 @@ class Model:
         return self.simulate(key, data.coords_tree, self.int_grid, alpha_0)
     
     def get_log_like(self,
-            obs_data,
-            method="sqrt",
-            m_0=None,
-            P_0=None,
-            likelihood='partial',
-            negative=False):
+                     obs_data,
+                     method="sqrt",
+                     m_0=None,
+                     P_0=None,
+                     likelihood='partial',
+                     negative=False):
 
         nbasis = self.nbasis
         
@@ -484,11 +484,15 @@ class Model:
         else:
             raise ValueError(f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf'].")
 
-    def filter(self, obs_data, X_obs, method="sqrt", params = None, m_0=None, P_0=None, likelihood='partial'):
+    def filter(self,
+               obs_data,
+               forecast=0,
+               method="sqrt",
+               m_0=None,
+               P_0=None,
+               likelihood='partial'):
 
         nbasis = self.nbasis
-        if params is None:
-            params = self.params
         
         if method in ("sqrt", "kalman"):
             zs_tree = obs_data.zs_tree
@@ -514,14 +518,14 @@ class Model:
                 log_sigma2_eps,
                 ks,
                 beta,
-            ) = params
+            ) = self.params
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)
             sigma2_eta = jnp.exp(log_sigma2_eta)
             sigma2_eps = jnp.exp(log_sigma2_eps)
             M = self.con_M((ks1, ks2, ks3, ks4))
-            ztildes = obs_data_wide["z"] - (X_obs @ beta)[:, None]
+            ztildes_tree = obs_data.tildify(beta)
             filt_results = filterer(
                 m_0,
                 init_mat,
@@ -529,29 +533,22 @@ class Model:
                 PHI_obs,
                 sigma2_eta,
                 sigma2_eps,
-                ztildes,
+                ztildes_tree,
                 likelihood=likelihood,
                 sigma2_eta_dim = self.sigma2_eta_dim,
-                sigma2_eps_dim = self.sigma2_eps_dim
+                sigma2_eps_dim = self.sigma2_eps_dim,
+                forecast = forecast
             )
 
-            ms = filt_results[1]
+            ms = filt_results['ms']
             filt_data = basis_params_to_st_data(ms, self.process_basis, self.process_grid)
 
             return (filt_data, filt_results)
-                
+        
         elif method in ("inf", "sqinf"):
-
-            if isinstance(X_obs, jax.numpy.ndarray):
-                raise ValueError(f"X_obs is a JAX array, but for method={method} it must be a PyTree of length T, with each element beingt the covariate matrix for that time. Assuming the spatial stations are stationary across time and no missing data , try [X_obs for _ in range(T)], or consider method'kalman' or 'sqrt'.")
                 
-            unique_times = jnp.unique(obs_data.t)
-            T = len(unique_times)
-            #zs_tuple = [obs_data.z[obs_data.t == t] for t in unique_times]
             zs_tree = obs_data.zs_tree
 
-            #obs_locs = jnp.column_stack(jnp.column_stack((obs_data.x, obs_data.y))).T
-            #obs_locs_tuple = tuple([obs_locs[obs_data.t == t][:, 0:] for t in unique_times])
             obs_locs_tree = obs_data.coords_tree
                 
             PHI_obs_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
@@ -572,24 +569,14 @@ class Model:
                 case "inf":
                     init_mat = jnp.linalg.inv(P_0)
                     filterer = filts.information_filter
-            @jax.jit
-            def tildify(z, X_obs_ind, beta):
-                return z - X_obs_ind @ beta
-            mapping_elts = tuple(
-                [[zs_tuple[i], X_obs[i]] for i in range(len(zs_tuple))]
-            )
-            def is_leaf(node):
-                return jax.tree.structure(node).num_leaves == 2
 
             (
                 log_sigma2_eta,
                 log_sigma2_eps,
                 ks,
                 beta,
-            ) = params
-            ztildes = jax.tree.map(
-                lambda tup: tildify(tup[0], tup[1], beta), mapping_elts, is_leaf=is_leaf
-            )
+            ) = self.params
+            ztildes_tree = obs_data.tildify(beta)
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)
@@ -600,23 +587,24 @@ class Model:
                 nu_0,
                 init_mat,
                 M,
-                PHI_obs_tuple,
+                PHI_obs_tree,
                 sigma2_eta,
-                [sigma2_eps for _ in range(T)],
-                ztildes,
+                [sigma2_eps for _ in range(obs_data.T)],
+                ztildes_tree,
                 likelihood=likelihood,
                 sigma2_eta_dim = self.sigma2_eta_dim,
-                sigma2_eps_dim = 0
+                sigma2_eps_dim = 0,
+                forecast = forecast
             )
 
-            nus = filt_results[1]
+            nus = filt_results['nus']
             
             match method:
                 case "sqinf":
-                    Rs = (filt_results[2], False)
-                    ms = jax.scipy.cho_solve(Rs, nus[..., None]).squeeze(-1)
+                    Rs = (filt_results['Rs'], False)
+                    ms = jax.scipy.linalg.cho_solve(Rs, nus[..., None]).squeeze(-1)
                 case "inf":
-                    Qs = filt_results[2]
+                    Qs = filt_results['Qs']
                     ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
 
             filt_data = basis_params_to_st_data(ms, self.process_basis, self.process_grid)
