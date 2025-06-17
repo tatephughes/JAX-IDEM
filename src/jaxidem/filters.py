@@ -609,7 +609,7 @@ def sqrt_information_filter(
             
             #Q_pred = R_pred.T@R_pred
             #e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
-            e = z - PHI @ st(R_pred, st(R_pred.T, nu_pred, lower=False), lower=True)
+            e = z - PHI @ st(R_pred, st(R_pred.T, nu_pred, lower=True), lower=False)
             
             #P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
             #Sigma_t = P_oprop + sigma_eps.T@sigma_eps
