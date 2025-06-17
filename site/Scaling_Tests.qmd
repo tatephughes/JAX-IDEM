@@ -48,7 +48,7 @@ import jax.numpy as jnp
 import pandas as pd
 import plotly.express as px
 
-df = pd.read_csv('data/scale_tests_ncc_32.csv')
+df = pd.read_csv('data/varying_n_32.csv')
 
 fig = px.line(
     df, 
@@ -59,6 +59,7 @@ fig = px.line(
 )
 
 # Show the plot
+fig.write_image("figure/scale_test_n_32.png")
 fig.show()
 ```
 
@@ -69,7 +70,7 @@ import jax.numpy as jnp
 import pandas as pd
 import plotly.express as px
 
-df = pd.read_csv('data/scale_tests_ncc_64.csv')
+df = pd.read_csv('data/varying_n_64.csv')
 
 fig = px.line(
     df, 
@@ -80,7 +81,7 @@ fig = px.line(
 )
 
 # Show the plot
-fig.write_image("figure/scale_test.png")
+fig.write_image("figure/scale_test_n_64.png")
 fig.show()
 ```
 
@@ -92,40 +93,17 @@ import jax.numpy as jnp
 import pandas as pd
 import plotly.express as px
 
-df = pd.read_csv('data/scale_tests_ncc_64.csv')
+df = pd.read_csv('data/varying_r_32.csv')
 
 fig = px.line(
     df, 
-    x="n",
+    x="r",
     y=df.columns[7:], 
     labels={"n": "number of observations", "value": "Time (seconds)"},
-    title="Compuile Time of Filters Varying n (64 bit)"
+    title="Compte Time of Filters Varying r (32 bit)"
 )
 
 # Show the plot
-fig.write_image("figure/scale_test_compile.png")
-fig.show()
-```
-
-
-
-```{python}
-import jax
-import jax.numpy as jnp
-import pandas as pd
-import plotly.express as px
-
-df = pd.read_csv('data/scale_tests_ncc_r_32.csv')
-
-fig = px.line(
-    df, 
-    x="i", 
-    y=df.columns[3:7], 
-    labels={"n": "number of observations", "value": "Time (seconds)"},
-    title="Filters Comparison with Varying r (nbasis is r^2)"
-)
-
-# Show the plot
-fig.write_image("figure/scale_test_r.png")
+fig.write_image("figure/scale_test_r_32.png")
 fig.show()
 ```

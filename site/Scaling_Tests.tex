@@ -270,7 +270,7 @@ results are shown in figure (?).
 \ImportTok{import}\NormalTok{ pandas }\ImportTok{as}\NormalTok{ pd}
 \ImportTok{import}\NormalTok{ plotly.express }\ImportTok{as}\NormalTok{ px}
 
-\NormalTok{df }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/scale\_tests\_ncc\_32.csv\textquotesingle{}}\NormalTok{)}
+\NormalTok{df }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/varying\_n\_32.csv\textquotesingle{}}\NormalTok{)}
 
 \NormalTok{fig }\OperatorTok{=}\NormalTok{ px.line(}
 \NormalTok{    df, }
@@ -281,6 +281,7 @@ results are shown in figure (?).
 \NormalTok{)}
 
 \CommentTok{\# Show the plot}
+\NormalTok{fig.write\_image(}\StringTok{"figure/scale\_test\_n\_32.png"}\NormalTok{)}
 \NormalTok{fig.show()}
 \end{Highlighting}
 \end{Shaded}
@@ -300,18 +301,18 @@ Unable to display output for mime type(s): text/html
 \ImportTok{import}\NormalTok{ pandas }\ImportTok{as}\NormalTok{ pd}
 \ImportTok{import}\NormalTok{ plotly.express }\ImportTok{as}\NormalTok{ px}
 
-\NormalTok{df }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/scale\_tests\_ncc\_64.csv\textquotesingle{}}\NormalTok{)}
+\NormalTok{df }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/varying\_n\_64.csv\textquotesingle{}}\NormalTok{)}
 
 \NormalTok{fig }\OperatorTok{=}\NormalTok{ px.line(}
 \NormalTok{    df, }
 \NormalTok{    x}\OperatorTok{=}\StringTok{"n"}\NormalTok{,}
 \NormalTok{    y}\OperatorTok{=}\NormalTok{df.columns[}\DecValTok{3}\NormalTok{:}\DecValTok{7}\NormalTok{], }
 \NormalTok{    labels}\OperatorTok{=}\NormalTok{\{}\StringTok{"n"}\NormalTok{: }\StringTok{"number of observations"}\NormalTok{, }\StringTok{"value"}\NormalTok{: }\StringTok{"Time (seconds)"}\NormalTok{\},}
-\NormalTok{    title}\OperatorTok{=}\StringTok{"Filters Comparison with Varying n (64 bit)"}
+\NormalTok{    title}\OperatorTok{=}\StringTok{"Average compute time Filters with Varying n (64 bit)"}
 \NormalTok{)}
 
 \CommentTok{\# Show the plot}
-\NormalTok{fig.write\_image(}\StringTok{"figure/scale\_test.png"}\NormalTok{)}
+\NormalTok{fig.write\_image(}\StringTok{"figure/scale\_test\_n\_64.png"}\NormalTok{)}
 \NormalTok{fig.show()}
 \end{Highlighting}
 \end{Shaded}
@@ -327,18 +328,18 @@ Unable to display output for mime type(s): text/html
 \ImportTok{import}\NormalTok{ pandas }\ImportTok{as}\NormalTok{ pd}
 \ImportTok{import}\NormalTok{ plotly.express }\ImportTok{as}\NormalTok{ px}
 
-\NormalTok{df }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/scale\_tests\_ncc\_r\_32.csv\textquotesingle{}}\NormalTok{)}
+\NormalTok{df }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/varying\_r\_32.csv\textquotesingle{}}\NormalTok{)}
 
 \NormalTok{fig }\OperatorTok{=}\NormalTok{ px.line(}
 \NormalTok{    df, }
-\NormalTok{    x}\OperatorTok{=}\StringTok{"i"}\NormalTok{, }
-\NormalTok{    y}\OperatorTok{=}\NormalTok{df.columns[}\DecValTok{3}\NormalTok{:}\DecValTok{7}\NormalTok{], }
+\NormalTok{    x}\OperatorTok{=}\StringTok{"r"}\NormalTok{,}
+\NormalTok{    y}\OperatorTok{=}\NormalTok{df.columns[}\DecValTok{7}\NormalTok{:], }
 \NormalTok{    labels}\OperatorTok{=}\NormalTok{\{}\StringTok{"n"}\NormalTok{: }\StringTok{"number of observations"}\NormalTok{, }\StringTok{"value"}\NormalTok{: }\StringTok{"Time (seconds)"}\NormalTok{\},}
-\NormalTok{    title}\OperatorTok{=}\StringTok{"Filters Comparison with Varying r (nbasis is r\^{}2)"}
+\NormalTok{    title}\OperatorTok{=}\StringTok{"Compuile Time of Filters Varying r (32 bit)"}
 \NormalTok{)}
 
 \CommentTok{\# Show the plot}
-\NormalTok{fig.write\_image(}\StringTok{"figure/scale\_test\_r.png"}\NormalTok{)}
+\NormalTok{fig.write\_image(}\StringTok{"figure/scale\_test\_r\_32.png"}\NormalTok{)}
 \NormalTok{fig.show()}
 \end{Highlighting}
 \end{Shaded}

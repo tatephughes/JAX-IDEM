@@ -468,22 +468,29 @@ def sqrt_filter(
 
 
 def safe_cholesky(matrix):
-    # Define a function for the zero case
     def zero_case(_):
         return jnp.zeros_like(matrix)
-
-    # Define a function for the non-zero case
     def nonzero_case(matrix):
         return jnp.linalg.cholesky(matrix, upper=True)
-
-    # Use lax.cond to handle both cases
     return jax.lax.cond(
-        jnp.all(matrix == 0),  # Condition
-        zero_case,            # If condition is True (zero matrix)
-        nonzero_case,         # If condition is False (non-zero matrix)
-        operand=matrix         # Argument passed to the functions
+        jnp.all(matrix == 0),
+        zero_case,
+        nonzero_case,
+        operand=matrix
         )
 
+def safe_qr(matrix):
+    def empty_case(_):
+        return jnp.zeros((matrix.shape[1], matrix.shape[1]))
+    def nonempty_case(matrix):
+        return jnp.linalg.qr(matrix, mode="r")
+    return jax.lax.cond(
+        matrix.size==0,
+        empty_case,
+        nonempty_case,
+        operand=matrix
+        )
+    
 @partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
 def sqrt_information_filter(
         nu_0: ArrayLike,
@@ -521,6 +528,7 @@ def sqrt_information_filter(
             case 0:
                 i_k = PHI_k.T @ z_k / sigma2_eps_k
                 # Below cholseky _should_ be faster, but is much less stable; why?
+                #R_k = safe_qr(PHI_k) / jnp.sqrt(sigma2_eps_k)
                 R_k = jnp.linalg.qr((PHI_k), mode="r") / jnp.sqrt(sigma2_eps_k)
                 #R_k = safe_cholesky(PHI_k.T @ PHI_k / sigma2_eps_k)
             case 1:
@@ -548,8 +556,6 @@ def sqrt_information_filter(
             sigma_eta = jnp.diag(jnp.sqrt(sigma2_eta))
         case 2:
             sigma_eta = jnp.linalg.cholesky(sigma2_eta)
-
-    r = nu_0.shape[0]
 
     def step(carry, scan_elt):
         nu_tt, R_tt, _, _ = carry
@@ -590,38 +596,44 @@ def sqrt_information_filter(
             R_pred = tree[3]
             sigma2_eps = tree[4]
 
-            Q_pred = R_pred.T@R_pred
-            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
             
-            P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
             match sigma2_eps_dim:
                 case 0:
-                    Sigma_t = jnp.fill_diagonal(
-                        P_oprop, sigma2_eps + jnp.diag(P_oprop), inplace=False
-                    )
-                    chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+                    sigma_eps = jnp.sqrt(sigma2_eps)*jnp.eye(nobs)
                 case 1:
-                    Sigma_t = jnp.fill_diagonal(
-                        P_oprop, jnp.diag(sigma2_eps) + jnp.diag(P_oprop), inplace=False
-                    )
-                    chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+                    sigma_eps = jnp.diag(jnp.sqrt(sigma2_eps))
                 case 2:
-                    Sigma_t = P_oprop + sigma2_eps
-                    chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+                    sigma_eps = jnp.linalg.cholesky(sigma2_eps)
+                    
+            
+            
+            #Q_pred = R_pred.T@R_pred
+            #e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+            e = z - PHI @ st(R_pred, st(R_pred.T, nu_pred, lower=False), lower=True)
+            
+            #P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
+            #Sigma_t = P_oprop + sigma_eps.T@sigma_eps
+            #chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
 
-            z = st(chol_Sigma_t, e, lower=True)
+            # or
+            
+            Ui_t = qr_R(st(R_pred.T, PHI.T, lower=True), sigma_eps)
+            #chol_Sigma_t = jnp.linalg.cholesky(R_t.T @ R_t)
+
+            
+            s = st(Ui_t.T, e, lower=True)
 
             match likelihood:
                 case 'full':
                     ll = (
-                        -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
-                        - 0.5 * jnp.dot(z, z)
+                        -jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
+                        - 0.5 * jnp.dot(s, s)
                         - 0.5 * nobs * jnp.log(2 * jnp.pi)
                     )
                 case 'partial':
                     ll = (
-                        -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
-                        - 0.5 * jnp.dot(z, z)
+                        -jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
+                        - 0.5 * jnp.dot(s, s)
                     )
 
             return ll
