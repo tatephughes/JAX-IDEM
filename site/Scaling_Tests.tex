@@ -265,23 +265,46 @@ results are shown in figure (?).
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\ImportTok{import}\NormalTok{ jax}
-\ImportTok{import}\NormalTok{ jax.numpy }\ImportTok{as}\NormalTok{ jnp}
 \ImportTok{import}\NormalTok{ pandas }\ImportTok{as}\NormalTok{ pd}
 \ImportTok{import}\NormalTok{ plotly.express }\ImportTok{as}\NormalTok{ px}
 
-\NormalTok{df }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/varying\_n\_32.csv\textquotesingle{}}\NormalTok{)}
+\CommentTok{\# Load the datasets}
+\NormalTok{df64 }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/varying\_n\_laptop\_64.csv\textquotesingle{}}\NormalTok{)}
+\NormalTok{df32 }\OperatorTok{=}\NormalTok{ pd.read\_csv(}\StringTok{\textquotesingle{}data/varying\_n\_laptop\_32.csv\textquotesingle{}}\NormalTok{)}
 
+\CommentTok{\# Select and melt relevant columns from df64}
+\NormalTok{df64\_melted }\OperatorTok{=}\NormalTok{ df64.melt(}
+\NormalTok{    id\_vars}\OperatorTok{=}\StringTok{"n"}\NormalTok{,}
+\NormalTok{    value\_vars}\OperatorTok{=}\NormalTok{df64.columns[}\DecValTok{3}\NormalTok{:}\DecValTok{7}\NormalTok{],}
+\NormalTok{    var\_name}\OperatorTok{=}\StringTok{"Filter"}\NormalTok{,}
+\NormalTok{    value\_name}\OperatorTok{=}\StringTok{"Time"}
+\NormalTok{)}
+\NormalTok{df64\_melted[}\StringTok{"Precision"}\NormalTok{] }\OperatorTok{=} \StringTok{"64{-}bit"}
+
+\CommentTok{\# Select and melt the two columns from df32}
+\NormalTok{df32\_melted }\OperatorTok{=}\NormalTok{ df32.melt(}
+\NormalTok{    id\_vars}\OperatorTok{=}\StringTok{"n"}\NormalTok{,}
+\NormalTok{    value\_vars}\OperatorTok{=}\NormalTok{[df32.columns[}\DecValTok{4}\NormalTok{], df32.columns[}\DecValTok{6}\NormalTok{]],}
+\NormalTok{    var\_name}\OperatorTok{=}\StringTok{"Filter"}\NormalTok{,}
+\NormalTok{    value\_name}\OperatorTok{=}\StringTok{"Time"}
+\NormalTok{)}
+\NormalTok{df32\_melted[}\StringTok{"Precision"}\NormalTok{] }\OperatorTok{=} \StringTok{"32{-}bit"}
+
+\CommentTok{\# Combine both}
+\NormalTok{df\_combined }\OperatorTok{=}\NormalTok{ pd.concat([df64\_melted, df32\_melted], ignore\_index}\OperatorTok{=}\VariableTok{True}\NormalTok{)}
+
+\CommentTok{\# Plot using Plotly Express}
 \NormalTok{fig }\OperatorTok{=}\NormalTok{ px.line(}
-\NormalTok{    df, }
-\NormalTok{    x}\OperatorTok{=}\StringTok{"n"}\NormalTok{,  }\CommentTok{\# X{-}axis: values of n}
-\NormalTok{    y}\OperatorTok{=}\NormalTok{df.columns[}\DecValTok{3}\NormalTok{:}\DecValTok{7}\NormalTok{],  }\CommentTok{\# Y{-}axis: all time columns}
-\NormalTok{    labels}\OperatorTok{=}\NormalTok{\{}\StringTok{"n"}\NormalTok{: }\StringTok{"number of observations"}\NormalTok{, }\StringTok{"value"}\NormalTok{: }\StringTok{"Time (seconds)"}\NormalTok{\},}
-\NormalTok{    title}\OperatorTok{=}\StringTok{"Filters Comparison with Varying n (32 bit)"}
+\NormalTok{    df\_combined,}
+\NormalTok{    x}\OperatorTok{=}\StringTok{"n"}\NormalTok{,}
+\NormalTok{    y}\OperatorTok{=}\StringTok{"Time"}\NormalTok{,}
+\NormalTok{    color}\OperatorTok{=}\StringTok{"Filter"}\NormalTok{,}
+\NormalTok{    line\_dash}\OperatorTok{=}\StringTok{"Precision"}\NormalTok{,}
+\NormalTok{    labels}\OperatorTok{=}\NormalTok{\{}\StringTok{"n"}\NormalTok{: }\StringTok{"number of observations"}\NormalTok{, }\StringTok{"Time"}\NormalTok{: }\StringTok{"Time (seconds)"}\NormalTok{\},}
+\NormalTok{    title}\OperatorTok{=}\StringTok{"Filters Comparison with Varying n"}
 \NormalTok{)}
 
-\CommentTok{\# Show the plot}
-\NormalTok{fig.write\_image(}\StringTok{"figure/scale\_test\_n\_32.png"}\NormalTok{)}
+\NormalTok{fig.write\_image(}\StringTok{"figure/scale\_test\_n.png"}\NormalTok{)}
 \NormalTok{fig.show()}
 \end{Highlighting}
 \end{Shaded}
@@ -335,7 +358,7 @@ Unable to display output for mime type(s): text/html
 \NormalTok{    x}\OperatorTok{=}\StringTok{"r"}\NormalTok{,}
 \NormalTok{    y}\OperatorTok{=}\NormalTok{df.columns[}\DecValTok{7}\NormalTok{:], }
 \NormalTok{    labels}\OperatorTok{=}\NormalTok{\{}\StringTok{"n"}\NormalTok{: }\StringTok{"number of observations"}\NormalTok{, }\StringTok{"value"}\NormalTok{: }\StringTok{"Time (seconds)"}\NormalTok{\},}
-\NormalTok{    title}\OperatorTok{=}\StringTok{"Compuile Time of Filters Varying r (32 bit)"}
+\NormalTok{    title}\OperatorTok{=}\StringTok{"Compte Time of Filters Varying r (32 bit)"}
 \NormalTok{)}
 
 \CommentTok{\# Show the plot}

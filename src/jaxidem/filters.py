@@ -401,27 +401,26 @@ def sqrt_filter(
         U_up = qr_R(U_pred @ (jnp.eye(r) - K_t @ PHI).T, sigma_eps @ K_t.T)
 
         # likelihood of epsilon, using cholesky decomposition
-        chol_Sigma_t = Ui_t
-        z = st(chol_Sigma_t.T, e_t, lower=True)
-        if likelihood == "full":
-            ll_new = (
-                ll
-                - jnp.sum(jnp.log(jnp.abs(jnp.diag(chol_Sigma_t))))
-                - 0.5 * jnp.dot(z, z)
-                - 0.5 * nobs * jnp.log(2 * jnp.pi)
-            )
-        elif likelihood == "partial":
-            ll_new = (
-                ll
-                - jnp.sum(jnp.log(jnp.abs(jnp.diag(chol_Sigma_t))))
-                - 0.5 * jnp.dot(z, z)
-            )
-        elif likelihood == "none":
-            ll_new = jnp.nan
-        else:
-            raise ValueError(
-                "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
-            )
+        s = st(Ui_t.T, e_t, lower=True)
+        
+        match likelihood:
+            case 'full':
+                ll_new = (ll
+                    - jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
+                    - 0.5 * jnp.dot(s, s)
+                    - 0.5 * nobs * jnp.log(2 * jnp.pi)
+                )
+            case 'partial':
+                ll_new = (ll
+                    - jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
+                    - 0.5 * jnp.dot(s, s)
+                )
+            case "none":
+                ll_new = jnp.nan
+            case _:
+                raise ValueError(
+                    "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
+                )
 
         return (m_up, U_up, m_pred, U_pred, ll_new, K_t), (
             m_up,
@@ -626,14 +625,20 @@ def sqrt_information_filter(
             match likelihood:
                 case 'full':
                     ll = (
-                        -jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
+                        - jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
                         - 0.5 * jnp.dot(s, s)
                         - 0.5 * nobs * jnp.log(2 * jnp.pi)
                     )
                 case 'partial':
                     ll = (
-                        -jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
+                        - jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
                         - 0.5 * jnp.dot(s, s)
+                    )
+                case "none":
+                    ll = jnp.nan
+                case _:
+                    raise ValueError(
+                        "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
                     )
 
             return ll

@@ -42,68 +42,176 @@ Additionally, to demonstrate the square root filters stability, we also fix $n$ 
 The data is simulated from a high-dimensional process basis, and then filtered using models with a lower $r$, increasing in square between $5^2$ and $15^2$.
 The results are shown in figure (?).
 
+# Laptop RTX 4060 (Lovelace)
+
 ```{python}
-import jax
-import jax.numpy as jnp
 import pandas as pd
 import plotly.express as px
 
-df = pd.read_csv('data/varying_n_32.csv')
+# Load the datasets
+df64 = pd.read_csv('data/varying_n_laptop_64.csv')
+df32 = pd.read_csv('data/varying_n_laptop_32.csv')
 
-fig = px.line(
-    df, 
-    x="n",  # X-axis: values of n
-    y=df.columns[3:7],  # Y-axis: all time columns
-    labels={"n": "number of observations", "value": "Time (seconds)"},
-    title="Filters Comparison with Varying n (32 bit)"
+# Select and melt relevant columns from df64
+df64_melted = df64.melt(
+    id_vars="n", 
+    value_vars=df64.columns[3:7],
+    var_name="Filter",
+    value_name="Time"
 )
+df64_melted["Precision"] = "64-bit"
 
-# Show the plot
-fig.write_image("figure/scale_test_n_32.png")
-fig.show()
-```
+# Select and melt the two columns from df32
+df32_melted = df32.melt(
+    id_vars="n",
+    value_vars=[df32.columns[4], df32.columns[6]],
+    var_name="Filter",
+    value_name="Time"
+)
+df32_melted["Precision"] = "32-bit"
+
+# Combine both
+df_combined = pd.concat([df64_melted, df32_melted], ignore_index=True)
+
+rename_map = {
+    "kalman_run": "Kalman",
+    "sqrt_run": "Square-root",
+    "inf_run": "Information",
+    "sqinf_run": "Sqrt Information",
+}
+
+# Apply renaming
+df_combined["Filter"] = df_combined["Filter"].replace(rename_map)
 
 
-```{python}
-import jax
-import jax.numpy as jnp
-import pandas as pd
-import plotly.express as px
-
-df = pd.read_csv('data/varying_n_64.csv')
-
+# Plot using Plotly Express
 fig = px.line(
-    df, 
+    df_combined,
     x="n",
-    y=df.columns[3:7], 
-    labels={"n": "number of observations", "value": "Time (seconds)"},
-    title="Average compute time Filters with Varying n (64 bit)"
+    y="Time",
+    color="Filter",
+    line_dash="Precision",
+    labels={"n": "number of observations", "Time": "Time (seconds)"},
+    title="Filters Comparison with Varying n"
 )
 
-# Show the plot
-fig.write_image("figure/scale_test_n_64.png")
+fig.write_image("figure/scale_test_n_laptop.png")
+fig.show()
+```
+
+
+# NCC (Ampere)
+
+```{python}
+import pandas as pd
+import plotly.express as px
+
+# Load the datasets
+df64 = pd.read_csv('data/varying_n_ncc_64.csv')
+df32 = pd.read_csv('data/varying_n_ncc_32.csv')
+
+# Select and melt relevant columns from df64
+df64_melted = df64.melt(
+    id_vars="n",
+    value_vars=df64.columns[3:7],
+    var_name="Filter",
+    value_name="Time"
+)
+df64_melted["Precision"] = "64-bit"
+
+# Select and melt the two columns from df32
+df32_melted = df32.melt(
+    id_vars="n",
+    value_vars=[df32.columns[4], df32.columns[6]],
+    var_name="Filter",
+    value_name="Time"
+)
+df32_melted["Precision"] = "32-bit"
+
+# Combine both
+df_combined = pd.concat([df64_melted, df32_melted], ignore_index=True)
+
+rename_map = {
+    "kalman_run": "Kalman",
+    "sqrt_run": "Square-root",
+    "inf_run": "Information",
+    "sqinf_run": "Sqrt Information",
+}
+
+# Apply renaming
+df_combined["Filter"] = df_combined["Filter"].replace(rename_map)
+
+
+# Plot using Plotly Express
+fig = px.line(
+    df_combined,
+    x="n",
+    y="Time",
+    color="Filter",
+    line_dash="Precision",
+    labels={"n": "number of observations", "Time": "Time (seconds)"},
+    title="Filters Comparison with Varying n"
+)
+
+fig.write_image("figure/scale_test_n_ampere.png")
 fig.show()
 ```
 
 
 
+# NCC (Turing)
+
 ```{python}
-import jax
-import jax.numpy as jnp
 import pandas as pd
 import plotly.express as px
 
-df = pd.read_csv('data/varying_r_32.csv')
+# Load the datasets
+df64 = pd.read_csv('data/varying_n_turing_64.csv')
+df32 = pd.read_csv('data/varying_n_turing_32.csv')
 
+# Select and melt relevant columns from df64
+df64_melted = df64.melt(
+    id_vars="n",
+    value_vars=df64.columns[3:7],
+    var_name="Filter",
+    value_name="Time"
+)
+df64_melted["Precision"] = "64-bit"
+
+# Select and melt the two columns from df32
+df32_melted = df32.melt(
+    id_vars="n",
+    value_vars=[df32.columns[4], df32.columns[6]],
+    var_name="Filter",
+    value_name="Time"
+)
+df32_melted["Precision"] = "32-bit"
+
+# Combine both
+df_combined = pd.concat([df64_melted, df32_melted], ignore_index=True)
+
+rename_map = {
+    "kalman_run": "Kalman",
+    "sqrt_run": "Square-root",
+    "inf_run": "Information",
+    "sqinf_run": "Sqrt Information",
+}
+
+# Apply renaming
+df_combined["Filter"] = df_combined["Filter"].replace(rename_map)
+
+
+# Plot using Plotly Express
 fig = px.line(
-    df, 
-    x="r",
-    y=df.columns[7:], 
-    labels={"n": "number of observations", "value": "Time (seconds)"},
-    title="Compte Time of Filters Varying r (32 bit)"
+    df_combined,
+    x="n",
+    y="Time",
+    color="Filter",
+    line_dash="Precision",
+    labels={"n": "number of observations", "Time": "Time (seconds)"},
+    title="Filters Comparison with Varying n"
 )
 
-# Show the plot
-fig.write_image("figure/scale_test_r_32.png")
+fig.write_image("figure/scale_test_n_turing.png")
 fig.show()
 ```
