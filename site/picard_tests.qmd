@@ -313,9 +313,10 @@ X_true = jnp.vstack([init_state, chain_1])
 
 
 X_0 = jnp.stack([init_state for _ in range(n+1)])
-X_all = [X_0]
-for _ in range(100):
-    X_all.append(pic_map(X_all[-1], keys))
+
+# number of times to apply the map
+p = 100
+_, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
 ```
 
 ```{python}
