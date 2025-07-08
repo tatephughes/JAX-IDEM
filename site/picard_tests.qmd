@@ -417,7 +417,7 @@ I'm gonna need to read the paper more closely, I must be misunderstanding someth
 
 # Other samplers (BLACKJAX)
 
-Of course, the above function is written to effectively accept any kernel $g(X^{(i)}, W_{i}$, so we can plug in any MCMC technique (at least those that are actually Markov Chains, sorry AMCMC).
+Of course, the above function is written to effectively accept any kernel $g(X^{(i)}, W_{i})$, so we can plug in any MCMC technique (at least those that are actually Markov Chains, sorry AMCMC).
 
 BLACKJAX (@cabezas2024blackjax) provides many of these.
 
