@@ -176,7 +176,7 @@ def get_picard_map(step):
         fs = vf(states[0:-1], keys)
         cumsum = jnp.cumsum(fs, axis=0)
         # why do i need to divide by 2 here?
-        # the result seemed to be twise what it should have been, so i tested
+        # the result seemed to be twice what it should have been, so i tested
         # this and it worked, but I don't understand why it should be there...
         return jnp.vstack([init_state, (states[1:] + cumsum) / 2])
     return picard_map
@@ -201,7 +201,7 @@ _, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
 
 ```
 
-Below is a plotly graph to show how this approximates the actual chain from the standard random walk metropolis. In graph is the trajectory of the original in gray, and the slider allows you to choose $i$, the number of times the picard map is applied. The corresponding trajectory after that many iterations of the map is given in blue.
+Below is a plotly graph to show how this approximates the actual chain from the standard random walk metropolis. The trajectory of the original chain in gray, and the slider allows you to choose $i$, the number of times the picard map is applied, ranging from $1$ to $100$. The corresponding trajectory after that many iterations of the map is given in dotted blue.
 
 ```{python}
 #| code-fold: true
@@ -296,7 +296,7 @@ fig.show()
 ```
 
 
-As you pull the slider left, the dotted blue line gets closer and closer to the grey line, as expected!
+Initially, the dotted line is chaotic, but around $i=77$ it seems to 'snap' into place, making a good fit for the original chain.
 
 Notably, for the first few iterations the state is wildly off (too see this, click the autoscale); the blue line seems to veer heavily off until $i\approx 77$.
 
@@ -418,9 +418,9 @@ I'm gonna need to read the paper more closely, I must be misunderstanding someth
 
 # Other samplers (BLACKJAX)
 
-Of course, the above function is written to effectively accept any kernel $g(X^{(i)}, W_{i})$, so we can plug in any MCMC technique (at least those that are actually Markov Chains, sorry AMCMC).
+Of course, the above function is written to effectively accept any kernel $g(X^{(i)}, W_{i})$, so we can plug in any MCMC technique (at least those that are actually Markov Chains, so no adaptive methods).
 
-BLACKJAX (@cabezas2024blackjax) provides many of these.
+BLACKJAX (@cabezas2024blackjax) provides many of these kernels.
 
 For example, lets sample the same target using HMC:
 
@@ -629,7 +629,7 @@ fig.show()
 ```
 
 
-Works great!
+Seems to work, similarily snapping into place around $i\approx 50$.
 
 
 
@@ -651,7 +651,9 @@ end = time.time()
 print(f"Sequential took {end - start:.6f} seconds")
 
 
-# this seems to be how many is needed to get a good approximation
+# this seems to be how many is needed to get a good approximation;
+# check the covariances below. They should match if the Picard approximation
+# did a good job, but with p any lower than this it gets quite far off.
 p = 500
 X_0 = jnp.stack([finit_state for _ in range(n+1)])
 
