@@ -1,0 +1,40 @@
+---
+title: "IDEM Examples"
+author: "Evan Tate Paterson Hughes"
+format:
+  html:
+    code-fold: false
+    toc: true
+    inclue-in-header: header.html
+    mathjax: 
+      extensions: ["breqn", "bm", "ams"]
+jupyter: python3
+bibliography: Bibliography.bib
+---
+
+::: {.content-visible unless-format="pdf"}
+
+[Index](../index.html)
+
+:::
+
+Some assorted examples of inference and simulation using JAX-IDEM.
+
+# Simulation
+
+(currently empty, though there is an example on the index page)
+
+# Bayesian Inference
+
+## Sydney Radar
+
+The Sydney Radar Dataset (from ...) is a good example of a spatially invariant kernel IDEM (where flow is consistant across space).
+
+The example is explored [here](./Sydney_Radar.html).
+
+# Other
+
+## Non-IDEM filtering
+
+While the filters in `jaxidem` are built for filtering IDEMs, we can use the filtering techniques for general Dynamic Linear Models.
+A simple tracking example is given [here](./filtering_and_smoothing.html)

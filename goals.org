@@ -1,6 +1,10 @@
 #+Title: Tasks
 
-* CURRENT GOALS 15/04/25
+* CURRENT GOALS
+
+** Sqinf filter does not support data with missing time points
+
+inf filter does; this is a quirk with the qr decomposition in jax not being quite right when used on empty matrices; it might even be considered a bug. Investigate further.
 
 ** Backwards sampling
 
@@ -182,3 +186,33 @@ Consider whether time should be the first index
 ** Send an abstract to RSC (filters)
 
 ** Send pastoral report tommorrow afternoon
+
+* 18th June
+
+** Why do the filters disagree between preecisions even on small models
+** Sort the precision stuff
+- Seems to be that PRNG varies across precision. Great.
+** Look at more conferences
+
+** Look at GeoPandas for replacing ~st_data~
+*** NetCDF?
+*** Integrate and mess with some data
+
+
+** Maybe talk to Andrew Iskauskas about packaging
+
+
+* 3rd July
+
+** Louis might send some cool papers from bayescomp
+** A note on geometric ergodicity and FP roundoff error
+
+** TODO Test more FP things
+
+- Sign up for allstat
+- RSS
+- BISP
+
+** TODO Start making a filtering presentation
+- look at jax smfb for some guidance for git and docs
+** TODO Outline structure for a paper

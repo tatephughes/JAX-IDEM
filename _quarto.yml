@@ -3,6 +3,10 @@ project:
   type: website
   output-dir: docs
 
+metadata-files:
+  - reference/_sidebar.yml
+
+
 bibliography: site/Bibliography.bib
 
 execute:
@@ -11,7 +15,11 @@ execute:
 
 format:
   html:
-    theme: spacelab
+    css:
+      - reference/_styles-quartodoc.css
+
+
+
 
 website:
   reader-mode: true
@@ -24,6 +32,8 @@ website:
         href: ./site/mathematics.qmd
       - text: "Docs"
         href: ./reference/index.qmd
+      - text: "Examples"
+        href: ./site/examples.qmd
     tools:
       - icon: github
         menu:
@@ -39,37 +49,27 @@ toc: true
 number-sections: true
 
 quartodoc:
-  # the name used to import the package you want to create reference docs for
   package: jaxidem
-
+  sidebar: reference/_sidebar.yml
+  css: reference/_styles-quartodoc.css
   sections:
     - title: Filtering and Smoothing Functions
-      package: jaxidem.filter_smoother_functions
+      package: jaxidem.filters
       desc: Functions to apply Kalman/information filters, smoothers and so on.
       contents:
+        - ql_L
         - kalman_filter
-        - kalman_filter_indep
-        - information_filter
-        - information_filter_indep
-        - kalman_smoother
     - title: Integro-Difference Models in JAX
       package: jaxidem.idem
       desc: Classes and functions to perform simulation, fitting, filtering and prediction on IDEMs.
       contents:
         - Kernel
-        - IDEM
         - param_exp_kernel
-        - sim_idem
-        - gen_example_idem
-        - basis_params_to_st_data
+        - IdemParams
     - title: Utilties
-      package: jaxidem.utilities
+      package: jaxidem.utils
       desc: General classes and functions used to supplement the main package
       contents:
         - Grid
-        - Basis
-        - create_grid
         - outer_op
-        - bisquare
-        - place_basis
-        - st_data
+

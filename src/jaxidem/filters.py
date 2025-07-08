@@ -38,6 +38,18 @@ def kalman_filter(
         forecast: int = 0,
         likelihood: str = "partial",
 ) -> tuple:
+    """
+    The standard Kalman Filter.
+
+    Parameters
+    ----------
+    m_0:
+        Prior mean of the filter at the 0 time point.
+
+    Returns
+    ----------
+    A namedtuple containing the results of the filter.
+    """
 
     r = m_0.shape[0]
     nobs = zs_tree[0].size

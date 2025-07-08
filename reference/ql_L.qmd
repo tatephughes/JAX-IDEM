@@ -1,0 +1,7 @@
+# ql_L { #jaxidem.filters.ql_L }
+
+```python
+filters.ql_L(A, B)
+```
+
+Wrapper for the stacked-QL decompositon

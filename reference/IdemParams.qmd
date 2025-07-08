@@ -1,0 +1,7 @@
+# IdemParams { #jaxidem.idem.IdemParams }
+
+```python
+idem.IdemParams()
+```
+
+The parameters of an integro-differnce

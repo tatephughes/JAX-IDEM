@@ -65,6 +65,8 @@ Lets simulate from this system;
 import jax
 import jax.numpy as jnp
 
+jax.config.update("jax_enable_x64",False)
+
 import jaxidem.filters as filt
 
 import matplotlib.pyplot as plt
@@ -73,14 +75,13 @@ import plotly.io as pio
 import plotly.graph_objs as go
 
 import pandas as pd
+import pickle
 ```
 
 ```{python}
 #| eval: true
 #| echo: true
 #| output: false
-#| label: fig-truth
-#| fig-caption: "The true underlying system"
 
 key = jax.random.PRNGKey(1)
 
@@ -98,19 +99,36 @@ sigma2_eta = jnp.array(0.001)
 sigma2_eps = jnp.array(0.01)
 
 PHI = jnp.array([[1, 0], [0.6, 0.4], [0.4, 0.6]])
+```
 
+
+```{python}
+#| eval: false
 for i in range(T):
     alphas.append(M @ alphas[i] + jnp.sqrt(sigma2_eta)*jax.random.normal(keys[2*i], shape=(2,)))
     zs.append(PHI @ alphas[i+1] + jnp.sqrt(sigma2_eps)*jax.random.normal(keys[2*i+1], shape=(3,)))
 
-alphas_df = pd.DataFrame(alphas, columns = ["x", "y"])
-zs_df = pd.DataFrame(zs, columns = ["x", "y", "z"])
-
 
 alphas = jnp.array(alphas)
 zs_tree = zs
-
     
+alphas_df = pd.DataFrame(alphas, columns = ["x", "y"])
+zs_df = pd.DataFrame(zs, columns = ["x", "y", "z"])
+
+with open('./pickles/alphas.pkl', 'wb') as file:
+    pickle.dump((alphas, zs_tree, alphas_df, zs_df), file)
+    
+```
+
+
+```{python}
+with open('./pickles/alphas.pkl', 'rb') as file: 
+    alphas, zs_tree, alphas_df, zs_df = pickle.load(file)
+```
+
+```{python}
+#| fig-caption: "The 2D process"
+#| label: fig-truth
 fig1 = px.line(alphas_df, x='x', y='y', height=200)
 fig1.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
 ```
@@ -242,7 +260,7 @@ Q_0 = 0.01 * jnp.eye(2)
 nu_0 = jnp.zeros(2)
 
 PHI_tuple = tuple([PHI for _ in range(T)])
-zs_tuple = tuple(zs)
+zs_tuple = zs_tree
 
 filt_results2  = filt.information_filter(nu_0,
                                          Q_0,

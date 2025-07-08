@@ -122,7 +122,9 @@ class Kernel:
 
 
 def param_exp_kernel(K_basis: tuple, k: tuple):
-    """Creates a kernel in the style of AZM's R-IDE package"""
+    """
+    Creates a kernel in the style of AZM's R-IDE package. For details, see [here](../site/mathematics.html)
+    """
 
     @jax.jit
     def kernel(s, r):
@@ -147,6 +149,12 @@ def param_exp_kernel(K_basis: tuple, k: tuple):
 
 
 class IdemParams(NamedTuple):
+    """
+    The parameters of an IDEM, as described in .
+    Some parameters are log-transformed to force everything to be in $\mathbf{R}$.
+
+    
+    """
     log_sigma2_eps: Union[Float[Array, "()"],
                           PyTree[Float[Array, "(nobs[i],)"]],
                           PyTree[Float[Array, "(nobs[i], nobs[i])"]]]
@@ -158,10 +166,12 @@ class IdemParams(NamedTuple):
 
 
 class Model:
-    """The Integro-differential Equation Model.
+    """
+    The Integro-differential Equation Model.
     Unlike R-IDE, this does not take in data as part of the model, so the
     process grid and all involved bases must be manually made to be the domain
     of interest.
+    To build a model using a dataset as a base, use init_model.
     """
 
     def __init__(
@@ -226,7 +236,6 @@ class Model:
         
         M = self.M
         PHI_proc = self.PHI_proc
-        beta = self.beta
 
         # Check that M is not explosive
         if jnp.max(jnp.absolute(jnp.linalg.eig(M)[0])) > 1.0:
@@ -260,7 +269,7 @@ class Model:
     
     def simulate_observations(self, key, alphas, data):
 
-        T = len(data.unique_times)
+        T = len(data.full_times)
 
         coords_tree = data.coords_tree
         X_obs_tree = data.X_obs_tree
@@ -295,26 +304,6 @@ class Model:
         alpha_0 = None,
         dt = None
     ):
-        """
-        Simulates from the model, using the jit-able function sim_idem.
-
-        Parameters
-        ----------
-        key: ArrayLike
-            PRNG key
-        obs_locs: 
-        int_grid: ArrayLike (3, nint)
-            The grid over which to compute the Riemann integral.
-        alpha_0: ArrayLike (nbasis,)
-            Initial value of the process coefficients
-
-        Returns
-        ----------
-        tuple
-            A tuple containing the Process data and the Observed data, both
-            in long format in the st_data type (see
-            [utilities](/.env.example))
-        """
 
         M = self.M
         PHI_proc = self.PHI_proc
@@ -340,7 +329,7 @@ class Model:
         
         alphas = self.simulate_basis(keys[1], T, alpha_0)
 
-        process_values = self.simulate_process(alphas).reshape((T*process_grid.ngrid,))
+        process_values = self.simulate_process(alphas).T.reshape((T*process_grid.ngrid,))
 
         obs_data_nan = utils.st_data(x, y, times, z=jnp.full(x.shape, jnp.nan), dt = None, covariates=covariates, covariate_labels=self.covariate_labels)
         
@@ -359,7 +348,7 @@ class Model:
         return (process_data, obs_data)
 
     def resimulate(self, key, data, alpha_0=None):
-        return self.simulate(key, data.coords_tree, self.int_grid, alpha_0)
+        return self.simulate(key, data.x, data.y, data.times, alpha_0)
     
     def get_log_like(self,
                      obs_data,
@@ -688,7 +677,7 @@ class Model:
             The propegation matrix M.
         """
 
-        def kernel(s, r):
+        def kernel_func(s, r):
             theta = (
                 ks[0] @ self.kernel.basis[0].vfun(s),
                 ks[1] @ self.kernel.basis[1].vfun(s),
@@ -701,7 +690,9 @@ class Model:
             )
             return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
 
-        K = outer_op(self.process_grid.coords, self.process_grid.coords, kernel)
+
+        vec_ker = jax.vmap(jax.vmap(kernel_func, in_axes=(None, 0)), in_axes=(0, None))
+        K = vec_ker(self.process_grid.coords, self.process_grid.coords)
         # TODO: Investigate better, faster, more accurate ways to ocmpute this?
         return (
             solve(self.GRAM, self.PHI_proc.T @ K @ self.PHI_proc)
@@ -854,118 +845,6 @@ class Model:
         
         return (sample,info)
 
-'''@partial(jax.jit, static_argnames=["Sigma_eps_tree, PHI_obs_tree, X_obs_tree"])
-def sim_idem(
-    key: ArrayLike,
-    M: ArrayLike,
-    PHI_proc: ArrayLike,
-    beta: ArrayLike,
-    alpha_0: ArrayLike,
-    Sigma_eta: ArrayLike,
-    Sigma_eps_tree: PyTree,
-    PHI_obs_tree: PyTree,
-    X_obs_tree: ArrayLike,
-    process_grid: Grid = create_grid(bounds, ngrids),
-    int_grid: Grid = create_grid(bounds, ngrids),
-) -> ArrayLike:
-    """
-    Simulates from a IDE model.
-    This is not meant as a user-facing function. For ease of use, use
-    model.simulate.
-    
-    Returns
-    ----------
-    A tuple containing the values of the process and the values of the
-    observation.
-    """
-
-    nobs_tree = jax.tree.map(lambda PHI: PHI, PHI_obs_tree)
-
-    # key setup
-    keys = rand.split(key, 5)
-    nbasis = PHI_proc.shape[1]
-
-    # times = jnp.unique(obs_locs[:, 0], size=T)
-
-    U_eta = jnp.linalg.cholesky(Sigma_eta)
-
-    @jax.jit
-    def step(carry, key):
-        nextstate = M @ carry + U_eta @ rand.normal(key, shape=(nbasis,))
-        return (nextstate, nextstate)
-
-    alpha_keys = rand.split(keys[3], T)
-
-    alpha = jl.scan(step, alpha_0, alpha_keys)[1]
-
-    def get_process(alpha):
-        return PHI_proc @ alpha
-
-    vget_process = jax.vmap(get_process)
-    process_vals = vget_process(alpha)
-
-    U_eps_tree = jax.tree.map(jnp.linalg.cholesky,Sigma_eps_tree)
-    
-    def get_observation(t):
-        
-        return PHI_obs_tree[t] @ alpha[t,:] + X_obs_tree[t] @ beta + U_eps_tree[t] @ rand.normal(key, shape=(nobs_tree[t],))
-        
-
-    
-    obs_vals = (
-        X_obs @ beta
-        + PHI_obs @ alpha.flatten()
-        + chol_Sigma_eps @ rand.normal(key, shape=(nobs,))
-    )
-
-    return (process_vals, obs_vals)'''
-
-
-@partial(jax.jit, static_argnames=["con_M"])
-def Q(
-    obs_data,
-    PHI_obs,
-    m_0,
-    Sigma_eps,
-    Sigma_eta,
-    Sigma_0,
-    ks,
-    beta,
-    X_obs,
-    con_M: Callable,  # function to take kernel params and give M
-):
-    M = con_M(ks)
-    # nbasis = m_0.shape[0]
-
-    # obs_locs = jnp.column_stack((obs_data.x, obs_data.y))
-
-    _, seq = kalman_filter(
-        m_0, Sigma_0, M, PHI_obs, Sigma_eta, Sigma_eps, beta, obs_data, X_obs
-    )
-
-    # In hindsight, storing all Ks is a waste of memory when only K_T is needed
-    # (ms, Ps, mpreds, Ppreds,
-    # Ks) = seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:]
-    #
-    # _, seq2 = kalman_smoother(ms, Ps, mpreds, Ppreds, M)
-
-    # m_tTs, P_tTs, Js = (
-    #   jnp.vstack([jnp.flip(seq[0], axis=1), ms[-1]]),
-    #   jnp.concatenate(
-    #       [jnp.flip(seq[1], axis=1), jnp.reshape(
-    #           Ps[-1], (1, nbasis, nbasis))]
-    #   ),
-    #   jnp.flip(seq[2], axis=1),
-    # )
-    #
-    #    _, seq3 = lag1_smoother(Ps, Js, Ks[-1], PHI_obs, M)
-    #    P_TTmT = (jnp.eye(nbasis) - Ks[-1] @ PHI_obs) @ M @ Ps[-2]
-    #
-    #    P_ttmTs = jnp.concatenate(
-    #        [jnp.flip(seq, axis=1), jnp.reshape(P_TTmT, (1, nbasis, nbasis))]
-    #    )
-    #
-    #    xi_z = jnp.sum(obs_locs, axis=0)
 
 def gen_example_idem(
     key: ArrayLike,
@@ -1061,9 +940,14 @@ def init_model(data,
                n_process_grid=41,
                n_int_grid=100,
                basis_type = 'cosine',
-               basis_args=[20],
+               basis_args=[10],
                k_spat_inv = True,
                k_basis_args=[[1,1], [3,3]]):
+
+    # minimum width of the space
+    width = min([jnp.max(data.x) - jnp.min(data.x), jnp.max(data.y) - jnp.min(data.y)])
+    
+    
     #initial variances
     sigma2_eta = jnp.var(data.z)/2
     sigma2_eps = jnp.var(data.z)/2
@@ -1092,7 +976,7 @@ def init_model(data,
         )
         k = (
             jnp.array([150.0]),
-            jnp.array([0.002]),
+            jnp.array([0.02*width]),
             jnp.array([0.]),
             jnp.array([0.]),
         )
@@ -1106,7 +990,7 @@ def init_model(data,
         )
         k = (
             jnp.array([200]),
-            jnp.array([0.002]),
+            jnp.array([0.02*width]),
             0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
             0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
         )

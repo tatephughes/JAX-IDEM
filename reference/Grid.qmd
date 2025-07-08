@@ -1,7 +1,7 @@
-# Grid { #jaxidem.utilities.Grid }
+# Grid { #jaxidem.utils.Grid }
 
 ```python
-utilities.Grid()
+utils.Grid()
 ```
 
 A simple grid class to store (currently exclusively regular) grids, along

@@ -1,25 +1,28 @@
 % Options for packages loaded elsewhere
+% Options for packages loaded elsewhere
 \PassOptionsToPackage{unicode}{hyperref}
 \PassOptionsToPackage{hyphens}{url}
 \PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
 %
 \documentclass[
 ]{report}
-
+\usepackage{xcolor}
+\usepackage[left=20.0mm,right=20.0mm,marginparsep=7.7mm,marginparwidth=70.3mm,top=20mm]{geometry}
 \usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{5}
 \usepackage{iftex}
 \ifPDFTeX
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
   \usepackage{textcomp} % provide euro and other symbols
 \else % if luatex or xetex
-  \usepackage{unicode-math}
+  \usepackage{unicode-math} % this also loads fontspec
   \defaultfontfeatures{Scale=MatchLowercase}
   \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
 \fi
 \usepackage{lmodern}
-\ifPDFTeX\else  
-    % xetex/luatex font selection
+\ifPDFTeX\else
+  % xetex/luatex font selection
 \fi
 % Use upquote if available, for straight quotes in verbatim environments
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
@@ -37,10 +40,6 @@
 }{% if KOMA class
   \KOMAoptions{parskip=half}}
 \makeatother
-\usepackage{xcolor}
-\usepackage[left=20.0mm,right=20.0mm,marginparsep=7.7mm,marginparwidth=70.3mm,top=20mm]{geometry}
-\setlength{\emergencystretch}{3em} % prevent overfull lines
-\setcounter{secnumdepth}{5}
 % Make \paragraph and \subparagraph free-standing
 \makeatletter
 \ifx\paragraph\undefined\else
@@ -106,8 +105,7 @@
 \newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
 \newcommand{\WarningTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
 
-\providecommand{\tightlist}{%
-  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}\usepackage{longtable,booktabs,array}
+\usepackage{longtable,booktabs,array}
 \usepackage{calc} % for calculating minipage widths
 % Correct order of tables after \paragraph or \subparagraph
 \usepackage{etoolbox}
@@ -132,6 +130,8 @@
 % Set default figure placement to htbp
 \def\fps@figure{htbp}
 \makeatother
+
+
 % definitions for citeproc citations
 \NewDocumentCommand\citeproctext{}{}
 \NewDocumentCommand\citeproc{mm}{%
@@ -165,6 +165,18 @@
 \newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
 \newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
 \newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+
+
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+
+
+ 
+
 
 \usepackage{unicode-math}
 \DeclareMathOperator{\var}{\mathbb{V}\mathrm{ar}}
@@ -229,11 +241,11 @@
 \newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
 \usepackage{amsthm}
 \theoremstyle{plain}
-\newtheorem{lemma}{Lemma}[section]
+\newtheorem{theorem}{Theorem}[section]
 \theoremstyle{plain}
 \newtheorem{proposition}{Proposition}[section]
 \theoremstyle{plain}
-\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
 \theoremstyle{remark}
 \AtBeginDocument{\renewcommand*{\proofname}{Proof}}
 \newtheorem*{remark}{Remark}
@@ -247,11 +259,9 @@
 \@ifpackageloaded{caption}{}{\usepackage{caption}}
 \@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
 \makeatother
-
 \usepackage{bookmark}
-
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
-\urlstyle{same} % disable monospaced font for URLs
+\urlstyle{same}
 \hypersetup{
   pdftitle={Efficient Filtering and Fitting of Models Derived from Integro-Difference Equations},
   pdfauthor={Evan Tate Paterson Hughes},
@@ -267,7 +277,6 @@
 Integro-Difference Equations}
 \author{Evan Tate Paterson Hughes}
 \date{}
-
 \begin{document}
 \maketitle
 
@@ -653,7 +662,7 @@ We then have
 
 \[\begin{split}
 \bv Z_t &= \Phi \bv \alpha_t + X_{t} \bv \beta + \bv \epsilon_t, \quad t = 1,\dots, T,\\
-\bv \alpha_{t+1} &= M\bv \alpha_t + \bv\eta_t,\quad t = 0,2,\dots, T-1,\\
+\bv \alpha_{t+1} &= M\bv \alpha_t + \bv\eta_t,\quad t = 0,1,\dots, T-1,\\
 M &= \int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \int_{\mathcal D_s^2}\bv\phi(\bv s) \kappa(\bv s, \bv r; \bv\theta_\kappa)\bv\phi(\bv r)^\intercal d\bv r d \bv s,
 \end{split}
 \]
@@ -662,7 +671,7 @@ Writing \(\tilde{\bv{Z}}_t = \bv Z_t - X_t \bv \beta\),
 
 \begin{equation}\phantomsection\label{eq-stateidem}{\begin{split}
 \tilde{\bv Z}_t &= \Phi_{t} \bv \alpha_t + \bv \epsilon_t,\quad &t = 1,2,\dots, T,\\
-\bv \alpha_{t+1} &= M \bv \alpha_t + \bv\eta_t,\quad &t = 0,1, \dots, T.\\
+\bv \alpha_{t+1} &= M \bv \alpha_t + \bv\eta_t,\quad &t = 0,1, \dots, T-1.\\
 \end{split}
 }\end{equation}
 
@@ -731,10 +740,6 @@ plotting;
 \NormalTok{obs\_data.save\_plot(}\StringTok{\textquotesingle{}figure/obs\_data\_example.png\textquotesingle{}}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
-
-\pandocbounded{\includegraphics[keepaspectratio]{mathematics_files/figure-pdf/cell-5-output-1.pdf}}
-
-\pandocbounded{\includegraphics[keepaspectratio]{mathematics_files/figure-pdf/cell-5-output-2.pdf}}
 
 \begin{figure}[h]
 
@@ -1056,15 +1061,15 @@ P_{t+1\mid t+1} &= [I- K_{t+1}\Phi_{t+1}]P_{t+1\mid t}.
 
 Somewhat masked within this equation is two (often very small) variance
 matrices subtracted from eachother. While analytically, the result is
-still guarenteed to be positive (semi-)definite, when done in floating
-point arithmatic (especially in single-precision or lower), the result
-can often be numerically indefinate. When the variances are very low (as
+still guaranteed to be positive (semi-)definite, when done in floating
+point arithmetic (especially in single-precision or lower), the result
+can often be numerically indefinite. When the variances are very low (as
 they often become in these Kalman filters), the eigenvalues come out
 very close to zero and can tick over to becoming negative erroneously.
 This can lead to definiteness issues with all the other variance
 matrices, most crucially \(\Sigma_t\) Equation~\ref{eq-predvar}. When
 this happens, computation of the likelihood likely fails (certainly when
-such a computation involvoes a Cholesky decomposition). Even if such is
+such a computation involves a Cholesky decomposition). Even if such is
 rare to happen with 64-bit precision, modern GPU hardware tends to be
 much more efficient with Single (32-bit) precision, so it may still be
 desirable to increase stability if it permits using a lower precision.

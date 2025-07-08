@@ -1,0 +1,19 @@
+website:
+  sidebar:
+  - contents:
+    - reference/index.qmd
+    - contents:
+      - reference/ql_L.qmd
+      - reference/kalman_filter.qmd
+      section: Filtering and Smoothing Functions
+    - contents:
+      - reference/Kernel.qmd
+      - reference/param_exp_kernel.qmd
+      - reference/IdemParams.qmd
+      section: Integro-Difference Models in JAX
+    - contents:
+      - reference/Grid.qmd
+      - reference/outer_op.qmd
+      section: Utilties
+    id: reference
+  - id: dummy-sidebar

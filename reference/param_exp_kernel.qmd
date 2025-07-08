@@ -4,4 +4,4 @@
 idem.param_exp_kernel(K_basis, k)
 ```
 
-Creates a kernel in the style of AZM's R-IDE package
+Creates a kernel in the style of AZM's R-IDE package. For details, see [here](../docs/site/mathematics.html)

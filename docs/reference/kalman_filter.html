@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.7.32">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -71,10 +71,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-37eea08aefeeee20ff55810ff984fec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-eaf9f7b2eff0675dc85d7d6a3549247f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-991b1886d3c685c7aa2b62b80640c7af.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -103,39 +103,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN") {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
-
+<link rel="stylesheet" href="../reference/_styles-quartodoc.css">
 </head>
 
-<body class="nav-fixed quarto-light">
+<body class="nav-sidebar floating nav-fixed quarto-light">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
@@ -161,8 +133,12 @@ window.Quarto = {
 <span class="menu-text">The Maths</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../reference/index.html"> 
+    <a class="nav-link active" href="../reference/index.html" aria-current="page"> 
 <span class="menu-text">Docs</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../site/examples.html"> 
+<span class="menu-text">Examples</span></a>
   </li>  
 </ul>
           </div> <!-- /navcollapse -->
@@ -190,17 +166,115 @@ window.Quarto = {
 </div>
       </div> <!-- /container-fluid -->
     </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/ql_L.html">Filtering and Smoothing Functions</a></li><li class="breadcrumb-item"><a href="../reference/kalman_filter.html">kalman_filter</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
 </header>
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Function reference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Filtering and Smoothing Functions</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/ql_L.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ql_L</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/kalman_filter.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">kalman_filter</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Integro-Difference Models in JAX</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/Kernel.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Kernel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/param_exp_kernel.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">param_exp_kernel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/IdemParams.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IdemParams</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Utilties</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/Grid.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Grid</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/outer_op.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">outer_op</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         <nav id="TOC" role="doc-toc" class="toc-active">
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#jaxidem.filter_smoother_functions.kalman_filter" id="toc-jaxidem.filter_smoother_functions.kalman_filter" class="nav-link active" data-scroll-target="#jaxidem.filter_smoother_functions.kalman_filter"><span class="header-section-number">1</span> kalman_filter</a>
+  <li><a href="#jaxidem.filters.kalman_filter" id="toc-jaxidem.filters.kalman_filter" class="nav-link active" data-scroll-target="#jaxidem.filters.kalman_filter"><span class="header-section-number">1</span> kalman_filter</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters"><span class="header-section-number">1.1</span> Parameters</a></li>
   <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns"><span class="header-section-number">1.2</span> Returns</a></li>
@@ -209,44 +283,35 @@ window.Quarto = {
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/ql_L.html">Filtering and Smoothing Functions</a></li><li class="breadcrumb-item"><a href="../reference/kalman_filter.html">kalman_filter</a></li></ol></nav></header>
 
 
 
 
-<section id="jaxidem.filter_smoother_functions.kalman_filter" class="level1" data-number="1">
+<section id="jaxidem.filters.kalman_filter" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> kalman_filter</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>filter_smoother_functions.kalman_filter(</span>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>filters.kalman_filter(</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    m_0,</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    P_0,</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    M,</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    PHI,</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    Sigma_eta,</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    Sigma_eps,</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    zs,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    likelihood<span class="op">=</span><span class="st">'partial'</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Applies the Kalman Filter to a wide-format matrix of data. For jit-ability, this only allows full (no missing) data in a wide format. For changing data locations or changing data dimension, see <a href="../reference/information_filter.html"><code>information_filter</code></a>. For the Kalman filter with uncorrelated errors, see <a href="../reference/kalman_filter_indep.html"><code>kalman_filter_indep</code></a>. For the square-root Kalman filter, <a href="../reference/sqrt_filter_indep.qmd"><code>sqrt_filter_indep</code></a>.</p>
-<p>Computes posterior means and variances for a system <span class="math display">\[\begin{split}
-    \mathbf Z_t &amp;= \Phi \boldsymbol\alpha_t + \boldsymbol \epsilon_t, \quad t = 1,\dots, T,\\
-    \boldsymbol \alpha_{t+1} &amp;= M\boldsymbol \alpha_t + \boldsymbol\eta_t,\quad t = 0,2,\dots, T-1,\\
-\end{split}
-\]</span> with initial ‘priors’ <span class="math display">\[\begin{split}
-    \boldsymbol \alpha_{0} \sim \mathcal N(\mathbf m_0, \mathbf P_0),\\
-\end{split}
-\]</span> where <span class="math display">\[\begin{split}
-    \boldsymbol \epsilon_t \overset{\mathrm{iid}}{\sim} \mathcal N(0,\Sigma_\epsilon),
-    \boldsymbol \eta_t \overset{\mathrm{iid}}{\sim} \mathcal N(0,\Sigma_\eta).
-\end{split}
-\]</span></p>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    sigma2_eta,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    sigma2_eps,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    zs_tree,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    sigma2_eta_dim,</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    sigma2_eps_dim,</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    forecast<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    likelihood<span class="op">=</span><span class="st">'partial'</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The standard Kalman Filter.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters" data-number="1.1">
 <h2 class="doc-section doc-section-parameters anchored" data-number="1.1" data-anchor-id="parameters"><span class="header-section-number">1.1</span> Parameters</h2>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 7%">
-<col style="width: 7%">
-<col style="width: 76%">
-<col style="width: 8%">
+<col style="width: 10%">
+<col style="width: 14%">
+<col style="width: 60%">
+<col style="width: 15%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -260,50 +325,8 @@ window.Quarto = {
 <tr class="odd">
 <td>m_0</td>
 <td>ArrayLike</td>
-<td>The initial means of the process vector</td>
+<td>Prior mean of the filter at the 0 time point.</td>
 <td><em>required</em></td>
-</tr>
-<tr class="even">
-<td>P_0</td>
-<td>ArrayLike</td>
-<td>The initial Covariance matrix of the process vector</td>
-<td><em>required</em></td>
-</tr>
-<tr class="odd">
-<td>M</td>
-<td>ArrayLike</td>
-<td>The transition matrix of the process</td>
-<td><em>required</em></td>
-</tr>
-<tr class="even">
-<td>PHI</td>
-<td>ArrayLike</td>
-<td>The process-to-data matrix</td>
-<td><em>required</em></td>
-</tr>
-<tr class="odd">
-<td>Sigma_eta</td>
-<td>ArrayLike</td>
-<td>The Covariance matrix of the process noise</td>
-<td><em>required</em></td>
-</tr>
-<tr class="even">
-<td>Sigma_eps</td>
-<td>ArrayLike</td>
-<td>The Covariance matrix of the observation noise</td>
-<td><em>required</em></td>
-</tr>
-<tr class="odd">
-<td>zs</td>
-<td>ArrayLike</td>
-<td>The observed data to be filtered, in matrix format</td>
-<td><em>required</em></td>
-</tr>
-<tr class="even">
-<td>likelihood</td>
-<td>str</td>
-<td>(STATIC) The mode to compute the likelihood (‘full’ with constant terms, ‘partial’ without constant terms, or ‘none’.)</td>
-<td><code>'partial'</code></td>
 </tr>
 </tbody>
 </table>
@@ -312,9 +335,9 @@ window.Quarto = {
 <h2 class="doc-section doc-section-returns anchored" data-number="1.2" data-anchor-id="returns"><span class="header-section-number">1.2</span> Returns</h2>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 6%">
-<col style="width: 19%">
-<col style="width: 73%">
+<col style="width: 10%">
+<col style="width: 69%">
+<col style="width: 20%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -325,34 +348,9 @@ window.Quarto = {
 </thead>
 <tbody>
 <tr class="odd">
-<td>ll</td>
-<td>ArrayLike(1)</td>
-<td>The log (data) likelihood of the data</td>
-</tr>
-<tr class="even">
-<td>ms</td>
-<td>ArrayLike(T, r)</td>
-<td>The posterior means <span class="math inline">\(m_{t \mid t}\)</span> of the process given the data 1:t</td>
-</tr>
-<tr class="odd">
-<td>Ps</td>
-<td>ArrayLike(T, r, r)</td>
-<td>The posterior covariance matrices <span class="math inline">\(P_{t \mid t}\)</span> of the process given the data 1:t</td>
-</tr>
-<tr class="even">
-<td>mpreds</td>
-<td>ArrayLike(T - 1, r)</td>
-<td>The predicted next-step means <span class="math inline">\(m_{t \mid t-1}\)</span> of the process given the data 1:t-1</td>
-</tr>
-<tr class="odd">
-<td>Ppreds</td>
-<td>ArrayLike(T - 1, r, r)</td>
-<td>The predicted next-step covariances <span class="math inline">\(P_{t \mid t-1}\)</span> of the process given the data 1:t-1</td>
-</tr>
-<tr class="even">
-<td>Ks</td>
-<td>ArrayLike(T, n, r)</td>
-<td>The Kalman Gains at each time step</td>
+<td></td>
+<td>A namedtuple containing the results of the filter.</td>
+<td></td>
 </tr>
 </tbody>
 </table>

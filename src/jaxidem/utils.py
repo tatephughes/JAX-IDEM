@@ -70,7 +70,6 @@ class Basis(NamedTuple):
     params: ArrayLike
     nbasis: int
 
-
 def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
     """
     Creates an n-dimensional grid based on the given bounds and deltas.
@@ -106,7 +105,7 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
     sort_grid = grid[jnp.argsort(grid[:,1]),:]
 
     deltas = (bounds[:, 1] - bounds[:, 0]) / (ngrids - 1)
-    # for the purposes of testing against R-ide, we can pruposefully get this a little wrong (since they do)
+    # for the purposes of testing against R-ide, we can purposefully get this a little wrong (since they do)
     # deltas = (bounds[:, 1] - bounds[:, 0]) / (ngrids)
 
     return Grid(
@@ -125,26 +124,26 @@ def outer_op(
 ) -> ArrayLike:
     """
     Computes the outer operation of two vectors, a generalisation of the outer
-    product.
+    product. Wowza
 
     Parameters
     ----------
-    a: ArrayLike[A] (n, )
-        Array of the first vector
-    b: ArrayLike[B] (m, )
-        Array of the second vector
-    op: A, B -> C
+    a:
+        Array of the first vector.  Assumed shape (n,)
+    b:
+        Array of the second vector. Assumed shape (m,)
+    op: 
         A jit-function acting on an element of vec1 and an element of vec2.
         By default, this is the outer product.
 
     Returns
     ----------
-    ArrayLike[C] (n, m):
+    result : ArrayLike
         The matrix of the result of applying operation to every pair of elements
-        from the two vectors.
+        from the two vectors. Return shape (n, m).
     """
 
-    if not isinstance(a, ArrayLike):
+    if not isinstance(a, ArrayLike): 
         raise TypeError(f"Expected arraylike input; got {a}")
     if not isinstance(b, ArrayLike):
         raise TypeError(f"Expected arraylike input; got {b}")
@@ -156,7 +155,7 @@ def outer_op(
 
     vec_op = jax.vmap(jax.vmap(op, in_axes=(None, 0)), in_axes=(0, None))
 
-    return vec_op(a, b)
+    return vec_op(a, op)
 
 
 @jax.jit
@@ -178,7 +177,7 @@ def place_basis(
     Distributes knots (centroids) and scales for basis functions over a
     number of resolutions,similar to auto_basis from the R package FRK.
     This function must be run outside of a jit loop, since it involves
-    varying the length of arrays.
+    varying the length of arrays. 
 
     Parameters
     ----------
@@ -655,7 +654,7 @@ def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=
                    z = jnp.array(df[zlabel]),
                    covariates = covariates,
                    covariate_labels = covariate_labels)
-
+    
 def gif_st_grid(
     data: st_data,
     output_file="spatio_temporal.gif",
@@ -664,23 +663,26 @@ def gif_st_grid(
     height=4,
     dpi=300,
 ):
-    data_array = jnp.column_stack([data.x, data.y, data.t, data.z])
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
 
     frames = []
 
-    grid = int(jnp.sqrt(data_array[data_array[:, 2] == jnp.min(data.times)].shape[0]))
+    x = data.x
+    y = data.y
+    
+    x_unique = jnp.unique(x)
+    y_unique = jnp.unique(y)
+    X, Y = jnp.meshgrid(x_unique, y_unique)
 
-    for t in data.times:
-        time_data = data_array[data_array[:, 2] == t]
-        values = time_data[:, 3]
-        valmat = jnp.flipud(values.reshape(grid, grid))
+    for t in data.full_times:
+        z = data.z[data.times == t]
+        Z = z.reshape(len(y_unique), len(x_unique))
 
         plt.figure(figsize=(width, height))
 
         sns.heatmap(
-            valmat,
+            Z,
             vmin=vmin,
             vmax=vmax,
             cmap="viridis",
@@ -691,8 +693,6 @@ def gif_st_grid(
         buf = io.BytesIO()
 
         plt.title(f"Time: {t}")
-        # plt.set_xlabel(data.x)
-        # plt.set_ylabel(data.y)
 
         plt.savefig(buf, format="png", dpi=dpi)
         plt.close()
@@ -712,19 +712,17 @@ def gif_st_pts(
     height=4,
     dpi=300,
 ):
-    data_array = jnp.column_stack([data.x, data.y, data.t, data.z])
     vmin = jnp.min(data.z)
     vmax = jnp.max(data.z)
 
     frames = []
 
-    T = int(jnp.max(data.t) - jnp.min(data.t)) + 1
+    T = data.T
 
     for t in range(T):
-        time_data = data_array[data_array[:, 2] == t]
-        x = time_data[:, 0]
-        y = time_data[:, 1]
-        values = time_data[:, 3]
+        x = data.coords_tree[t][:,0]
+        y = data.coords_tree[t][:,1]
+        z = data.zs_tree[t]
 
         fig, ax = plt.subplots(figsize=(width, height))
 
@@ -733,9 +731,9 @@ def gif_st_pts(
         sns.scatterplot(
             x=x,
             y=y,
-            hue=values,
-            c=values,
-            size=values,
+            hue=z,
+            c=z,
+            size=z,
             sizes=(20, 200),
             norm=Normalize(vmin=vmin, vmax=vmax),
             legend=False,

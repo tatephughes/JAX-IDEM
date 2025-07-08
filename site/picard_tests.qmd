@@ -1,0 +1,665 @@
+---
+title: "Experiments with the Picard-map MCMC"
+author: "Evan Tate Paterson Hughes"
+references:
+  - id: grazzi2025
+    type: article-journal
+    author:
+      - family: Grazzi
+        given: Sebastiano
+      - family: Zanella
+        given: Giacomo
+    title: "Parallel computations for Metropolis Markov chains"
+    issued:
+      year: 2025
+
+  - id: cabezas2024blackjax
+    type: article
+    title: "BlackJAX: Composable Bayesian inference in JAX"
+    author:
+      - family: Cabezas
+        given: Alberto
+      - family: Corenflos
+        given: Adrien
+      - family: Lao
+        given: Junpeng
+      - family: Louf
+        given: Rémi
+    issued:
+      year: 2024
+    archive: arXiv
+    eprint: 2402.10797
+    URL: https://arxiv.org/abs/2402.10797
+---
+
+
+# Standard RMH
+
+Here is a very simple example of a RMH algorithm targetting a simple 2D Gaussian
+
+```{python}
+
+import jax
+#jax.config.update("jax_enable_x64", True)
+import jax.numpy as jnp
+import jax.random as rand
+
+import time
+
+from jax.scipy.stats.multivariate_normal import logpdf as logmvn
+from jax.random import multivariate_normal as smvn
+
+target_mean = jnp.array([0,0])
+target_cov = jnp.array([[1,0.5],[0.5,1]])
+
+
+def log_target(state):
+    return logmvn(state, target_mean, target_cov)
+
+init_state = jnp.zeros(2)
+prop_cov = jnp.eye(2)
+
+
+n = 200
+
+def rmh_step(state, key):
+    prop_key, acc_key = jax.random.split(key, 2)
+
+    proposal = smvn(prop_key, state, prop_cov)
+    r = log_target(proposal) - log_target(state)
+
+    log_prob = jnp.minimum(0.0, r)
+
+    u = jax.random.uniform(acc_key)
+
+    new_state = jax.lax.cond((jnp.log(u) < log_prob),
+                             0, lambda _: proposal,
+                             0, lambda _: state)
+
+    return new_state, new_state
+
+
+key = jax.random.PRNGKey(42)
+keys = jax.random.split(key, n)
+
+_, chain_1 = jax.lax.scan(rmh_step, init_state, keys)
+chain = jnp.vstack([init_state, chain_1])
+
+res_mean = jnp.mean(chain_1, axis=0)
+res_cov = jnp.cov(chain_1.T)
+
+print(res_mean)
+print(res_cov)
+
+```
+
+```{python}
+#| code-fold: true
+import plotly.graph_objects as go
+
+x, y = chain[:, 0], chain[:, 1]
+
+fig = go.Figure()
+
+# Add trajectory line
+fig.add_trace(go.Scatter(
+    x=x, y=y,
+    mode='lines+markers',
+    line=dict(color='blue'),
+    marker=dict(size=2),
+    name='Trajectory'
+))
+
+fig.add_trace(go.Scatter(
+    x=[x[0]], y=[y[0]],
+    mode='markers',
+    marker=dict(size=10, color='green'),
+    name='Start'
+))
+fig.add_trace(go.Scatter(
+    x=[x[-1]], y=[y[-1]],
+    mode='markers',
+    marker=dict(size=10, color='red'),
+    name='End'
+))
+
+# Layout settings
+fig.update_layout(
+    title='RMH Trajectory',
+    xaxis_title='X_1',
+    yaxis_title='X_2',
+    showlegend=True,
+    width=700,
+    height=600
+)
+
+fig.show()
+```
+
+# Picard Map
+
+General Markov chains on the domain $\mathcal{X}$ can be written as
+
+$$\begin{split}
+X^{(i+1)} = g(X^{(i)}, W_i),\quad i=0,1,\dots
+\end{split}
+$${#eq-markov1}
+
+Where $X^{(0)}\in\mathcal{X}$ is fixed, $X^{(i)}\in\mathcal{X}$ and $W_i\in\mathcal{W}$ are random states (in JAX, the keys serve this purpose).
+
+We can rewrite @eq-markov1 as a random-step type markov chain form like so;
+
+$$\begin{split} 
+X^{(i+1)} = X^{(i)} + \underbrace{\left(g(X^{{(i)}}, W_i) - X^{(i)}\right)}_{f(X^{(i)}, W_i)}.
+\end{split}
+$${#eq-markov2}
+
+This is now in the form used by @grazzi2025, so we can define the Picard map $\Phi: \mathcal{X}^{K+1}\times\mathcal{W}^K \mapsto\mathcal{X}^{K+1}$;
+
+$$\begin{split}
+\Phi_i(X, W) = \begin{cases}
+	X^{(0)} &\quad i=1\\ 
+	X^{(0)} + \sum_{l=0}^{i-1} f(X^{(l)}, W_l ) &\quad 0<i<K.
+\end{cases}
+\end{split}
+$${#eq-picard}
+
+
+Now we define a function that takes a particular step function $g(X_i,W_i)$ and gives the picard map corresponding to $f(X_i,W_i) = g(X_i, W_i) - X_i$.
+
+```{python}
+def get_picard_map(step):
+    # vectorise the step function
+    vf = jax.vmap(lambda s, key: step(s, key)[0] - s)
+    def picard_map(states, keys):
+        init_state = states[0]        
+        fs = vf(states[0:-1], keys)
+        cumsum = jnp.cumsum(fs, axis=0)
+        # why do i need to divide by 2 here?
+        # the result seemed to be twise what it should have been, so i tested
+        # this and it worked, but I don't understand why it should be there...
+        return jnp.vstack([init_state, (states[1:] + cumsum) / 2])
+    return picard_map
+```
+
+
+```{python}
+X_true = chain
+
+X_0 = jnp.stack([init_state for _ in range(n+1)])
+
+pic_map = get_picard_map(rmh_step)
+
+def scan_step(carry, _):
+    new_carry = pic_map(carry, keys)
+    return new_carry, new_carry
+
+# number of times to apply the map
+p = 100
+
+_, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
+
+```
+
+Below is a plotly graph to show how this approximates the actual chain from the standard random walk metropolis. In graph is the trajectory of the original in gray, and the slider allows you to choose $i$, the number of times the picard map is applied. The corresponding trajectory after that many iterations of the map is given in blue.
+
+```{python}
+#| code-fold: true
+
+# Create base figure
+fig = go.Figure()
+
+# Plot X_true in grey
+fig.add_trace(go.Scatter(
+    x=X_true[:, 0], y=X_true[:, 1],
+    mode='lines+markers',
+    line=dict(color='grey', width=2),
+    marker=dict(size=4),
+    name='X_true',
+    showlegend=True
+))
+
+# Add all X_all[i] traces, only show the first one initially
+for i, Xi in enumerate(X_all[1:]):
+    visible = (i == 0)
+    fig.add_trace(go.Scatter(
+        x=Xi[:, 0], y=Xi[:, 1],
+        mode='lines+markers',
+        line=dict(color='blue', width=2, dash='dot'),
+        marker=dict(size=4),
+        name=f'Φ^{i+1}(X⁰, W)',
+        visible=visible,
+        showlegend=visible
+    ))
+
+# Create slider steps
+p = len(X_all)
+steps = []
+for i in range(p):
+    step = dict(
+        method="update",
+        args=[
+            {"visible": [True] + [j == i for j in range(p)]},  # X_true + one X_i
+        ],
+        label=f"X_{i+1}"
+    )
+    steps.append(step)
+
+# Stack all chains and X_true to compute global bounds
+all_points = X_true
+x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
+y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
+
+# Add a small margin
+x_margin = (x_max - x_min) * 0.05
+y_margin = (y_max - y_min) * 0.05
+
+fig.update_layout(
+    xaxis=dict(range=[x_min - x_margin, x_max + x_margin]),
+    yaxis=dict(range=[y_min - y_margin, y_max + y_margin])
+)
+
+
+    
+# Add slider to layout
+fig.update_layout(
+    sliders=[dict(
+        active=0,
+        currentvalue={"prefix": "Showing: "},
+        pad={"t": 50},
+        steps=steps
+    )],
+    title="Markov Chain Trajectories",
+    xaxis_title="X",
+    yaxis_title="Y",
+    width=800,
+    height=600
+)
+
+fig.update_layout(
+    annotations=[
+        dict(
+            xref="paper", yref="paper",
+            x=0.5, y=1.1,
+            showarrow=False,
+            font=dict(size=14),
+            align="center"
+        )
+    ]
+)
+
+
+
+
+fig.show()
+
+```
+
+
+As you pull the slider left, the dotted blue line gets closer and closer to the grey line, as expected!
+
+Notably, for the first few iterations the state is wildly off (too see this, click the autoscale); the blue line seems to veer heavily off until $i\approx 77$.
+
+In fact, let's repeat this but with a much longer chain;
+
+```{python}
+
+# Standard RMH
+n=1_000
+key = jax.random.PRNGKey(42)
+keys = jax.random.split(key, n)
+_, chain_1 = jax.lax.scan(rmh_step, init_state, keys)
+X_true = jnp.vstack([init_state, chain_1])
+
+
+X_0 = jnp.stack([init_state for _ in range(n+1)])
+X_all = [X_0]
+for _ in range(100):
+    X_all.append(pic_map(X_all[-1], keys))
+```
+
+```{python}
+#| code-fold: true
+
+# Create base figure
+fig = go.Figure()
+
+# Plot X_true in grey
+fig.add_trace(go.Scatter(
+    x=X_true[:, 0], y=X_true[:, 1],
+    mode='lines+markers',
+    line=dict(color='grey', width=2),
+    marker=dict(size=4),
+    name='X_true',
+    showlegend=True
+))
+
+# Add all X_all[i] traces, only show the first one initially
+for i, Xi in enumerate(X_all[1:]):
+    visible = (i == 0)
+    fig.add_trace(go.Scatter(
+        x=Xi[:, 0], y=Xi[:, 1],
+        mode='lines+markers',
+        line=dict(color='blue', width=2, dash='dot'),
+        marker=dict(size=4),
+        name=f'Φ^{i+1}(X⁰, W)',
+        visible=visible,
+        showlegend=visible
+    ))
+
+# Create slider steps
+p = len(X_all)
+steps = []
+for i in range(p):
+    step = dict(
+        method="update",
+        args=[
+            {"visible": [True] + [j == i for j in range(p)]},  # X_true + one X_i
+        ],
+        label=f"X_{i+1}"
+    )
+    steps.append(step)
+
+# Stack all chains and X_true to compute global bounds
+all_points = X_true
+x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
+y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
+
+# Add a small margin
+x_margin = (x_max - x_min) * 0.05
+y_margin = (y_max - y_min) * 0.05
+
+fig.update_layout(
+    xaxis=dict(range=[x_min - x_margin, x_max + x_margin]),
+    yaxis=dict(range=[y_min - y_margin, y_max + y_margin])
+)
+
+
+    
+# Add slider to layout
+fig.update_layout(
+    sliders=[dict(
+        active=0,
+        currentvalue={"prefix": "Showing: "},
+        pad={"t": 50},
+        steps=steps
+    )],
+    title="Markov Chain Trajectories",
+    xaxis_title="X",
+    yaxis_title="Y",
+    width=800,
+    height=600
+)
+
+fig.update_layout(
+    annotations=[
+        dict(
+            xref="paper", yref="paper",
+            x=0.5, y=1.1,
+            showarrow=False,
+            font=dict(size=14),
+            align="center"
+        )
+    ]
+)
+
+
+
+
+fig.show()
+
+```
+
+We can now see that we will need much more than 100 iterations of the map to get a good match.
+This seems to contradict what the paper says, right? It said that it should generate samples close to $\pi$ with $\mathcal{O}(d)$ (or maybe $\mathcal{O}(\sqrt{d})$, not sure if I'm reading it right), and since $d=2$ is constant, the number of iterations needed to get a good fit shouldn't grow with the length of the chain $n$, but it clearly does here.
+I'm gonna need to read the paper more closely, I must be misunderstanding something.
+
+
+# Other samplers (BLACKJAX)
+
+Of course, the above function is written to effectively accept any kernel $g(X^{(i)}, W_{i}$, so we can plug in any MCMC technique (at least those that are actually Markov Chains, sorry AMCMC).
+
+BLACKJAX (@cabezas2024blackjax) provides many of these.
+
+For example, lets sample the same target using HMC:
+
+```{python}
+
+
+import blackjax
+
+step_size = 1e-2
+imm = prop_cov
+nint = 20
+
+hmc = blackjax.hmc(log_target, step_size, imm, nint)
+
+# right now, there is some nonsense that is needed using flattening trees to 
+# get this to work, could be simpler if this was built-in to get_picard_map
+
+# this method flattens NamedTuples, which BLACKJAX uses as its state,
+# and provides the corresponding method to unflatten them.
+from jaxidem.utils import flatten_and_unflatten
+
+init_hmc_state = hmc.init(init_state)
+finit_state, unflat = flatten_and_unflatten(init_hmc_state)
+
+def hmc_step(fstate, key):
+
+    hmc_state = unflat(fstate)
+    new_state,_ = hmc.step(key, hmc_state)
+    leaves, treedef = jax.tree.flatten(new_state)
+    flat_array = jnp.concatenate([jnp.ravel(leaf) for leaf in leaves])
+
+    return flat_array, flat_array
+
+
+n = 50
+keys = jax.random.split(key, n)
+
+_, chain_2 = jax.lax.scan(hmc_step, finit_state, keys)
+hmc_chain = jnp.vstack([finit_state, chain_2])
+
+res_mean = jnp.mean(chain_2, axis=0)
+res_cov = jnp.cov(chain_2.T)
+
+print(res_mean)
+print(res_cov)
+
+```
+
+```{python}
+#| code-fold: true
+import plotly.graph_objects as go
+
+x, y = hmc_chain[:, 0], hmc_chain[:, 1]
+
+fig = go.Figure()
+
+# Add trajectory line
+fig.add_trace(go.Scatter(
+    x=x, y=y,
+    mode='lines+markers',
+    line=dict(color='blue'),
+    marker=dict(size=2),
+    name='Trajectory'
+))
+
+fig.add_trace(go.Scatter(
+    x=[x[0]], y=[y[0]],
+    mode='markers',
+    marker=dict(size=10, color='green'),
+    name='Start'
+))
+fig.add_trace(go.Scatter(
+    x=[x[-1]], y=[y[-1]],
+    mode='markers',
+    marker=dict(size=10, color='red'),
+    name='End'
+))
+
+# Layout settings
+fig.update_layout(
+    title='True HMC Trajectory',
+    xaxis_title='X_1',
+    yaxis_title='X_2',
+    showlegend=True,
+    width=700,
+    height=600
+)
+
+fig.show()
+```
+
+
+Now we 'parallelise' using the picard map as before
+
+
+```{python}
+X_true = hmc_chain
+
+X_0 = jnp.stack([finit_state for _ in range(n+1)])
+
+pic_map = get_picard_map(hmc_step)
+
+def scan_step(carry, _):
+    new_carry = pic_map(carry, keys)
+    return new_carry, new_carry
+
+# number of times to apply the map
+p = 100
+
+_, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
+
+print(jnp.cov(hmc_chain[:,0:2].T))
+print(jnp.cov(X_all[-1][:,0:2].T))
+
+```
+
+And the corresponding plotly graph
+
+```{python}
+#| code-fold: true
+
+# Create base figure
+fig = go.Figure()
+
+# Plot X_true in grey
+fig.add_trace(go.Scatter(
+    x=X_true[:, 0], y=X_true[:, 1],
+    mode='lines+markers',
+    line=dict(color='grey', width=2),
+    marker=dict(size=4),
+    name='X_true',
+    showlegend=True
+))
+
+# Add all X_all[i] traces, only show the first one initially
+for i, Xi in enumerate(X_all[1:]):
+    visible = (i == 0)
+    fig.add_trace(go.Scatter(
+        x=Xi[:, 0], y=Xi[:, 1],
+        mode='lines+markers',
+        line=dict(color='blue', width=2, dash='dot'),
+        marker=dict(size=4),
+        name=f'Φ^{i+1}(X⁰, W)',
+        visible=visible,
+        showlegend=visible
+    ))
+
+# Create slider steps
+p = len(X_all)
+steps = []
+for i in range(p):
+    step = dict(
+        method="update",
+        args=[
+            {"visible": [True] + [j == i for j in range(p)]},  # X_true + one X_i
+        ],
+        label=f"X_{i+1}"
+    )
+    steps.append(step)
+
+# Stack all chains and X_true to compute global bounds
+all_points = X_true
+x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
+y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
+
+# Add a small margin
+x_margin = (x_max - x_min) * 0.05
+y_margin = (y_max - y_min) * 0.05
+
+fig.update_layout(
+    xaxis=dict(range=[x_min - x_margin, x_max + x_margin]),
+    yaxis=dict(range=[y_min - y_margin, y_max + y_margin])
+)
+
+
+    
+# Add slider to layout
+fig.update_layout(
+    sliders=[dict(
+        active=0,
+        currentvalue={"prefix": "Showing: "},
+        pad={"t": 50},
+        steps=steps
+    )],
+    title="HMC Chain Trajectories",
+    xaxis_title="X",
+    yaxis_title="Y",
+    width=800,
+    height=600
+)
+
+fig.update_layout(
+    annotations=[
+        dict(
+            xref="paper", yref="paper",
+            x=0.5, y=1.1,
+            showarrow=False,
+            font=dict(size=14),
+            align="center"
+        )
+    ]
+)
+
+fig.show()
+
+```
+
+
+Works great!
+
+
+
+# Quick time comparison
+
+Using HMC with a larger chain, we'll crudely check if the map is saving us any time at all;
+
+```{python}
+
+# Sequential
+n = 500
+keys = jax.random.split(key, n)
+
+start = time.time()
+_, chain_2 = jax.lax.scan(hmc_step, finit_state, keys)
+hmc_chain = jnp.vstack([finit_state, chain_2])
+end = time.time()
+
+print(f"Sequential took {end - start:.6f} seconds")
+
+
+# this seems to be how many is needed to get a good approximation
+p = 500
+X_0 = jnp.stack([finit_state for _ in range(n+1)])
+
+start = time.time()
+_, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
+end = time.time()
+
+print(f"Parallel took {end - start:.6f} seconds")
+
+print(jnp.cov(hmc_chain[:,0:2].T))
+print(jnp.cov(X_all[-1][:,0:2].T))
+```

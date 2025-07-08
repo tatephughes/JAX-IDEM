@@ -1,7 +1,7 @@
 # Kernel { #jaxidem.idem.Kernel }
 
 ```python
-idem.Kernel(self, function, basis=None, params=None, form='expansion')
+idem.Kernel(function, basis=None, params=None, form='expansion')
 ```
 
 Generic class defining a kernel, or a basis expansion of a kernel with
