@@ -15,6 +15,7 @@ import warnings
 # Plotting imports
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
+from matplotlib.patches import Circle
 import seaborn as sns
 from PIL import Image
 import io
@@ -144,7 +145,7 @@ def outer_op(
     """
 
     if not isinstance(a, ArrayLike): 
-        raise TypeError(f"Expected arraylike input; got {a}")
+        raise TypeError\(f"Expected arraylike input; got {a}")
     if not isinstance(b, ArrayLike):
         raise TypeError(f"Expected arraylike input; got {b}")
 
@@ -621,6 +622,7 @@ class st_data:
 
             fig.tight_layout()
             fig.savefig(filename, dpi=dpi)
+            plt.close()
 
     def save_gif(self):
         """UNIMPLEMENTED"""
@@ -655,6 +657,37 @@ def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=
                    covariates = covariates,
                    covariate_labels = covariate_labels)
     
+def save_basis_plot(basis, output_file, dpi=300):
+
+    params = basis.params
+    padding = jnp.max(basis.params[:,2])
+
+    if basis.params.shape[1] != 3: 
+        raise ValueError("Bais in show_plot must be knot-based with 3 column in basis.params, corresponding to x, y, and scale.")
+
+    # Create the plot
+    fig, ax = plt.subplots()
+
+    for x, y, r in data:
+        ax.plot(x, y, 'ro')  # Red dot
+        circle = Circle((x, y), r, edgecolor='blue', facecolor='none', linewidth=1.5)
+        ax.add_patch(circle)
+
+    # Set limits to better view circles
+    x_min, x_max = jnp.min(data[:, 0]) - padding, jnp.max(data[:, 0]) + padding
+    y_min, y_max = jnp.min(data[:, 1]) - padding, jnp.max(data[:, 1]) + padding
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+
+    # Save the figure
+    plt.savefig(output_file, dpi=dpi)
+    plt.close()
+
+    
+    
+    
+
+
 def gif_st_grid(
     data: st_data,
     output_file="spatio_temporal.gif",

@@ -175,14 +175,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">On this page</h2>
-   
-  <ul>
-  <li><a href="#rmh-chain-64" id="toc-rmh-chain-64" class="nav-link active" data-scroll-target="#rmh-chain-64"><span class="header-section-number">1</span> RMH chain 64</a></li>
-  </ul>
-</nav>
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+        
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
@@ -212,7 +206,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<div id="fd86cba5" class="cell" data-execution_count="1">
+<div id="ac669fea" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
@@ -228,7 +222,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jaxidem.utils <span class="im">as</span> utils</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div id="aa1ad949" class="cell" data-execution_count="2">
+<div id="0ff47686" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -263,7 +257,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>axes[<span class="op">-</span><span class="dv">1</span>].set_xlabel(<span class="st">'Iteration'</span>)</span>
 <span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a title to the entire figure</span></span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Trace Plots'</span>, fontsize<span class="op">=</span><span class="dv">16</span>, y<span class="op">=</span><span class="fl">0.95</span>)</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Trace Plots (HMC, 64-bit)'</span>, fontsize<span class="op">=</span><span class="dv">16</span>, y<span class="op">=</span><span class="fl">0.95</span>)</span>
 <span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Adjust spacing</span></span>
 <span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>plt.tight_layout(rect<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="fl">0.96</span>]) </span>
@@ -286,7 +280,7 @@ Posterior Variance of (transformed) parameters:
 </div>
 </div>
 </div>
-<div id="a2e83271" class="cell" data-execution_count="3">
+<div id="3bcd5028" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -321,7 +315,7 @@ Posterior Variance of (transformed) parameters:
 <span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>axes[<span class="op">-</span><span class="dv">1</span>].set_xlabel(<span class="st">'Iteration'</span>)</span>
 <span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a title to the entire figure</span></span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Trace Plots'</span>, fontsize<span class="op">=</span><span class="dv">16</span>, y<span class="op">=</span><span class="fl">0.95</span>)</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Trace Plots (HMC, 64-bit)'</span>, fontsize<span class="op">=</span><span class="dv">16</span>, y<span class="op">=</span><span class="fl">0.95</span>)</span>
 <span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Adjust spacing</span></span>
 <span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>plt.tight_layout(rect<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="fl">0.96</span>]) </span>
@@ -344,69 +338,8 @@ Posterior Variance of (transformed) parameters:
 </div>
 </div>
 </div>
-<section id="rmh-chain-64" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> RMH chain 64</h1>
-<div id="d17d8797" class="cell" data-execution_count="4">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the CSV file using NumPy</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>csv_data <span class="op">=</span> np.loadtxt(<span class="st">'data/Chains/RMHchainA.csv'</span>, delimiter<span class="op">=</span><span class="st">','</span>)</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert the NumPy array to a JAX array</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>hmc_sample_64 <span class="op">=</span> jnp.array(csv_data)[:,<span class="dv">1</span>:]</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Acceptance Ratio: </span><span class="sc">{</span>jnp<span class="sc">.</span>mean(csv_data[:,<span class="dv">0</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>post_mean <span class="op">=</span> jnp.mean(hmc_sample_64, axis<span class="op">=</span><span class="dv">0</span>)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>post_var <span class="op">=</span> jnp.var(hmc_sample_64, axis<span class="op">=</span><span class="dv">0</span>)</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Posterior Mean of (transformed) parameters: </span><span class="ch">\n</span><span class="sc">{</span>post_mean<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Posterior Variance of (transformed) parameters: </span><span class="ch">\n</span><span class="sc">{</span>post_var<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> hmc_sample_64</span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Number of parameters (columns in the array)</span></span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>num_params <span class="op">=</span> samples.shape[<span class="dv">1</span>]</span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a figure and axes for the stacked trace plots</span></span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(num_params, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">2</span> <span class="op">*</span> num_params), sharex<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot each parameter's trace</span></span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_params):</span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    axes[i].plot(samples[:, i], lw<span class="op">=</span><span class="fl">0.8</span>, color<span class="op">=</span><span class="st">'b'</span>)</span>
-<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>    axes[i].set_ylabel(<span class="ss">f'Parameter </span><span class="sc">{</span>i<span class="op">+</span><span class="dv">1</span><span class="sc">}</span><span class="ss">'</span>)</span>
-<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    axes[i].grid(<span class="va">True</span>)</span>
-<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Label the x-axis for the last subplot</span></span>
-<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>axes[<span class="op">-</span><span class="dv">1</span>].set_xlabel(<span class="st">'Iteration'</span>)</span>
-<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a title to the entire figure</span></span>
-<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Trace Plots'</span>, fontsize<span class="op">=</span><span class="dv">16</span>, y<span class="op">=</span><span class="fl">0.95</span>)</span>
-<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Adjust spacing</span></span>
-<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>plt.tight_layout(rect<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="fl">0.96</span>]) </span>
-<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>Acceptance Ratio: 0.8243799805641174
-Posterior Mean of (transformed) parameters: 
-[ 3.2785912  3.2310605 -2.4508274  1.2678965 -6.256307  -2.4969807
- -2.7517312]
-Posterior Variance of (transformed) parameters: 
-[9.8954532e-03 2.3434788e-03 3.8491997e-03 5.2710543e-03 5.4941678e-01
- 1.6433281e-01 1.3896262e+01]</code></pre>
-</div>
-<div class="cell-output cell-output-display">
-<div>
-<figure class="figure">
-<p><a href="Sydney_hamilton_traces_files/figure-html/cell-5-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="Sydney_hamilton_traces_files/figure-html/cell-5-output-2.png" class="img-fluid figure-img"></a></p>
-</figure>
-</div>
-</div>
-</div>
 
 
-</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

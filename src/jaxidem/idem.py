@@ -854,7 +854,7 @@ def gen_example_idem(
     process_basis: Basis = None,
     sigma2_eta=0.05**2,
     sigma2_eps=0.1**2,
-    beta=jnp.array([0.0, 0.0, 0.0]),
+    beta=jnp.array([0.0]),
     covariate_labels = ['Intercept']
 ):
     """
