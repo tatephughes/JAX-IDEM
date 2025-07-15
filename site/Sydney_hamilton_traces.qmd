@@ -111,3 +111,91 @@ fig.suptitle('Trace Plots (HMC, 64-bit)', fontsize=16, y=0.95)
 plt.tight_layout(rect=[0, 0, 1, 0.96]) 
 plt.show()
 ```
+
+```{python}
+#| code-fold: true
+import plotly.graph_objects as go
+
+x, y = samples[:, 4], samples[:, 5]
+
+fig = go.Figure()
+
+# Add trajectory line
+fig.add_trace(go.Scatter(
+    x=x, y=y,
+    mode='lines+markers',
+    line=dict(color='blue'),
+    marker=dict(size=2),
+    name='Trajectory'
+))
+
+fig.add_trace(go.Scatter(
+    x=[x[0]], y=[y[0]],
+    mode='markers',
+    marker=dict(size=10, color='green'),
+    name='Start'
+))
+
+fig.add_trace(go.Scatter(
+    x=[x[-1]], y=[y[-1]],
+    mode='markers',
+    marker=dict(size=10, color='red'),
+    name='End'
+))
+
+# Layout settings
+fig.update_layout(
+    title='HMC Trajectory',
+    xaxis_title='X_1',
+    yaxis_title='X_2',
+    showlegend=True,
+    width=700,
+    height=600
+)
+
+fig.show()
+```
+
+
+```{python}
+#| code-fold: true
+
+x, y = samples[:, 0], samples[:, 1]
+
+fig = go.Figure()
+
+# Add trajectory line
+fig.add_trace(go.Scatter(
+    x=x, y=y,
+    mode='lines+markers',
+    line=dict(color='blue'),
+    marker=dict(size=2),
+    name='Trajectory'
+)) 
+
+fig.add_trace(go.Scatter(
+    x=[x[0]], y=[y[0]],
+    mode='markers',
+    marker=dict(size=10, color='green'),
+    name='Start'
+))
+
+fig.add_trace(go.Scatter(
+    x=[x[-1]], y=[y[-1]],
+    mode='markers',
+    marker=dict(size=10, color='red'),
+    name='End'
+))
+
+# Layout settings
+fig.update_layout(
+    title='HMC Trajectory',
+    xaxis_title='X_1',
+    yaxis_title='X_2',
+    showlegend=True,
+    width=700,
+    height=600
+)
+
+fig.show()
+```

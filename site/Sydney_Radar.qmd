@@ -38,7 +38,7 @@ import jaxidem.idem as idem
 import jaxidem.utils as utils
 import matplotlib.pyplot as plt
 
-radar_df = pd.read_csv('../data/radar_df.csv')
+radar_df = pd.read_csv('data/radar_df.csv')
 
 ```
 

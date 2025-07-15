@@ -96,19 +96,16 @@ This creates a 'spatially variant kernel', where the direction of flow varies ac
 #|echo: false
 #|output: false
               
-import numpy
 import matplotlib.pyplot as plt
-import jaxidem.idem as idem
-import jaxidem.utils as utils
 import jax
-import os
-import jax.random as rand
 import jax.numpy as jnp
 
+import jaxidem.utils as utils
+import jaxidem.idem as idem
 
 
 key = jax.random.PRNGKey(2)
-keys = rand.split(key, 2)
+keys = jax.random.split(key, 2)
 
 K_basis = (
     utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
@@ -156,8 +153,8 @@ K_basis = (
 k = (
     jnp.array([150]),
     jnp.array([0.2]),
-    0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
-    0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+    0.1 * jax.random.normal(keys[0], shape=(K_basis[2].nbasis,)),
+    0.1 * jax.random.normal(keys[1], shape=(K_basis[3].nbasis,)),
 )
 kernel = idem.param_exp_kernel(K_basis, k)
 kernel.save_plot("figure/kernel_example_direction_var.png", height=5, width=5,title=None) 
@@ -431,20 +428,36 @@ An object of the ```IDEM``` class contains all the necessary information about b
 The ```gen_example_idem``` method creates a simple IDEM object without many required parameters;
 
 ```{python}
-#| eval: false
+#| eval: true
+
 key = jax.random.PRNGKey(42)
-keys = rand.split(key, 2)
+keys = jax.random.split(key, 3)
 
 model = idem.gen_example_idem(keys[0], k_spat_inv=False)
+# Simulation
+T = 35
+nobs = 50
 
-process_data, obs_data = model.simulate(keys[1], T=3, nobs=50)
+coords = jax.random.uniform(
+                keys[1],
+                shape=(nobs, 2),
+                minval=0,
+                maxval=1,
+            )
+
+times = jnp.repeat(jnp.arange(1, T + 1), coords.shape[0])
+rep_coords = jnp.tile(coords, (T, 1))
+x = rep_coords[:,0]
+y = rep_coords[:,1]
+
+process_data, obs_data = model.simulate(keys[2], x, y, times)
 ```
 
 The resulting objects are of class ```st_data```, containing a couple of niceties for handling spatio-temporal data, while still storing all data as JAX arrays.
 For example, the ```show_plot```, ```save_plot``` and ```save_gif``` methods provide easy plotting;
 
 ```{python}
-#| eval: false
+#| eval: true
 process_data.save_plot('figure/process_data_example.png')
 obs_data.save_plot('figure/obs_data_example.png')
 ```

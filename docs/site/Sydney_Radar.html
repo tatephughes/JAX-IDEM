@@ -228,7 +228,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="importing-the-relevant-packages-and-loading-the-data" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Importing the relevant packages and Loading the data</h1>
 <p>Firstly, we load the relevant libraries and import the data.</p>
-<div id="b23e92fe" class="cell" data-execution_count="1">
+<div id="8ad63429" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">"jax_enable_x64"</span>, <span class="va">True</span>)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
@@ -239,16 +239,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jaxidem.utils <span class="im">as</span> utils</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>radar_df <span class="op">=</span> pd.read_csv(<span class="st">'../data/radar_df.csv'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>radar_df <span class="op">=</span> pd.read_csv(<span class="st">'data/radar_df.csv'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We should put this data into <code>jax-idem</code>s <code>st_data</code> type;</p>
-<div id="2ce0eff7" class="cell" data-execution_count="2">
+<div id="bac87640" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>radar_data <span class="op">=</span> utils.pd_to_st(radar_df, <span class="st">'s2'</span>, <span class="st">'s1'</span>, <span class="st">'time'</span>, <span class="st">'z'</span>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="plotting-the-data" class="level2" data-number="2.1">
 <h2 data-number="2.1" class="anchored" data-anchor-id="plotting-the-data"><span class="header-section-number">2.1</span> Plotting the data</h2>
 <p>Firstly, lets take a look at the data set. I is a collection of 12 images taken at evenly spaced intervals. We can use the method <code>st_data.show_plot</code> to uickly make a plot of data like this;</p>
-<div id="ecc1b3ec" class="cell" data-execution_count="3">
+<div id="763cde82" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>radar_data.save_plot(<span class="st">'figure/Sydney_plot.png'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div id="fig-example" class="quarto-layout-panel">
@@ -274,7 +274,7 @@ Figure&nbsp;1
 <section id="modelling" class="level2" data-number="2.2">
 <h2 data-number="2.2" class="anchored" data-anchor-id="modelling"><span class="header-section-number">2.2</span> Modelling</h2>
 <p>We will firstly censor the data, so that we can assess the ‘blanks’ we filled in.</p>
-<div id="1fc7a1d7" class="cell" data-execution_count="4">
+<div id="5d4cc750" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Censor the data!</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>radar_df_censored <span class="op">=</span> radar_df</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># remove the final time measurements (for forecast testing)</span></span>
@@ -292,16 +292,16 @@ Figure&nbsp;1
 <span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>radar_data <span class="op">=</span> utils.pd_to_st(radar_df_censored, <span class="st">'s2'</span>, <span class="st">'s1'</span>, <span class="st">'time'</span>, <span class="st">'z'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We now create an initial model for this data</p>
-<div id="6edc6ada" class="cell" data-execution_count="5">
+<div id="0c3ff638" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> idem.init_model(data<span class="op">=</span>radar_data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>This, by default, creates an invariant kernel model with no covariates beside an intercept, with cosine basis function for the process decomposition. We can now get the marginal data likelihood function of this model with the <code>get_log_like</code> method;</p>
-<div id="14afb9f5" class="cell" data-execution_count="6">
+<div id="5e36e974" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>log_marginal <span class="op">=</span> model.get_log_like(radar_data, method<span class="op">=</span><span class="st">"sqinf"</span>, likelihood<span class="op">=</span><span class="st">'partial'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We can then use this function to do various inference techniques, like direclty maximising it or Bayesian MCMC methods. It is auto-differentiation compatible, so can easily be dropped into packages like <code>optax</code> or <code>blackjax</code> for these purposes.</p>
 <p>The function takes, as an input, an object of type <code>IdemParams</code>, which is a <code>NamedTuple</code> containing the log variances, (transformed) kernel parameters, and the regression coefficients. The <code>Model</code> class has a value of these paramters, <code>Model.params</code>, and a method is provided to print these parameters in a clear way;</p>
-<div id="90991644" class="cell" data-execution_count="7">
+<div id="74175677" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>idem.print_params(model.params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Parameters:
@@ -319,7 +319,7 @@ Figure&nbsp;1
 <section id="maximum-likelihood-estimation" class="level2" data-number="2.3">
 <h2 data-number="2.3" class="anchored" data-anchor-id="maximum-likelihood-estimation"><span class="header-section-number">2.3</span> Maximum Likelihood Estimation</h2>
 <p>Once we have this marginal likelihood, there are a few ways to progress. A good start is with a maximum likelihood method. Obviously, we can no just take this lgo marginal function and maximise it in any way we see fit, but <code>jaxidem.Model</code> has a built-in method for this, <code>Model.fit_mle</code>. Given data, this will use a method from ‘optax’ to create a new output model with the fitted parameters.</p>
-<div id="e3738f4f" class="cell" data-execution_count="8">
+<div id="a6da21f4" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> optax</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -329,7 +329,7 @@ Figure&nbsp;1
 <span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>                                          method <span class="op">=</span> <span class="st">'sqinf'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The resulting parameters are then</p>
-<div id="9f8c2dcc" class="cell" data-execution_count="10">
+<div id="39606f88" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>idem.print_params(mle_params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Parameters:
@@ -352,7 +352,7 @@ Figure&nbsp;1
 <section id="using-blackjax" class="level2" data-number="2.5">
 <h2 data-number="2.5" class="anchored" data-anchor-id="using-blackjax"><span class="header-section-number">2.5</span> Using Blackjax</h2>
 <p>From there, it is easy to sample from the posterior</p>
-<div id="31582b77" class="cell" data-execution_count="11">
+<div id="5bf9f8a1" class="cell" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">1</span>) <span class="co"># PRNG key</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>inverse_mass_matrix <span class="op">=</span> jnp.ones(model.nparams)</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>num_integration_steps <span class="op">=</span> <span class="dv">10</span></span>
@@ -367,7 +367,7 @@ Figure&nbsp;1
 <span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>                                   step_size <span class="op">=</span> step_size,</span>
 <span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>                                   likelihood_method<span class="op">=</span><span class="st">"sqinf"</span>,)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="d2f53b56" class="cell" data-execution_count="13">
+<div id="f5f0a3e6" class="cell" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>num_params <span class="op">=</span> sample.shape[<span class="dv">1</span>]</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(num_params, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">10</span>), sharex<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_params):</span>
@@ -400,7 +400,7 @@ Figure&nbsp;2
 </figure>
 </div>
 <p>Lets take the posterior mean for some filtering and predicting.</p>
-<div id="87b04348" class="cell" data-execution_count="14">
+<div id="d43c3164" class="cell" data-execution_count="14">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># gets the function used to go from a flat array to a parameter of the type used in the models</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>fparams, unflatten <span class="op">=</span> utils.flatten_and_unflatten(model.params)</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -411,7 +411,7 @@ Figure&nbsp;2
 <span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>filt_data, filt_results <span class="op">=</span> new_model.<span class="bu">filter</span>(radar_data, forecast <span class="op">=</span> <span class="dv">3</span>, method<span class="op">=</span><span class="st">"kalman"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="1167e09c" class="cell" data-execution_count="15">
+<div id="b17a4ae2" class="cell" data-execution_count="15">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>filt_data.save_plot(<span class="st">'figure/filtered_plot.png'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div id="fig-filter" class="quarto-layout-panel">
@@ -434,7 +434,7 @@ Figure&nbsp;3
 </figure>
 </div>
 <p>We’ve also forecasted the next 3 time points, and we can get them like this</p>
-<div id="06774f74" class="cell" data-execution_count="16">
+<div id="f7f42407" class="cell" data-execution_count="16">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">#nuforecast = filt_results['nuforecast']</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co">#Rforecast = filt_results['Rforecast']</span></span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
@@ -447,7 +447,7 @@ Figure&nbsp;3
 <span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="co"># will build this in to the Model.filter method soon!</span></span>
 <span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>fore_data <span class="op">=</span> idem.basis_params_to_st_data(mforecast, model.process_basis, model.process_grid)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="b0b63801" class="cell" data-execution_count="17">
+<div id="fe4d3353" class="cell" data-execution_count="17">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fore_data.save_plot(<span class="st">'figure/fore_plot.png'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div id="fig-fore" class="quarto-layout-panel">
@@ -470,7 +470,7 @@ Figure&nbsp;4
 </figure>
 </div>
 <p>We can also plot the variances computed in the Kalman filter</p>
-<div id="c4fea740" class="cell" data-execution_count="18">
+<div id="9aa75e0e" class="cell" data-execution_count="18">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>Ps <span class="op">=</span> filt_results[<span class="st">'Ps'</span>]</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>Pforecast <span class="op">=</span> filt_results[<span class="st">'Pforecast'</span>]</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>combined <span class="op">=</span> jnp.concatenate([Ps])<span class="co">#, Pforecast])</span></span>
@@ -487,7 +487,7 @@ Figure&nbsp;4
 <span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>times <span class="op">=</span> jnp.repeat(jnp.arange(T), model.process_grid.coords.shape[<span class="dv">0</span>])</span>
 <span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>var_data <span class="op">=</span> utils.st_data(x<span class="op">=</span>coords[:, <span class="dv">0</span>], y<span class="op">=</span>coords[:, <span class="dv">1</span>], times<span class="op">=</span>times, z<span class="op">=</span>marginals.ravel())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="ae1f0f31" class="cell" data-execution_count="19">
+<div id="497157cf" class="cell" data-execution_count="19">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>var_data.save_plot(<span class="st">'figure/var_plot.png'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div id="fig-fore" class="quarto-layout-panel">

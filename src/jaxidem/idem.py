@@ -151,9 +151,7 @@ def param_exp_kernel(K_basis: tuple, k: tuple):
 class IdemParams(NamedTuple):
     """
     The parameters of an IDEM, as described in .
-    Some parameters are log-transformed to force everything to be in $\mathbf{R}$.
-
-    
+    Some parameters are log-transformed to force everything to be in $\\mathbf{R}$.
     """
     log_sigma2_eps: Union[Float[Array, "()"],
                           PyTree[Float[Array, "(nobs[i],)"]],
@@ -332,7 +330,7 @@ class Model:
         process_values = self.simulate_process(alphas).T.reshape((T*process_grid.ngrid,))
 
         obs_data_nan = utils.st_data(x, y, times, z=jnp.full(x.shape, jnp.nan), dt = None, covariates=covariates, covariate_labels=self.covariate_labels)
-        
+        jnp.ones_like(x), 
         obs_vals = jnp.concatenate(self.simulate_observations(keys[2], alphas, obs_data_nan))
 
         obs_data = utils.st_data(x, y, times, z=obs_vals, dt = None, covariates=covariates, covariate_labels=self.covariate_labels)
@@ -854,7 +852,7 @@ def gen_example_idem(
     process_basis: Basis = None,
     sigma2_eta=0.05**2,
     sigma2_eps=0.1**2,
-    beta=jnp.array([0.0]),
+    beta=None,
     covariate_labels = ['Intercept']
 ):
     """
@@ -882,6 +880,8 @@ def gen_example_idem(
     A model of type IDEM.
     """
 
+    if beta is None:
+       beta = jnp.zeros(len(covariate_labels))
 
     keys = rand.split(key, 2)
 
