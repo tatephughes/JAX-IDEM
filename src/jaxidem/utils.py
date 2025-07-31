@@ -823,6 +823,7 @@ class TimeResults(NamedTuple):
     compile_time: float
     average_time: float
     total_time: float
+    value: float
 
 def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
     """
@@ -852,19 +853,23 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
             tot_time = tot_time + elapsed
         else:
             compile_time = elapsed
+            
 
         if check_nans(result):
             warnings.warn("The function has returned a PyTree/array with nan.")
             failed=True
 
     if failed:
+        value = jnp.nan
         average_time = jnp.nan
+        average_val = jnp.nan
     else:
+        value = func_jit(inp_tree)
         average_time = tot_time / n
         
     #print(f"Compile time: {compile_time}s")
     #print(f"Average time: {av_time}s")
-    return TimeResults(compile_time, average_time, tot_time)
+    return TimeResults(compile_time, average_time, tot_time, value)
 
 
 constant_basis = place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1)

@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsc
 import jax.lax as jl
 from jaxtyping import ArrayLike, PyTree
 from typing import Tuple
@@ -193,7 +194,7 @@ def information_filter(
 
         match sigma2_eps_dim:
             case 0|1:
-                i_k = PHI_k.T/sigma2_eps_k @ z_k    
+                i_k = PHI_k.T @ (z_k / sigma2_eps_k)
                 I_k = PHI_k.T/sigma2_eps_k @ PHI_k
             case 2:
                 i_k = PHI_k.T @ jnp.linalg.solve(sigma2_eps_k, z_k)
@@ -252,10 +253,10 @@ def information_filter(
         scan_elts,
     )
 
-    mapping_elts = jax.tree.map(
-        lambda t: (seq[0][t], PHI_tree[t], sigma2_eps_tree[t]),
-        tuple(range(len(zs_tree))),
-    )
+    #mapping_elts = jax.tree.map(
+    #    lambda t: (seq[0][t], PHI_tree[t], sigma2_eps_tree[t]),
+    #    tuple(range(len(zs_tree))),
+    #)
 
     if likelihood in ("full", "partial"):
         mapping_elts = jax.tree.map(
@@ -692,7 +693,7 @@ def sqrt_information_filter(
 
 
 
-@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
+@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "likelihood"])
 def pkalman_filter(
         m_0: ArrayLike,  # initial information vector
         P_0: ArrayLike,  # initial information matrix
@@ -703,23 +704,12 @@ def pkalman_filter(
         zs_tree: tuple,
         sigma2_eta_dim: int,
         sigma2_eps_dim: int,
-        forecast: int = 0,
         likelihood: str = "partial",
 ) -> tuple:
 
-    mapping_elts = jax.tree.map(
-        lambda t: (
-            zs_tree[t],
-            PHI_tree[t],
-            sigma2_eps_tree[t]
-        ),
-        tuple(range(len(zs_tree))),
-    )
-
-    r = nu_0.shape[0]
+    r = m_0.shape[0]
 
     # Get first filtering elements
-    
     m1pred = M@m_0
     
     match sigma2_eta_dim:
@@ -731,180 +721,140 @@ def pkalman_filter(
             P1pred = M@P_0@M.T + sigma2_eta
 
     match sigma2_eps_dim:
-        case 0:
+        case 0|1:
             P_oprop = PHI_tree[0]@P1pred@PHI_tree[0].T
-            H1chol =  jax.scipy.linalg.cho_factor(jnp.fill_diagonal(
-                P_oprop, sigma2_eps_tree[0] + jnp.diag(P_oprop), inplace=False
-            ))
-        case 1:
-            P_oprop = PHI_tree[0]@P1pred@PHI_tree[0].T
-            H1chol =  jax.scipy.linalg.cho_factor(jnp.fill_diagonal(
-                P_oprop, sigma2_eps_tree[0] + jnp.diag(P_oprop), inplace=False
-            ))
+            S1 =  jnp.fill_diagonal(P_oprop, sigma2_eps_tree[0] + jnp.diag(P_oprop), inplace=False)
         case 2:
-            H1chol =  jax.scipy.linalg.cho_factor(
-                PHI_tree[0]@P1pred@PHI_tree[0].T + sigma2_eps_tree[0]
-            )
+            S1 =  PHI_tree[0]@P1pred@PHI_tree[0].T + sigma2_eps_tree[0]
+
+    cholS = jsc.linalg.cho_factor(S1)
+    D1 = (jsc.linalg.cho_solve(cholS, PHI_tree[0])@P1pred.T).T
     
-    B1 = (jnp.linalg.cho_solve(H1chol, PHI_tree[0])@P1pred.T).T
-    A1 = jnp.zeros((r,r))
-    b1 = m1pred + B1@zs_tree[0]
+    A_1  = jnp.zeros((r,r))
+    b_1  = m1pred + D1@(zs_tree[0] - PHI_tree[0]@m1pred)
+    C_1  = P1pred - D1@S1@D1.T
+    nu_1 = M.T @ PHI_tree[0].T @ jsc.linalg.cho_solve(cholS, zs_tree[0])
+    Q_1  = M.T @ PHI_tree[0].T @ jsc.linalg.cho_solve(cholS, PHI_tree[0]@M)
 
-
+    first_elt = (A_1, b_1, C_1, nu_1, Q_1)
     
-            
-    def get_element(tup: tuple):
-        z_k = tup[0]
-        PHI_k = tup[1]
-        sigma2_eps_k = tup[2]
-
-        match sigma2_eps_dim:
-            case 0|1:
-                i_k = PHI_k.T/sigma2_eps_k @ z_k    
-                I_k = PHI_k.T/sigma2_eps_k @ PHI_k
-            case 2:
-                i_k = PHI_k.T @ jnp.linalg.solve(sigma2_eps_k, z_k)
-                I_k = PHI_k.T @ jnp.linalg.solve(sigma2_eps_k, PHI_k)
-
+    mapping_elts = jax.tree.map(
+        lambda t: (
+            zs_tree[t],
+            PHI_tree[t],
+            sigma2_eps_tree[t]
+        ),
+        tuple(range(len(zs_tree))),
+    )
+    
+    def get_element(mapping_elt: tuple):
         
-        return jnp.vstack((i_k, I_k))
+        z_k = mapping_elt[0]
+        PHI_k = mapping_elt[1]
+        sigma2_eps_k = mapping_elt[2]
+
+        match sigma2_eta_dim:
+            case 0:
+                s2p = PHI_k.T * sigma2_eta
+            case 1:
+                s2p = PHI_k.T @ jnp.diag(sigma2_eta)
+            case 2:
+                s2p = sigma2_eta @ PHI_k.T
+                
+        ps2p = PHI_k@s2p
+        
+        match sigma2_eps_dim:
+            case 0:
+                S_k = jnp.fill_diagonal(ps2p, sigma2_eps_k + jnp.diag(ps2p), inplace=False)
+            case 1:
+                S_k = ps2p + jnp.diag(sigma2_eps_k)
+            case 2:
+                S_k = ps2p + sigma2_eps_k
+
+        cholS = jsc.linalg.cho_factor(S_k)
+                
+        D_k = (jsc.linalg.cho_solve(cholS, s2p.T)).T
+
+        imdp = (jnp.eye(r) - D_k@PHI_k)
+        
+        A_k = imdp @ M
+        b_k = D_k @ z_k
+        
+        match sigma2_eta_dim:
+            case 0:
+                C_k = jnp.fill_diagonal(imdp, sigma2_eps_k + jnp.diag(imdp), inplace=False)
+            case 1:
+                C_k = imdp @ jnp.diag(sigma2_eta)
+            case 2:
+                C_k = imdp @ sigma2_eta
+
+        nu_k = M.T @ PHI_k.T @ jsc.linalg.cho_solve(cholS, z_k)
+        Q_k = M.T @ PHI_k.T @ jsc.linalg.cho_solve(cholS, PHI_k @ M)
+    
+        return (A_k, b_k, C_k, nu_k, Q_k)
 
     def is_leaf(node):
         return jax.tree.structure(node).num_leaves == 3
 
-    scan_elts = jnp.array(jax.tree.map(informationify, mapping_elts, is_leaf=is_leaf))
+    elts = jax.tree.map(get_element, mapping_elts[1:], is_leaf=is_leaf)
 
-    # This is one situation where I do not know how to avoid inverting
-    # a matrix explicitly...
-    Minv = jnp.linalg.solve(M, jnp.eye(r))
+    all_elts = (first_elt,) + elts
 
-    def step(carry, scan_elt):
-        nu_tt, Q_tt, _, _ = carry
-
-        i_tp = scan_elt[0, :]
-        I_tp = scan_elt[1:, :]
-
-        S_t = Minv.T @ Q_tt @ Minv
-
-        match sigma2_eta_dim:
-            case 0:
-                J_t = jnp.linalg.solve((S_t + sigma2_eta_inv*jnp.eye(r)).T, S_t.T).T
-            case 1:
-                J_t = jnp.linalg.solve((S_t + jnp.diag(sigma2_eta_inv)).T, S_t.T).T
-            case 2:
-                J_t = jnp.linalg.solve((S_t + sigma2_eta_inv).T, S_t.T).T
+    @jax.vmap
+    def compose(elt_i, elt_j):
         
-        nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu_tt
-        Q_pred = (jnp.eye(r) - J_t) @ S_t
+        A_i, b_i, C_i, nu_i, Q_i = elt_i
+        A_j, b_j, C_j, nu_j, Q_j = elt_j
 
-        nu_up = nu_pred + i_tp
-        Q_up = Q_pred + I_tp
+        dim = A_i.shape[0]
+        I = jnp.eye(dim) 
+        
+        ipcq = I + C_i @ Q_j
+        cholipcq = jsc.linalg.cho_factor(ipcq)
+        ipqc = I + Q_j @ C_i
+        cholipqc = jsc.linalg.cho_factor(ipqc)
 
-        return (nu_up, Q_up, nu_pred, Q_pred), (
-            nu_up,
-            Q_up,
-            nu_pred,
-            Q_pred,
-        )
+        # lots of cho solves, can be simplifies. 
+        A_ij = A_j @ jsc.linalg.cho_solve(cholipcq, A_i)
+        b_ij = A_j @ jsc.linalg.cho_solve(cholipcq, (b_i + C_i @ nu_j)) + b_j
+        C_ij = A_j @ jsc.linalg.cho_solve(cholipcq, C_i @ A_j.T) + C_j
+        nu_ij = A_i.T @ jsc.linalg.cho_solve(cholipqc, nu_j - Q_j@b_i) + nu_i
+        Q_ij = A_i.T @ jsc.linalg.cho_solve(cholipqc, Q_j @ A_i) + Q_i
+        
+        return (A_ij, b_ij, C_ij, nu_ij, Q_ij)
 
-    carry, seq = jl.scan(
-        step,
-        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
-        scan_elts,
+    fields = tuple(zip(*all_elts))
+
+    def is_leaf(node):
+        return jax.tree.structure(node).num_leaves == len(zs_tree)
+    
+    stacked_fields = jax.tree.map(lambda x: jnp.stack(x), fields, is_leaf = is_leaf)
+    
+    final_elts = jl.associative_scan(
+        compose,
+        stacked_fields,
     )
 
-    mapping_elts = jax.tree.map(
-        lambda t: (seq[0][t], PHI_tree[t], sigma2_eps_tree[t]),
-        tuple(range(len(zs_tree))),
-    )
+    ms = final_elts[1]
+    Ps = final_elts[2]
 
     if likelihood in ("full", "partial"):
-        mapping_elts = jax.tree.map(
-            lambda t: (
-                zs_tree[t],
-                PHI_tree[t],
-                sigma2_eps_tree[t],
-                seq[2][t],
-                seq[3][t],
-            ),
-            tuple(range(len(zs_tree))),
-        )
-
-        def likelihood_func(tree):
-            z = tree[0]
-            nobs = z.shape[0]
-            PHI = tree[1]
-            sigma2_eps = tree[2]
-            nu_pred = tree[3]
-            Q_pred = tree[4]
-            e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
-            
-            match sigma2_eps_dim:
-                case 0:
-                    P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
-                    Sigma_t = jnp.fill_diagonal(
-                        P_oprop, sigma2_eps + jnp.diag(P_oprop), inplace=False
-                    )
-                    chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-                case 1:
-                    P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
-                    Sigma_t = jnp.fill_diagonal(
-                        P_oprop, jnp.diag(sigma2_eps) + jnp.diag(P_oprop), inplace=False
-                    )
-                    chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-                case 2:
-                    chol_Sigma_t = jnp.linalg.cholesky(
-                        PHI @ jnp.linalg.solve(Q_pred, PHI.T) + sigma2_eps
-                    )
-                    
-            z = st(chol_Sigma_t, e, lower=True)
-
-            match likelihood:
-                case 'full':
-                    ll = (
-                        -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
-                        - 0.5 * jnp.dot(z, z)
-                        - 0.5 * nobs * jnp.log(2 * jnp.pi)
-                    )
-                case 'partial':
-                    ll = (
-                        -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
-                        - 0.5 * jnp.dot(z, z)
-                    )
-
-            return ll
-
-        def is_leaf(node):
-            return jax.tree.structure(node).num_leaves == 5
-
-        lls = jnp.array(
-            jax.tree.map(likelihood_func, mapping_elts, is_leaf=is_leaf)
-        )
-        ll = jnp.sum(lls)
+        ll = jnp.nan
     elif likelihood == "none":
         ll = jnp.nan
     else:
         raise ValueError(
             "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
         )
-
-    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
     
-    fc_scan_elts = jnp.repeat(jnp.expand_dims(jnp.zeros((r+1, r)), axis=0), forecast, axis=0)
-    carry_pred, seq_pred = jl.scan(
-        step,
-        (nus[-1], Qs[-1], jnp.zeros(r), jnp.eye(r)),
-        fc_scan_elts,)
-
     filt_results = {"ll": ll,
-                    "nus": nus,
-                    "Qs": Qs,
-                    "nupreds": nupreds,
-                    "Qpreds": Qpreds,
-                    "nuforecast": seq_pred[0],
-                    "Qforecast": seq_pred[1]}
+                    "ms": ms,
+                    "Ps": Ps}
 
     return filt_results
+
+
+
 
 @jax.jit
 def kalman_smoother(ms, Ps, mpreds, Ppreds, M):

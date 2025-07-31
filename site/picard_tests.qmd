@@ -30,6 +30,13 @@ references:
     archive: arXiv
     eprint: 2402.10797
     URL: https://arxiv.org/abs/2402.10797
+format:
+  html:
+    code-fold: true
+    toc: true
+    include-in-header: header.html
+    mathjax: 
+      extensions: ["breqn", "bm", "ams"]
 ---
 
 
@@ -40,28 +47,45 @@ Here is a very simple example of a RMH algorithm targetting a simple 2D Gaussian
 ```{python}
 
 import jax
-#jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import jax.random as rand
+
+from jax.numpy.linalg import inv, outer
 
 import time
 
 from jax.scipy.stats.multivariate_normal import logpdf as logmvn
 from jax.random import multivariate_normal as smvn
 
-target_mean = jnp.array([0,0])
-target_cov = jnp.array([[1,0.5],[0.5,1]])
+d = 100
+
+target_mean = jnp.ones(d)
+
+#target_cov = jnp.array([[1,0.5],[0.5,1]])
+key = jax.random.PRNGKey(seed=60)
+M = rand.normal(key, shape = (d,d))
+target_cov = M.T@M
 
 
 def log_target(state):
+    #useless_matrix = outer(state, state) + inv(10*jnp.identity(d))
+    #id = inv(useless_matrix) @ useless_matrix
     return logmvn(state, target_mean, target_cov)
 
-init_state = jnp.zeros(2)
-prop_cov = jnp.eye(2)
+init_state = jnp.ones(d)
+#prop_cov = jnp.eye(d)/jnp.sqrt(d)
+
+# Theoretically 'optimal'
+prop_cov = target_cov * (5.6644/d)
 
 
-n = 200
+import jaxidem.utils as utils
+#time_res = utils.time_jit(key, log_target, init_state, 1000)
 
+n = 1000
+
+@jax.jit
 def rmh_step(state, key):
     prop_key, acc_key = jax.random.split(key, 2)
 
@@ -79,17 +103,31 @@ def rmh_step(state, key):
     return new_state, new_state
 
 
-key = jax.random.PRNGKey(42)
-keys = jax.random.split(key, n)
 
-_, chain_1 = jax.lax.scan(rmh_step, init_state, keys)
-chain = jnp.vstack([init_state, chain_1])
+key = jax.random.PRNGKey(42)
+# ensure compilation
+print(rmh_step(init_state, key)[0][0], flush=True)
+keys = jax.random.split(key, 2*n)
+
+start = time.time()
+_, chain_1 = jax.lax.scan(rmh_step, init_state, keys[:n])
+X_true = jnp.vstack([init_state, chain_1])
+end = time.time()
+
+seq_time = end-start
+
+print(f"\nStandard sequention RMH took {seq_time:.6f} seconds")
 
 res_mean = jnp.mean(chain_1, axis=0)
 res_cov = jnp.cov(chain_1.T)
 
-print(res_mean)
-print(res_cov)
+#print(res_mean)
+#print(res_cov)
+
+accepted = jnp.any(X_true[1:] != X_true[:-1], axis=1)
+acceptance_rate = jnp.mean(accepted)
+print(f"Acceptance rate is approximately: {100*acceptance_rate:6f}%.")
+
 
 ```
 
@@ -97,7 +135,7 @@ print(res_cov)
 #| code-fold: true
 import plotly.graph_objects as go
 
-x, y = chain[:, 0], chain[:, 1]
+x, y = X_true[:, 0], X_true[:, 1]
 
 fig = go.Figure()
 
@@ -125,7 +163,7 @@ fig.add_trace(go.Scatter(
 
 # Layout settings
 fig.update_layout(
-    title='RMH Trajectory',
+    title='RMH Trajectory (first 2 dimensions)',
     xaxis_title='X_1',
     yaxis_title='X_2',
     showlegend=True,
@@ -141,7 +179,7 @@ fig.show()
 General Markov chains on the domain $\mathcal{X}$ can be written as
 
 $$\begin{split}
-X^{(i+1)} = g(X^{(i)}, W_i),\quad i=0,1,\dots
+\bv X_{i+1} = g(\bv X_i, W_i),\quad i=0,1,\dots
 \end{split}
 $${#eq-markov1}
 
@@ -150,519 +188,323 @@ Where $X^{(0)}\in\mathcal{X}$ is fixed, $X^{(i)}\in\mathcal{X}$ and $W_i\in\math
 We can rewrite @eq-markov1 as a random-step type markov chain form like so;
 
 $$\begin{split} 
-X^{(i+1)} = X^{(i)} + \underbrace{\left(g(X^{{(i)}}, W_i) - X^{(i)}\right)}_{f(X^{(i)}, W_i)}.
+\bv  X_{i+1} = \bv X_{i} + \underbrace{\left(g(\bv X_{i}, W_i) - \bv X_{i}\right)}_{f(\bv X_{i}, W_i)}.
 \end{split}
 $${#eq-markov2}
 
 This is now in the form used by @grazzi2025, so we can define the Picard map $\Phi: \mathcal{X}^{K+1}\times\mathcal{W}^K \mapsto\mathcal{X}^{K+1}$;
 
 $$\begin{split}
-\Phi_i(X, W) = \begin{cases}
-	X^{(0)} &\quad i=1\\ 
-	X^{(0)} + \sum_{l=0}^{i-1} f(X^{(l)}, W_l ) &\quad 0<i<K.
+  \bv X_{i}' = \Phi_i(X_i, W) = \begin{cases}
+	\bv X_0 &\quad i=0\\ 
+	\bv X_0 + \sum_{l=0}^{i-1} f(X_l, W_l) &\quad 0<i<K.
 \end{cases}
 \end{split}
 $${#eq-picard}
 
 
-Now we define a function that takes a particular step function $g(X_i,W_i)$ and gives the picard map corresponding to $f(X_i,W_i) = g(X_i, W_i) - X_i$.
+Now we define a function that takes a particular step function $g(\bv X_i,W_i)$ and gives the picard map corresponding to $f(\bv X_i,W_i) = g(\bv X_i, W_i) - \bv X_i$.
 
 ```{python}
 def get_picard_map(step):
     # vectorise the step function
     vf = jax.vmap(lambda s, key: step(s, key)[0] - s)
+
+    @jax.jit
     def picard_map(states, keys):
         init_state = states[0]        
         fs = vf(states[0:-1], keys)
-        cumsum = jnp.cumsum(fs, axis=0)
-        # why do i need to divide by 2 here?
-        # the result seemed to be twice what it should have been, so i tested
-        # this and it worked, but I don't understand why it should be there...
-        return jnp.vstack([init_state, (states[1:] + cumsum) / 2])
+        cumsum = init_state + jnp.cumsum(fs, axis=0)
+        return jnp.vstack([init_state, cumsum])
     return picard_map
 ```
 
+Now we define a new function to apply the map only to a section of the chain, and return the index to which the chain has already converged.
+
+# JIT-Luc Picard
 
 ```{python}
-X_true = chain
 
-X_0 = jnp.stack([init_state for _ in range(n+1)])
+
+
+
+def jit_luc(pic_map, K, keys): 
+
+    @jax.jit
+    def online_step(tup):
+
+        states, L, i = tup
+        
+        d = states.shape[1]
+
+        states_to_update = jax.lax.dynamic_slice(states, (L,0), (K, d))
+        keys_to_update_with = jax.lax.dynamic_slice(keys, (L,0), (K-1, 2))
+        
+        updated_states = pic_map(states_to_update, keys_to_update_with)
+
+        states_new = jax.lax.dynamic_update_slice(states, updated_states, (L,0))
+
+        states_incorrect = jnp.all(states_to_update != updated_states, axis=1)
+
+        L_new = L + jnp.where(states_incorrect, size=1, fill_value=K-1)[0][0]
+        
+        return states_new, L_new, i+1
+    
+    return online_step
+
 
 pic_map = get_picard_map(rmh_step)
 
-def scan_step(carry, _):
-    new_carry = pic_map(carry, keys)
-    return new_carry, new_carry
+K = 10
+X_0 = jnp.stack([init_state for _ in range(n+K+1)])
 
-# number of times to apply the map
-p = 100
 
-_, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
+jit_step = jit_luc(pic_map, K, keys)
 
-```
-
-Below is a plotly graph to show how this approximates the actual chain from the standard random walk metropolis. The trajectory of the original chain in gray, and the slider allows you to choose $i$, the number of times the picard map is applied, ranging from $1$ to $100$. The corresponding trajectory after that many iterations of the map is given in dotted blue.
-
-```{python}
-#| code-fold: true
-
-# Create base figure
-fig = go.Figure()
-
-# Plot X_true in grey
-fig.add_trace(go.Scatter(
-    x=X_true[:, 0], y=X_true[:, 1],
-    mode='lines+markers',
-    line=dict(color='grey', width=2),
-    marker=dict(size=4),
-    name='X_true',
-    showlegend=True
-))
-
-# Add all X_all[i] traces, only show the first one initially
-for i, Xi in enumerate(X_all[1:]):
-    visible = (i == 0)
-    fig.add_trace(go.Scatter(
-        x=Xi[:, 0], y=Xi[:, 1],
-        mode='lines+markers',
-        line=dict(color='blue', width=2, dash='dot'),
-        marker=dict(size=4),
-        name=f'Φ^{i+1}(X⁰, W)',
-        visible=visible,
-        showlegend=visible
-    ))
-
-# Create slider steps
-p = len(X_all)
-steps = []
-for i in range(p):
-    step = dict(
-        method="update",
-        args=[
-            {"visible": [True] + [j == i for j in range(p)]},  # X_true + one X_i
-        ],
-        label=f"X_{i+1}"
-    )
-    steps.append(step)
-
-# Stack all chains and X_true to compute global bounds
-all_points = X_true
-x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
-y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
-
-# Add a small margin
-x_margin = (x_max - x_min) * 0.05
-y_margin = (y_max - y_min) * 0.05
-
-fig.update_layout(
-    xaxis=dict(range=[x_min - x_margin, x_max + x_margin]),
-    yaxis=dict(range=[y_min - y_margin, y_max + y_margin])
-)
-
-
-    
-# Add slider to layout
-fig.update_layout(
-    sliders=[dict(
-        active=0,
-        currentvalue={"prefix": "Showing: "},
-        pad={"t": 50},
-        steps=steps
-    )],
-    title="Markov Chain Trajectories",
-    xaxis_title="X",
-    yaxis_title="Y",
-    width=800,
-    height=600
-)
-
-fig.update_layout(
-    annotations=[
-        dict(
-            xref="paper", yref="paper",
-            x=0.5, y=1.1,
-            showarrow=False,
-            font=dict(size=14),
-            align="center"
-        )
-    ]
-)
-
-
-
-
-fig.show()
-
-```
-
-
-Initially, the dotted line is chaotic, but around $i=77$ it seems to 'snap' into place, making a good fit for the original chain.
-
-Notably, for the first few iterations the state is wildly off (too see this, click the autoscale); the blue line seems to veer heavily off until $i\approx 77$.
-
-In fact, let's repeat this but with a much longer chain;
-
-```{python}
-
-# Standard RMH
-n=1_000
-key = jax.random.PRNGKey(42)
-keys = jax.random.split(key, n)
-_, chain_1 = jax.lax.scan(rmh_step, init_state, keys)
-X_true = jnp.vstack([init_state, chain_1])
-
-
-X_0 = jnp.stack([init_state for _ in range(n+1)])
-
-# number of times to apply the map
-p = 100
-_, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
-```
-
-```{python}
-#| code-fold: true
-
-# Create base figure
-fig = go.Figure()
-
-# Plot X_true in grey
-fig.add_trace(go.Scatter(
-    x=X_true[:, 0], y=X_true[:, 1],
-    mode='lines+markers',
-    line=dict(color='grey', width=2),
-    marker=dict(size=4),
-    name='X_true',
-    showlegend=True
-))
-
-# Add all X_all[i] traces, only show the first one initially
-for i, Xi in enumerate(X_all[1:]):
-    visible = (i == 0)
-    fig.add_trace(go.Scatter(
-        x=Xi[:, 0], y=Xi[:, 1],
-        mode='lines+markers',
-        line=dict(color='blue', width=2, dash='dot'),
-        marker=dict(size=4),
-        name=f'Φ^{i+1}(X⁰, W)',
-        visible=visible,
-        showlegend=visible
-    ))
-
-# Create slider steps
-p = len(X_all)
-steps = []
-for i in range(p):
-    step = dict(
-        method="update",
-        args=[
-            {"visible": [True] + [j == i for j in range(p)]},  # X_true + one X_i
-        ],
-        label=f"X_{i+1}"
-    )
-    steps.append(step)
-
-# Stack all chains and X_true to compute global bounds
-all_points = X_true
-x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
-y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
-
-# Add a small margin
-x_margin = (x_max - x_min) * 0.05
-y_margin = (y_max - y_min) * 0.05
-
-fig.update_layout(
-    xaxis=dict(range=[x_min - x_margin, x_max + x_margin]),
-    yaxis=dict(range=[y_min - y_margin, y_max + y_margin])
-)
-
-
-    
-# Add slider to layout
-fig.update_layout(
-    sliders=[dict(
-        active=0,
-        currentvalue={"prefix": "Showing: "},
-        pad={"t": 50},
-        steps=steps
-    )],
-    title="Markov Chain Trajectories",
-    xaxis_title="X",
-    yaxis_title="Y",
-    width=800,
-    height=600
-)
-
-fig.update_layout(
-    annotations=[
-        dict(
-            xref="paper", yref="paper",
-            x=0.5, y=1.1,
-            showarrow=False,
-            font=dict(size=14),
-            align="center"
-        )
-    ]
-)
-
-
-
-
-fig.show()
-
-```
-
-We can now see that we will need much more than 100 iterations of the map to get a good match.
-This seems to contradict what the paper says, right? It said that it should generate samples close to $\pi$ with $\mathcal{O}(d)$ (or maybe $\mathcal{O}(\sqrt{d})$, not sure if I'm reading it right), and since $d=2$ is constant, the number of iterations needed to get a good fit shouldn't grow with the length of the chain $n$, but it clearly does here.
-I'm gonna need to read the paper more closely, I must be misunderstanding something.
-
-
-# Other samplers (BLACKJAX)
-
-Of course, the above function is written to effectively accept any kernel $g(X^{(i)}, W_{i})$, so we can plug in any MCMC technique (at least those that are actually Markov Chains, so no adaptive methods).
-
-BLACKJAX (@cabezas2024blackjax) provides many of these kernels.
-
-For example, lets sample the same target using HMC:
-
-```{python}
-
-
-import blackjax
-
-step_size = 1e-2
-imm = prop_cov
-nint = 20
-
-hmc = blackjax.hmc(log_target, step_size, imm, nint)
-
-# right now, there is some nonsense that is needed using flattening trees to 
-# get this to work, could be simpler if this was built-in to get_picard_map
-
-# this method flattens NamedTuples, which BLACKJAX uses as its state,
-# and provides the corresponding method to unflatten them.
-from jaxidem.utils import flatten_and_unflatten
-
-init_hmc_state = hmc.init(init_state)
-finit_state, unflat = flatten_and_unflatten(init_hmc_state)
-
-def hmc_step(fstate, key):
-
-    hmc_state = unflat(fstate)
-    new_state,_ = hmc.step(key, hmc_state)
-    leaves, treedef = jax.tree.flatten(new_state)
-    flat_array = jnp.concatenate([jnp.ravel(leaf) for leaf in leaves])
-
-    return flat_array, flat_array
-
-
-n = 50
-keys = jax.random.split(key, n)
-
-_, chain_2 = jax.lax.scan(hmc_step, finit_state, keys)
-hmc_chain = jnp.vstack([finit_state, chain_2])
-
-res_mean = jnp.mean(chain_2, axis=0)
-res_cov = jnp.cov(chain_2.T)
-
-print(res_mean)
-print(res_cov)
-
-```
-
-```{python}
-#| code-fold: true
-import plotly.graph_objects as go
-
-x, y = hmc_chain[:, 0], hmc_chain[:, 1]
-
-fig = go.Figure()
-
-# Add trajectory line
-fig.add_trace(go.Scatter(
-    x=x, y=y,
-    mode='lines+markers',
-    line=dict(color='blue'),
-    marker=dict(size=2),
-    name='Trajectory'
-))
-
-fig.add_trace(go.Scatter(
-    x=[x[0]], y=[y[0]],
-    mode='markers',
-    marker=dict(size=10, color='green'),
-    name='Start'
-))
-fig.add_trace(go.Scatter(
-    x=[x[-1]], y=[y[-1]],
-    mode='markers',
-    marker=dict(size=10, color='red'),
-    name='End'
-))
-
-# Layout settings
-fig.update_layout(
-    title='True HMC Trajectory',
-    xaxis_title='X_1',
-    yaxis_title='X_2',
-    showlegend=True,
-    width=700,
-    height=600
-)
-
-fig.show()
-```
-
-
-Now we 'parallelise' using the picard map as before
-
-
-```{python}
-X_true = hmc_chain
-
-X_0 = jnp.stack([finit_state for _ in range(n+1)])
-
-pic_map = get_picard_map(hmc_step)
-
-def scan_step(carry, _):
-    new_carry = pic_map(carry, keys)
-    return new_carry, new_carry
-
-# number of times to apply the map
-p = 100
-
-_, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
-
-print(jnp.cov(hmc_chain[:,0:2].T))
-print(jnp.cov(X_all[-1][:,0:2].T))
-
-```
-
-And the corresponding plotly graph
-
-```{python}
-#| code-fold: true
-
-# Create base figure
-fig = go.Figure()
-
-# Plot X_true in grey
-fig.add_trace(go.Scatter(
-    x=X_true[:, 0], y=X_true[:, 1],
-    mode='lines+markers',
-    line=dict(color='grey', width=2),
-    marker=dict(size=4),
-    name='X_true',
-    showlegend=True
-))
-
-# Add all X_all[i] traces, only show the first one initially
-for i, Xi in enumerate(X_all[1:]):
-    visible = (i == 0)
-    fig.add_trace(go.Scatter(
-        x=Xi[:, 0], y=Xi[:, 1],
-        mode='lines+markers',
-        line=dict(color='blue', width=2, dash='dot'),
-        marker=dict(size=4),
-        name=f'Φ^{i+1}(X⁰, W)',
-        visible=visible,
-        showlegend=visible
-    ))
-
-# Create slider steps
-p = len(X_all)
-steps = []
-for i in range(p):
-    step = dict(
-        method="update",
-        args=[
-            {"visible": [True] + [j == i for j in range(p)]},  # X_true + one X_i
-        ],
-        label=f"X_{i+1}"
-    )
-    steps.append(step)
-
-# Stack all chains and X_true to compute global bounds
-all_points = X_true
-x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
-y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
-
-# Add a small margin
-x_margin = (x_max - x_min) * 0.05
-y_margin = (y_max - y_min) * 0.05
-
-fig.update_layout(
-    xaxis=dict(range=[x_min - x_margin, x_max + x_margin]),
-    yaxis=dict(range=[y_min - y_margin, y_max + y_margin])
-)
-
-
-    
-# Add slider to layout
-fig.update_layout(
-    sliders=[dict(
-        active=0,
-        currentvalue={"prefix": "Showing: "},
-        pad={"t": 50},
-        steps=steps
-    )],
-    title="HMC Chain Trajectories",
-    xaxis_title="X",
-    yaxis_title="Y",
-    width=800,
-    height=600
-)
-
-fig.update_layout(
-    annotations=[
-        dict(
-            xref="paper", yref="paper",
-            x=0.5, y=1.1,
-            showarrow=False,
-            font=dict(size=14),
-            align="center"
-        )
-    ]
-)
-
-fig.show()
-
-```
-
-
-Seems to work, similarily snapping into place around $i\approx 50$.
-
-
-
-# Quick time comparison
-
-Using HMC with a larger chain, we'll crudely check if the map is saving us any time at all;
-
-```{python}
-
-# Sequential
-n = 500
-keys = jax.random.split(key, n)
+L = 0
+init_val = (X_0, jnp.array(L), 0)
 
 start = time.time()
-_, chain_2 = jax.lax.scan(hmc_step, finit_state, keys)
-hmc_chain = jnp.vstack([finit_state, chain_2])
+X_final, L, iterations = jax.lax.while_loop(lambda val: val[1]<n, jit_step, init_val)
 end = time.time()
 
-print(f"Sequential took {end - start:.6f} seconds")
+jitpar_time = end-start
+
+print(f"Converge Success: {jnp.allclose(X_final[:n+1], X_true)}, in {iterations} iterations")
+
+print(f"\nJitted Online-Picard accelerated RMH took {jitpar_time:.6f} seconds")
+
+print(f"\nStandard sequential RMH took {seq_time:.6f} seconds")
+
+```
+
+# Optimal K
+
+I'm actually now interested in the optimal value for K. Assuming each markov step can only be done by one core at a time, the optimal K is probably simply the number of cores that the machine has, since that will exactly saturate the cpu. 
+But here, with JAX, we mostly trust JAX to parallelise things, as a result, each RMH step is already trying to saturate the CPU (check htop).
+
+This means that only so much more parallelisation can be added before we lose benefits, even for K below the number of cores.
+This matters because we don't want to waste computation; if, during an online step, the algorithm finds that only, for example, the first 3 indices match, but K=10 so that 10 states are updates, then the last 7 computations where wasted, so K=3 would have been better.
+
+So there is, presumably, an optimal K. 
+I would postulate that the optimal K depends directly on the number of CPU cores _as well as_ the acceptance rate; a lower acceptance rate means that more steps can be 'skipped', and so more indices match at each step, so ideally K would be exactly this number of indices. 
+Since we probably dont want to eveluate the picard map up to an arbitrary point (at with the new states mismatch the last step), since that would make parallelism less obvious, K likely relates to either the average number of times that the chain rejects in a row, or perhaps the maximum number of times, for finite chains.
+
+For the chain above, lets get the computation time and number of iterations for K=2,...,10.
+
+(note that, in my implementation, theres a bit of a quirk; K-1 steps are actually computed at once, as opposed to K.)
 
 
-# this seems to be how many is needed to get a good approximation;
-# check the covariances below. They should match if the Picard approximation
-# did a good job, but with p any lower than this it gets quite far off.
-p = 500
-X_0 = jnp.stack([finit_state for _ in range(n+1)])
+```{python}
+Ks = list(range(2,20))
+
+times = []
+iterations = []
+success = []
+
+pic_map = get_picard_map(rmh_step)
+
+for K in Ks:
+    
+    jit_step = jit_luc(pic_map, K, keys)
+
+    X_0 = jnp.stack([init_state for _ in range(n+1+K)])
+
+    L = 0
+    init_val = (X_0, L, 0)
+
+    start = time.time()
+    X_final, L, i = jax.lax.while_loop(lambda val: val[1]<n, jit_step, init_val)
+    end = time.time()
+    
+    success.append(jnp.allclose(X_final[:n+1], X_true))
+    iterations.append(i)
+
+    par_time = end-start
+    times.append(par_time)
+
+# Marker colors
+colors = ['green' if s else 'red' for s in success]
+
+# Main trace
+trace = go.Scatter(
+    x=Ks,
+    y=times,
+    mode='lines+markers+text',
+    text=[f"{i}" for i in iterations],
+    textposition='top center',
+    marker=dict(size=10, color=colors, line=dict(width=1, color='black')),
+    line=dict(color='gray')
+)
+
+# Baseline shape: horizontal dotted line
+baseline_line = dict(
+    type='line',
+    xref='x',
+    yref='y',
+    x0=min(Ks),
+    x1=max(Ks),
+    y0=seq_time,
+    y1=seq_time,
+    line=dict(color='blue', width=2, dash='dot')
+)
+
+# Build figure
+fig = go.Figure(data=[trace])
+fig.update_layout(
+    title="Algorithm Evaluation Time vs K",
+    xaxis_title="K",
+    yaxis_title="Evaluation Time (s)",
+    yaxis=dict(range=[0, max([max(times), seq_time])*1.1]),
+    shapes=[baseline_line],
+    template="plotly_white"
+)
+
+fig.show()
+
+```
+
+The blue line is the time the sequential algorithm took. As can be seen, the algorithm never seems to get better than the sequential time.
+
+
+
+
+
+
+# Quick alternative
+
+```{python}
+
+@jax.jit
+def f(state, key):
+    prop_key, acc_key = jax.random.split(key, 2)
+
+    proposal = smvn(prop_key, state, prop_cov)
+    r = log_target(proposal) - log_target(state)
+
+    log_prob = jnp.minimum(0.0, r)
+
+    u = jax.random.uniform(acc_key)
+
+    accepted = jnp.log(u) < log_prob
+
+    new_state = jax.lax.cond(accepted,
+                             0, lambda _: proposal,
+                             0, lambda _: state)
+
+    return new_state - state, accepted
+
+def jit_luc_tng(f, K, keys):
+    
+    vf = jax.vmap(lambda s, key: f(s, key))
+
+    @jax.jit
+    def online_step(tup):
+
+        states, L, i = tup
+        
+        d = states.shape[1]
+
+        states_to_update = jax.lax.dynamic_slice(states, (L,0), (K, d))
+        keys_to_update_with = jax.lax.dynamic_slice(keys, (L,0), (K-1, 2))
+
+        init_state = states_to_update[0]        
+        fs, accepted = vf(states_to_update[0:-1], keys_to_update_with)
+        updated_states = init_state + jnp.cumsum(fs, axis=0)
+
+        states_new = jax.lax.dynamic_update_slice(states, updated_states, (L+1,0))
+
+        states_incorrect = jnp.all(states_to_update[1:] != updated_states, axis=1)
+
+        L_new = L + jnp.where(states_incorrect, size=1, fill_value=K-1)[0][0] + 1
+        
+        return states_new, L_new, i+1
+    
+    return online_step
+
+K = 10
+X_0 = jnp.stack([init_state for _ in range(n+K+1)])
+jit_step = jit_luc_tng(f, K, keys)
+
+L = 0
+init_val = (X_0, L, 0)
 
 start = time.time()
-_, X_all = jax.lax.scan(scan_step, X_0, xs=None, length=p)
+X_final, L, iterations = jax.lax.while_loop(lambda val: val[1]<n, jit_step, init_val)
 end = time.time()
 
-print(f"Parallel took {end - start:.6f} seconds")
+jitpar2_time = end-start
 
-print(jnp.cov(hmc_chain[:,0:2].T))
-print(jnp.cov(X_all[-1][:,0:2].T))
+print(f"Converge Success: {jnp.allclose(X_final[:n+1], X_true)}, in {iterations} iterations")
+
+print(f"\nJitted Online-Picard accelerated RMH took {jitpar_time:.6f} seconds")
+
+print(f"\nJitted Online-Picard 2 accelerated RMH took {jitpar2_time:.6f} seconds")
+
+print(f"\nStandard sequential RMH took {seq_time:.6f} seconds")
+
+
+
+```
+
+
+
+# Varying Acceptance Rates
+
+
+```{python}
+
+import pandas as pd
+import jax
+import jax.numpy as jnp
+
+
+df = pd.read_csv('data/acceptance_results.csv')
+
+success = jnp.array(df['success'])
+
+if not jnp.all(success):
+
+    print("Failed cases found. Removing corresponding rows and continuing, but this mean that there is likely something quite wrong.")
+    df = df[df['success'] == True]
+
+df_avg = df.groupby(['prop_scale', 'K'], as_index=False).mean()
+df_avg = df_avg.drop(columns=['j', 'success'])
+
+```
+
+```{python}
+import plotly.express as px
+import pandas as pd
+
+# Assuming df_avg is your aggregated DataFrame
+df_melted = df_avg.melt(
+    id_vars=['prop_scale', 'K', 'acceptance_rate', 'iterations'],
+    value_vars=['par_time', 'seq_time'],
+    var_name='TimeType',
+    value_name='TimeValue'
+)
+
+df_melted['text'] = df_melted.apply(
+    lambda row: str(row['iterations']) if row['TimeType'] == 'par_time' else '',
+    axis=1
+)
+
+
+fig = px.line(
+    df_melted,
+    x='acceptance_rate',
+    y='TimeValue',
+    color='TimeType',
+    color_discrete_map={'par_time': 'blue', 'seq_time': 'red'},
+    facet_col='K',
+    text='text',
+    markers=True  # Add markers to make the text labels clearer
+)
+
+fig.update_traces(textposition='top center')
+fig.update_layout(title='Time vs Acceptance Rate by K', height=500)
+fig.show()
+
+
 ```

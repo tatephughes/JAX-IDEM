@@ -259,16 +259,16 @@ Since the information filter function has support for time varying observation s
 Q_0 = 0.01 * jnp.eye(2) 
 nu_0 = jnp.zeros(2)
 
-PHI_tuple = tuple([PHI for _ in range(T)])
-zs_tuple = zs_tree
+PHI_tree = tuple([PHI for _ in range(T)])
+sigma2_eps_tree = tuple([sigma2_eps for _ in range(T)])
 
 filt_results2  = filt.information_filter(nu_0,
                                          Q_0,
                                          M,
-                                         PHI_tuple,
+                                         PHI_tree,
                                          sigma2_eta,
                                          [sigma2_eps for _ in range(T)],
-                                         zs_tuple,
+                                         zs_tree,
                                          sigma2_eps_dim = sigma2_eps_dim,
                                          sigma2_eta_dim = sigma2_eta_dim,
                                          forecast = 0,
@@ -347,10 +347,10 @@ R_0 = 0.1*jnp.eye(2)
 filt_results4  = filt.sqrt_information_filter(nu_0,
                                               R_0,
                                               M,
-                                              PHI_tuple,
+                                              PHI_tree,
                                               sigma2_eta,
                                               [sigma2_eps for _ in range(T)],
-                                              zs_tuple,
+                                              zs_tree,
                                               sigma2_eps_dim = sigma2_eps_dim,
                                               sigma2_eta_dim = sigma2_eta_dim,
                                               forecast=0,
@@ -476,10 +476,10 @@ def objective_info(params):
     ll, _, _, _, _ = fsf.information_filter_iid(nu_0,
                                       Q_0,
                                       M,
-                                      PHI_tuple,
+                                      PHI_tree,
                                       sigma2_eta,
                                       sigma2_eps,
-                                      zs_tuple,
+                                      zs_tree,
                                       likelihood="full")
     return -ll
 
@@ -506,20 +506,20 @@ for i in range(5):
 ll, nus, Qs, _, _ = fsf.information_filter_iid(nu_0,
                                      Q_0,
                                      param_ad['M'],
-                                     PHI_tuple,
+                                     PHI_tree,
                                      jnp.exp(param_ad['log_sigma2_eta']),
                                      jnp.exp(param_ad['log_sigma2_eps']),
-                                     zs_tuple,)
+                                     zs_tree,)
 
 ms4 = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
                                                                      
 #ll, nus, Qs = fsf.information_filter_iid(nu_0,
 #                                           P_0,
 #                                           param_ad['M'],
-#                                           PHI_tuple,
+#                                           PHI_tree,
 #                                           param_ad['sigma2_eta'],
 #                                           param_ad['sigma2_eps'],
-#                                           zs_tuple,)
+#                                           zs_tree,)
 
                                                                 
 end_time = time.time()
@@ -539,4 +539,52 @@ fig5 = px.line(combined_df, x='x', y='y', color='line',
 fig5.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
 # Show the plot
 fig5.show()
+```
+
+
+
+
+# Parallel Kalman Filter
+
+
+```{python}
+#| label: fig-pfilt
+#| fig-caption: "The (parallel) filtered means"
+
+Q_0 = 0.01 * jnp.eye(2) 
+nu_0 = jnp.zeros(2)
+
+PHI_tree = tuple([PHI for _ in range(T)])
+sigma2_eps_tree = tuple([sigma2_eps for _ in range(T)])
+
+filt_resultsp  = filt.pkalman_filter(m_0,
+                                     P_0,
+                                     M,
+                                     PHI_tree,
+                                     sigma2_eta,
+                                     [sigma2_eps for _ in range(T)],
+                                     zs_tree,
+                                     sigma2_eps_dim = sigma2_eps_dim,
+                                     sigma2_eta_dim = sigma2_eta_dim,
+                                     likelihood='full'
+                                     )
+
+msp_df = pd.DataFrame(list(filt_resultsp['ms']), columns = ["x", "y"])
+
+combined_df = pd.concat([alphas_df.assign(line='True Process'), msp_df.assign(line='Parallel Filtered Process Means')])
+
+
+# Creating the line plot with custom colors
+fig6 = px.line(combined_df, x='x', y='y', color='line',
+               color_discrete_sequence=['blue', 'green'], height=200)  # Specify colors here
+
+fig6.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
+# Show the plot
+fig6.show() 
+```
+
+
+
+```{python}
+jnp.abs(filt_resultsp['ms'] - filt_results['ms']).max() 
 ```
