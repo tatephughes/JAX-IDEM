@@ -24,7 +24,6 @@ def ql_L(A, B):
     return L
 
 
-
 @partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "forecast", "likelihood"])
 def kalman_filter(
         m_0: ArrayLike,
@@ -723,16 +722,18 @@ def pkalman_filter(
     match sigma2_eps_dim:
         case 0|1:
             P_oprop = PHI_tree[0]@P1pred@PHI_tree[0].T
-            S1 =  jnp.fill_diagonal(P_oprop, sigma2_eps_tree[0] + jnp.diag(P_oprop), inplace=False)
+            S_1 =  jnp.fill_diagonal(P_oprop, sigma2_eps_tree[0] + jnp.diag(P_oprop), inplace=False)
+            #S1 = PHI_tree[0]@P1pred@PHI_tree[0].T + sigma2_eps_tree[0]*jnp.eye()
         case 2:
-            S1 =  PHI_tree[0]@P1pred@PHI_tree[0].T + sigma2_eps_tree[0]
+            S_1 =  PHI_tree[0]@P1pred@PHI_tree[0].T + sigma2_eps_tree[0]
 
-    cholS = jsc.linalg.cho_factor(S1)
-    D1 = (jsc.linalg.cho_solve(cholS, PHI_tree[0])@P1pred.T).T
+    cholS = jsc.linalg.cho_factor(S_1)
+    D_1 = (jsc.linalg.cho_solve(cholS, PHI_tree[0])@P1pred.T).T
     
     A_1  = jnp.zeros((r,r))
-    b_1  = m1pred + D1@(zs_tree[0] - PHI_tree[0]@m1pred)
-    C_1  = P1pred - D1@S1@D1.T
+    b_1  = m1pred + D_1@(zs_tree[0] - PHI_tree[0]@m1pred)
+    C_1  = P1pred - D_1@S_1@D_1.T
+    
     nu_1 = M.T @ PHI_tree[0].T @ jsc.linalg.cho_solve(cholS, zs_tree[0])
     Q_1  = M.T @ PHI_tree[0].T @ jsc.linalg.cho_solve(cholS, PHI_tree[0]@M)
 
@@ -755,10 +756,12 @@ def pkalman_filter(
 
         match sigma2_eta_dim:
             case 0:
-                s2p = PHI_k.T * sigma2_eta
+                s2p = sigma2_eta*jnp.eye(PHI_k.shape[1]) @ PHI_k.T
             case 1:
+                # probably wrong
                 s2p = PHI_k.T @ jnp.diag(sigma2_eta)
             case 2:
+                # probably wrong
                 s2p = sigma2_eta @ PHI_k.T
                 
         ps2p = PHI_k@s2p
@@ -782,7 +785,8 @@ def pkalman_filter(
         
         match sigma2_eta_dim:
             case 0:
-                C_k = jnp.fill_diagonal(imdp, sigma2_eps_k + jnp.diag(imdp), inplace=False)
+                #C_k = jnp.fill_diagonal(imdp, sigma2_eps_k * jnp.diag(imdp), inplace=False)
+                C_k = imdp @ (jnp.eye(r)*sigma2_eps_k)
             case 1:
                 C_k = imdp @ jnp.diag(sigma2_eta)
             case 2:
@@ -806,8 +810,7 @@ def pkalman_filter(
         A_i, b_i, C_i, nu_i, Q_i = elt_i
         A_j, b_j, C_j, nu_j, Q_j = elt_j
 
-        dim = A_i.shape[0]
-        I = jnp.eye(dim) 
+        I = jnp.eye(r) 
         
         ipcq = I + C_i @ Q_j
         cholipcq = jsc.linalg.cho_factor(ipcq)

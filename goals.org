@@ -223,3 +223,12 @@ Consider whether time should be the first index
 
 *** use picard for idem? muck around with it
 *** Gaussian Quadrature for M construction
+
+
+* 31st July
+
+Ask for more details for presentation
+
+Work on presentation
+
+Do simpler filter implementations

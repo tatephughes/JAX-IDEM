@@ -825,7 +825,7 @@ class TimeResults(NamedTuple):
     total_time: float
     value: float
 
-def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
+def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = "", device=None):
     """
     Timer function that uses random noise to properly time jit-compiled functions.
     Only takes functions with PyTrees of JAX arrays as inputs.
@@ -833,7 +833,7 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = ""):
     Returns a tuple containing the compile time and the average run time.
     """
 
-    func_jit = jax.jit(func)
+    func_jit = jax.jit(func, device)
 
     failed = False
     

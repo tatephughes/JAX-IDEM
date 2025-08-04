@@ -65,7 +65,7 @@ Lets simulate from this system;
 import jax
 import jax.numpy as jnp
 
-jax.config.update("jax_enable_x64",False)
+jax.config.update("jax_enable_x64",True)
 
 import jaxidem.filters as filt
 
@@ -551,8 +551,8 @@ fig5.show()
 #| label: fig-pfilt
 #| fig-caption: "The (parallel) filtered means"
 
-Q_0 = 0.01 * jnp.eye(2) 
-nu_0 = jnp.zeros(2)
+Q_0 = 0.01 * jnp.eye(2)  
+nu_0 = jnp.zeros(2) 
 
 PHI_tree = tuple([PHI for _ in range(T)])
 sigma2_eps_tree = tuple([sigma2_eps for _ in range(T)])
@@ -564,7 +564,7 @@ filt_resultsp  = filt.pkalman_filter(m_0,
                                      sigma2_eta,
                                      [sigma2_eps for _ in range(T)],
                                      zs_tree,
-                                     sigma2_eps_dim = sigma2_eps_dim,
+                                     sigma2_eps_dim = sigma2_eps_dim, 
                                      sigma2_eta_dim = sigma2_eta_dim,
                                      likelihood='full'
                                      )
@@ -576,7 +576,7 @@ combined_df = pd.concat([alphas_df.assign(line='True Process'), msp_df.assign(li
 
 # Creating the line plot with custom colors
 fig6 = px.line(combined_df, x='x', y='y', color='line',
-               color_discrete_sequence=['blue', 'green'], height=200)  # Specify colors here
+               color_discrete_sequence=['blue', 'green'], height=400)  # Specify colors here
 
 fig6.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
 # Show the plot
