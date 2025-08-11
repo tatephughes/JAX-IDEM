@@ -8,7 +8,7 @@
         "title: \"More scaling tests\"\n",
         "---"
       ],
-      "id": "db4acec7"
+      "id": "8667f3e5"
     },
     {
       "cell_type": "code",
@@ -40,7 +40,7 @@
         "\n",
         "fig.show() "
       ],
-      "id": "842d78af",
+      "id": "73307c35",
       "execution_count": null,
       "outputs": []
     }

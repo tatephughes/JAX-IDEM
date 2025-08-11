@@ -20,7 +20,7 @@ import jax.scipy as jsc
 import jax.random as jr
 from jax.random import multivariate_normal as smvn
 
-is_64_bit = False
+is_64_bit = True
 
 # before setting precision, create precision-invariant innovations
 
@@ -172,9 +172,13 @@ def kalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
         # Update
         e_t = z_t - PHI @ m_pred
         Sigma_t = PHI @ P_pred @ PHI.T + S2_eps
-        K_t = (jnp.linalg.solve(Sigma_t, PHI) @ P_pred.T).T
+        K_t = (jsc.linalg.solve(Sigma_t, PHI, assume_a = "pos") @ P_pred.T).T 
+        
         m_up = m_pred + K_t @ e_t
         P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred
+        
+        # Stabilised form
+        # P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred @ (jnp.eye(r) - K_t @ PHI).T + K_t@S2_eps@K_t.T
 
         # likelihood of epsilon, using cholesky decomposition
         chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
@@ -303,8 +307,8 @@ def information_filter(
     r = nu_0.shape[0]
     nobs = zs.shape[1]
 
-    i = jax.vmap(lambda z: PHI.T @ jnp.linalg.solve(S2_eps, z), in_axes=0)(zs)
-    I = PHI.T @ jnp.linalg.solve(S2_eps, PHI)
+    i = jax.vmap(lambda z: PHI.T @ jsc.linalg.solve(S2_eps, z, assume_a = "pos"), in_axes=0)(zs)
+    I = PHI.T @ jsc.linalg.solve(S2_eps, PHI, assume_a = "pos")
     
     Minv = jnp.linalg.inv(M)
     S2_eta_inv = jnp.linalg.inv(S2_eta)
@@ -314,7 +318,7 @@ def information_filter(
         nu_tt, Q_tt, _, _ = carry
 
         S_t = Minv.T @ Q_tt @ Minv
-        J_t = jnp.linalg.solve((S_t + S2_eta_inv).T, S_t.T).T
+        J_t = jsc.linalg.solve((S_t + S2_eta_inv).T, S_t.T).T
         
         nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu_tt
         Q_pred = (jnp.eye(r) - J_t) @ S_t
@@ -395,13 +399,15 @@ def sqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs):
 
         # predict
         m_pred = M @ m_tt
-        U_pred = qr_R(U_tt @ M.T, S_eta)
+        #U_pred = qr_R(U_tt @ M.T, S_eta)
+        U_pred = jnp.linalg.cholesky(M @ U_tt.T @U_tt @ M.T + S2_eta, upper=True)
         # Update
         e_t = z_t - PHI @ m_pred
-        Ui_t = qr_R(U_pred @ PHI.T, S_eps)
+        #Ui_t = qr_R(U_pred @ PHI.T, S_eps)
+        Ui_t = jnp.linalg.cholesky(PHI @ U_pred.T@U_pred @ PHI.T + S2_eps, upper=True)
 
-        # Kalman Gain
-        K_t = (
+        # Kalman Gain2
+        K_t =(
             st(
                 Ui_t,
                 st(Ui_t.T, PHI, lower=True)
@@ -488,6 +494,7 @@ def sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, zs):
 
         nu_up = nu_pred + i
         R_up = qr_R(R_pred, R)
+        #R_up = jnp.linalg.cholesky(R_pred.T @R_pred + R.T@R, upper=True)
 
         new_carry = (nu_up, R_up, nu_pred, R_pred)
         return new_carry, new_carry

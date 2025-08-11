@@ -47,7 +47,7 @@
         "While the filters in `jaxidem` are built for filtering IDEMs, we can use the filtering techniques for general Dynamic Linear Models.\n",
         "A simple tracking example is given [here](./filtering_and_smoothing.html)"
       ],
-      "id": "66e320d8"
+      "id": "c6cb133f"
     }
   ],
   "metadata": {

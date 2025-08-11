@@ -32,7 +32,7 @@
         "\n",
         "Firstly, we load the relevant libraries and import the data."
       ],
-      "id": "80b2de17"
+      "id": "3efdcdbd"
     },
     {
       "cell_type": "code",
@@ -50,7 +50,7 @@
         "\n",
         "radar_df = pd.read_csv('data/radar_df.csv')"
       ],
-      "id": "b6f3e685",
+      "id": "01295bad",
       "execution_count": null,
       "outputs": []
     },
@@ -60,7 +60,7 @@
       "source": [
         "We should put this data into `jax-idem`s `st_data` type;"
       ],
-      "id": "713dee22"
+      "id": "d90599a8"
     },
     {
       "cell_type": "code",
@@ -69,7 +69,7 @@
         "#| output: false\n",
         "radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z') "
       ],
-      "id": "281a601a",
+      "id": "77d49821",
       "execution_count": null,
       "outputs": []
     },
@@ -82,7 +82,7 @@
         "Firstly, lets take a look at the data set. I is a collection of 12 images taken at evenly spaced intervals. \n",
         "We can use the method `st_data.show_plot` to uickly make a plot of data like this;"
       ],
-      "id": "3941dcbf"
+      "id": "9ae8f614"
     },
     {
       "cell_type": "code",
@@ -91,7 +91,7 @@
         "#| output: false\n",
         "radar_data.save_plot('figure/Sydney_plot.png')"
       ],
-      "id": "bc2b638b",
+      "id": "236ae9ee",
       "execution_count": null,
       "outputs": []
     },
@@ -109,7 +109,7 @@
         "\n",
         "We will firstly censor the data, so that we can assess the 'blanks' we filled in."
       ],
-      "id": "0d121425"
+      "id": "a4ddf3ed"
     },
     {
       "cell_type": "code",
@@ -132,7 +132,7 @@
         "# no covariates (besides intercept)\n",
         "radar_data = utils.pd_to_st(radar_df_censored, 's2', 's1', 'time', 'z')"
       ],
-      "id": "1786ecab",
+      "id": "6c893537",
       "execution_count": null,
       "outputs": []
     },
@@ -142,7 +142,7 @@
       "source": [
         "We now create an initial model for this data "
       ],
-      "id": "a15a3f7b"
+      "id": "531acb7f"
     },
     {
       "cell_type": "code",
@@ -151,7 +151,7 @@
         "#| output: false\n",
         "model = idem.init_model(data=radar_data)"
       ],
-      "id": "bbef2302",
+      "id": "98f4cf54",
       "execution_count": null,
       "outputs": []
     },
@@ -162,7 +162,7 @@
         "This, by default, creates an invariant kernel model with no covariates beside an intercept, with cosine basis function for the process decomposition.\n",
         "We can now get the marginal data likelihood function of this model with the `get_log_like` method;"
       ],
-      "id": "109500af"
+      "id": "2c1cbb0c"
     },
     {
       "cell_type": "code",
@@ -170,7 +170,7 @@
       "source": [
         "log_marginal = model.get_log_like(radar_data, method=\"sqinf\", likelihood='partial')"
       ],
-      "id": "2d37885f",
+      "id": "375cd807",
       "execution_count": null,
       "outputs": []
     },
@@ -183,7 +183,7 @@
         "The function takes, as an input, an object of type `IdemParams`, which is a `NamedTuple` containing the log variances, (transformed) kernel parameters, and the regression coefficients.\n",
         "The `Model` class has a value of these paramters, `Model.params`, and a method is provided to print these parameters in a clear way;"
       ],
-      "id": "36bb22af"
+      "id": "41f6e0d5"
     },
     {
       "cell_type": "code",
@@ -193,7 +193,7 @@
         "\n",
         "idem.print_params(model.params)"
       ],
-      "id": "1e7cb110",
+      "id": "49224130",
       "execution_count": null,
       "outputs": []
     },
@@ -207,7 +207,7 @@
         "A good start is with a maximum likelihood method.\n",
         "Obviously, we can no just take this lgo marginal function and maximise it in any way we see fit, but `jaxidem.Model` has a built-in method for this, `Model.fit_mle`. Given data, this will use a method from 'optax' to create a new output model with the fitted parameters."
       ],
-      "id": "ea1e860e"
+      "id": "5c06bf10"
     },
     {
       "cell_type": "code",
@@ -223,7 +223,7 @@
         "                                          max_its = 100,\n",
         "                                          method = 'sqinf')"
       ],
-      "id": "a41c4ff6",
+      "id": "36145ff9",
       "execution_count": null,
       "outputs": []
     },
@@ -240,7 +240,7 @@
         "    mle_params = pickle.load(file)\n",
         "fit_model_mle = model.update(mle_params)"
       ],
-      "id": "97d050fd",
+      "id": "8645ed42",
       "execution_count": null,
       "outputs": []
     },
@@ -250,7 +250,7 @@
       "source": [
         "The resulting parameters are then"
       ],
-      "id": "bf456cf4"
+      "id": "7f92c8dd"
     },
     {
       "cell_type": "code",
@@ -258,7 +258,7 @@
       "source": [
         "idem.print_params(mle_params)"
       ],
-      "id": "4f2f6419",
+      "id": "e19e1abe",
       "execution_count": null,
       "outputs": []
     },
@@ -280,7 +280,7 @@
         "\n",
         "From there, it is easy to sample from the posterior"
       ],
-      "id": "18208127"
+      "id": "646b6173"
     },
     {
       "cell_type": "code",
@@ -301,7 +301,7 @@
         "                                   step_size = step_size,\n",
         "                                   likelihood_method=\"sqinf\",)"
       ],
-      "id": "57d53d4f",
+      "id": "5243a254",
       "execution_count": null,
       "outputs": []
     },
@@ -320,7 +320,7 @@
         "# Convert the NumPy array to a JAX array\n",
         "sample = jnp.array(csv_data)[10000:60000,1:]"
       ],
-      "id": "a94fe043",
+      "id": "bf8e7610",
       "execution_count": null,
       "outputs": []
     },
@@ -341,7 +341,7 @@
         "\n",
         "plt.savefig('figure/hmc_trace.png')"
       ],
-      "id": "658b9e07",
+      "id": "93579a83",
       "execution_count": null,
       "outputs": []
     },
@@ -357,7 +357,7 @@
         "\n",
         "Lets take the posterior mean for some filtering and predicting."
       ],
-      "id": "7a1ae38a"
+      "id": "6c47b23f"
     },
     {
       "cell_type": "code",
@@ -373,7 +373,7 @@
         "\n",
         "filt_data, filt_results = new_model.filter(radar_data, forecast = 3, method=\"kalman\")"
       ],
-      "id": "6d553199",
+      "id": "25a8a45d",
       "execution_count": null,
       "outputs": []
     },
@@ -384,7 +384,7 @@
         "#| output: false\n",
         "filt_data.save_plot('figure/filtered_plot.png')"
       ],
-      "id": "675a6149",
+      "id": "0088aceb",
       "execution_count": null,
       "outputs": []
     },
@@ -400,7 +400,7 @@
         "\n",
         "We've also forecasted the next 3 time points, and we can get them like this"
       ],
-      "id": "a8950528"
+      "id": "9f9a50aa"
     },
     {
       "cell_type": "code",
@@ -418,7 +418,7 @@
         "# will build this in to the Model.filter method soon!\n",
         "fore_data = idem.basis_params_to_st_data(mforecast, model.process_basis, model.process_grid)"
       ],
-      "id": "eb4e3f0a",
+      "id": "2deec1ea",
       "execution_count": null,
       "outputs": []
     },
@@ -429,7 +429,7 @@
         "#| output: false\n",
         "fore_data.save_plot('figure/fore_plot.png')"
       ],
-      "id": "570dee9d",
+      "id": "074fe540",
       "execution_count": null,
       "outputs": []
     },
@@ -445,7 +445,7 @@
         "\n",
         "We can also plot the variances computed in the Kalman filter"
       ],
-      "id": "d7455e49"
+      "id": "ac7aad7e"
     },
     {
       "cell_type": "code",
@@ -467,7 +467,7 @@
         "times = jnp.repeat(jnp.arange(T), model.process_grid.coords.shape[0])\n",
         "var_data = utils.st_data(x=coords[:, 0], y=coords[:, 1], times=times, z=marginals.ravel())"
       ],
-      "id": "4e801bc4",
+      "id": "265f4a18",
       "execution_count": null,
       "outputs": []
     },
@@ -478,7 +478,7 @@
         "#| output: false\n",
         "var_data.save_plot('figure/var_plot.png')"
       ],
-      "id": "aa310e27",
+      "id": "367d5fc4",
       "execution_count": null,
       "outputs": []
     },
@@ -492,7 +492,7 @@
         "\n",
         ":::"
       ],
-      "id": "28cbdbf8"
+      "id": "45986dac"
     }
   ],
   "metadata": {

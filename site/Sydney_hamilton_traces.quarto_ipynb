@@ -18,7 +18,7 @@
         "bibliography: Bibliography.bib\n",
         "---\n"
       ],
-      "id": "830ec0d8"
+      "id": "f59334ec"
     },
     {
       "cell_type": "code",
@@ -36,7 +36,7 @@
         "import jaxidem.idem as idem\n",
         "import jaxidem.utils as utils\n"
       ],
-      "id": "c8292a94",
+      "id": "5fdc057b",
       "execution_count": null,
       "outputs": []
     },
@@ -82,7 +82,7 @@
         "plt.tight_layout(rect=[0, 0, 1, 0.96]) \n",
         "plt.show()"
       ],
-      "id": "ba8c2745",
+      "id": "d7ed728f",
       "execution_count": null,
       "outputs": []
     },
@@ -128,7 +128,7 @@
         "plt.tight_layout(rect=[0, 0, 1, 0.96]) \n",
         "plt.show()"
       ],
-      "id": "f2a5da96",
+      "id": "c0bc092c",
       "execution_count": null,
       "outputs": []
     },
@@ -178,7 +178,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "912fc455",
+      "id": "69ae4630",
       "execution_count": null,
       "outputs": []
     },
@@ -227,7 +227,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "0d84d701",
+      "id": "f6393bd9",
       "execution_count": null,
       "outputs": []
     }

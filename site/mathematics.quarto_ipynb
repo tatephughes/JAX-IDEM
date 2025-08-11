@@ -98,7 +98,7 @@
         "then the 'flow' would be in the direction of $-\\bv m(\\bv s)$, and the diffusion would be controlled by $b$ and $a$.\n",
         "This creates a 'spatially variant kernel', where the direction of flow varies across the space, as in @fig-examplekernelvar."
       ],
-      "id": "0365c4ef"
+      "id": "f525bea2"
     },
     {
       "cell_type": "code",
@@ -150,7 +150,7 @@
         "plt.yticks([])\n",
         "plt.savefig(\"figure/kernel_example_strength.png\", dpi=300)"
       ],
-      "id": "ef3d0026",
+      "id": "4538654d",
       "execution_count": null,
       "outputs": []
     },
@@ -214,7 +214,7 @@
         "\n",
         "plt.savefig(\"figure/kernel_example_strength_var.png\", dpi=300)"
       ],
-      "id": "03a5173b",
+      "id": "1c136c1a",
       "execution_count": null,
       "outputs": []
     },
@@ -451,7 +451,7 @@
         "\n",
         "The ```gen_example_idem``` method creates a simple IDEM object without many required parameters;"
       ],
-      "id": "03ef5857"
+      "id": "4e025749"
     },
     {
       "cell_type": "code",
@@ -481,7 +481,7 @@
         "\n",
         "process_data, obs_data = model.simulate(keys[2], x, y, times)"
       ],
-      "id": "9a1effa5",
+      "id": "6aa08b71",
       "execution_count": null,
       "outputs": []
     },
@@ -492,7 +492,7 @@
         "The resulting objects are of class ```st_data```, containing a couple of niceties for handling spatio-temporal data, while still storing all data as JAX arrays.\n",
         "For example, the ```show_plot```, ```save_plot``` and ```save_gif``` methods provide easy plotting;"
       ],
-      "id": "10984c4b"
+      "id": "375f8718"
     },
     {
       "cell_type": "code",
@@ -502,7 +502,7 @@
         "process_data.save_plot('figure/process_data_example.png')\n",
         "obs_data.save_plot('figure/obs_data_example.png')"
       ],
-      "id": "b81ca525",
+      "id": "cd7c860e",
       "execution_count": null,
       "outputs": []
     },
@@ -607,7 +607,7 @@
         "\\newpage\n",
         "\\small"
       ],
-      "id": "cc3ea7ca"
+      "id": "5de18c2a"
     },
     {
       "cell_type": "code",
@@ -653,7 +653,7 @@
         "\n",
         "    return (carry[4], seq[0], seq[1], seq[2][1:], seq[3][1:], seq[5][1:])"
       ],
-      "id": "b822e0f6",
+      "id": "6f0793a7",
       "execution_count": null,
       "outputs": []
     },
@@ -1183,7 +1183,7 @@
         "\n",
         "It is worth noting that (@eq-kalmanvague) seems to make a lot of sense; namely, we expect the estimate for $\\bv m_0$ to look like a correlated least squares-type estimator like this."
       ],
-      "id": "a659a61e"
+      "id": "782393ed"
     }
   ],
   "metadata": {

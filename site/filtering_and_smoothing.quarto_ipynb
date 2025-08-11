@@ -65,7 +65,7 @@
         "The process, $\\alpha$, simply spins in a circle with some noise.\n",
         "Lets simulate from this system;"
       ],
-      "id": "af7068d9"
+      "id": "19b4cda8"
     },
     {
       "cell_type": "code",
@@ -88,7 +88,7 @@
         "import pandas as pd\n",
         "import pickle"
       ],
-      "id": "582c46f4",
+      "id": "1fa79277",
       "execution_count": null,
       "outputs": []
     },
@@ -117,7 +117,7 @@
         "\n",
         "PHI = jnp.array([[1, 0], [0.6, 0.4], [0.4, 0.6]])"
       ],
-      "id": "3ddce695",
+      "id": "f9f32b15",
       "execution_count": null,
       "outputs": []
     },
@@ -140,7 +140,7 @@
         "with open('./pickles/alphas.pkl', 'wb') as file:\n",
         "    pickle.dump((alphas, zs_tree, alphas_df, zs_df), file)\n"
       ],
-      "id": "20ecf323",
+      "id": "08ecdda2",
       "execution_count": null,
       "outputs": []
     },
@@ -151,7 +151,7 @@
         "with open('./pickles/alphas.pkl', 'rb') as file: \n",
         "    alphas, zs_tree, alphas_df, zs_df = pickle.load(file)"
       ],
-      "id": "5cf8c842",
+      "id": "40389627",
       "execution_count": null,
       "outputs": []
     },
@@ -207,7 +207,7 @@
         "\n",
         "# Kalman filter"
       ],
-      "id": "01926bb6"
+      "id": "54f9d6d4"
     },
     {
       "cell_type": "code",
@@ -263,7 +263,7 @@
         "\n",
         "This is a test."
       ],
-      "id": "6ecc7069"
+      "id": "0b68b715"
     },
     {
       "cell_type": "code",
@@ -312,7 +312,7 @@
       "source": [
         "Let's check if they really are the same;"
       ],
-      "id": "f4d2cb82"
+      "id": "5fea5c6b"
     },
     {
       "cell_type": "code",
@@ -323,7 +323,7 @@
         "print(filt_results['ms'][0:5])\n",
         "#print(filt_results_alt['ms'][0:5])"
       ],
-      "id": "fe55000e",
+      "id": "80ab486c",
       "execution_count": null,
       "outputs": []
     },
@@ -336,7 +336,7 @@
         "Similarily, we can apply the information filter.\n",
         "Since the information filter function has support for time varying observation shapes, there is a little more work to do."
       ],
-      "id": "ba053613"
+      "id": "0f75628e"
     },
     {
       "cell_type": "code",
@@ -392,7 +392,7 @@
         "\n",
         "We still need to look at the log-likelihoods that were outputted;"
       ],
-      "id": "6b1b8092"
+      "id": "d92d2bd7"
     },
     {
       "cell_type": "code",
@@ -401,7 +401,7 @@
         "print(filt_results['ll'])\n",
         "print(filt_results2['ll'])"
       ],
-      "id": "1dd24b6e",
+      "id": "5e925211",
       "execution_count": null,
       "outputs": []
     },
@@ -411,7 +411,7 @@
       "source": [
         "# Square Root Kalman filter"
       ],
-      "id": "634c66c2"
+      "id": "964aea2e"
     },
     {
       "cell_type": "code",
@@ -460,7 +460,7 @@
       "source": [
         "# Square Root Information filter"
       ],
-      "id": "25aee147"
+      "id": "600db259"
     },
     {
       "cell_type": "code",
@@ -514,7 +514,7 @@
         "print(filt_results3['ll'])\n",
         "print(filt_results4['ll'])"
       ],
-      "id": "756e07b7",
+      "id": "571ffbf9",
       "execution_count": null,
       "outputs": []
     },
@@ -526,7 +526,7 @@
         "\n",
         "Let's 'forget' some of the details of the original model; the propegation matrix $M$ and the variances $\\sigma^2_\\epsilon$ and $\\sigma^2_\\eta$ (though we keep the assumption that everything is independant)"
       ],
-      "id": "75dec0ed"
+      "id": "99fcbe5a"
     },
     {
       "cell_type": "code",
@@ -615,7 +615,7 @@
         "These results are great.\n",
         "Lets confirm that the information filter is also working, using the same method"
       ],
-      "id": "e4cd94b3"
+      "id": "7502b2c9"
     },
     {
       "cell_type": "code",
@@ -709,7 +709,7 @@
       "source": [
         "# Parallel Kalman Filter\n"
       ],
-      "id": "0c659a7a"
+      "id": "8a650b82"
     },
     {
       "cell_type": "code",
@@ -760,7 +760,7 @@
       "source": [
         "jnp.abs(filt_resultsp['ms'] - filt_results['ms']).max() "
       ],
-      "id": "18c381f8",
+      "id": "8da0a481",
       "execution_count": null,
       "outputs": []
     }

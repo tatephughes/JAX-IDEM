@@ -50,7 +50,7 @@
         "\n",
         "# Laptop RTX 4060 (Lovelace)"
       ],
-      "id": "d887b2a9"
+      "id": "f41b18a3"
     },
     {
       "cell_type": "code",
@@ -109,7 +109,7 @@
         "fig.write_image(\"figure/scale_test_n_laptop.png\")\n",
         "fig.show()"
       ],
-      "id": "c5a9c5dd",
+      "id": "396c70c7",
       "execution_count": null,
       "outputs": []
     },
@@ -119,7 +119,7 @@
       "source": [
         "# NCC (Ampere)"
       ],
-      "id": "9a2030d6"
+      "id": "3b9bc250"
     },
     {
       "cell_type": "code",
@@ -178,7 +178,7 @@
         "fig.write_image(\"figure/scale_test_n_ampere.png\")\n",
         "fig.show()"
       ],
-      "id": "ba8928e7",
+      "id": "66a10b13",
       "execution_count": null,
       "outputs": []
     },
@@ -188,7 +188,7 @@
       "source": [
         "# NCC (Turing)"
       ],
-      "id": "f8b553eb"
+      "id": "bab76bd8"
     },
     {
       "cell_type": "code",
@@ -247,7 +247,7 @@
         "fig.write_image(\"figure/scale_test_n_turing.png\")\n",
         "fig.show()"
       ],
-      "id": "eeab36d0",
+      "id": "a031fb3b",
       "execution_count": null,
       "outputs": []
     }
