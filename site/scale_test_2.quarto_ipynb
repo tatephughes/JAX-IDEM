@@ -1,0 +1,58 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"More scaling tests\"\n",
+        "---"
+      ],
+      "id": "db4acec7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import pandas as pd\n",
+        "import plotly.express as px\n",
+        "\n",
+        "# Read the CSV into a DataFrame\n",
+        "df = pd.read_csv(\"data/scale_3.csv\")\n",
+        "\n",
+        "# Keep only entries with the specified conditions\n",
+        "df_filtered = df.query(\"n == 3 and d == 2 and is_64_bit == True\").sort_values(\"T\")\n",
+        "\n",
+        "# Create a line plot for each filter type\n",
+        "fig = px.line(\n",
+        "    df_filtered,\n",
+        "    x=\"T\",\n",
+        "    y=\"average_time\",     # Or \"compile_time\" if preferred\n",
+        "    color=\"Filter\",         # Differentiates filter lines\n",
+        "    markers=True,         # Optional: adds dots to each T value\n",
+        "    title=\"Average Compute Time vs T for Filters (n=3, d=2, 64-bit)\",\n",
+        "    labels={\n",
+        "        \"T\": \"Time Horizon (T)\",\n",
+        "        \"average_time\": \"Avg. Compute Time (s)\",\n",
+        "        \"name\": \"Filter Type\"\n",
+        "    }\n",
+        ")\n",
+        "\n",
+        "fig.show() "
+      ],
+      "id": "842d78af",
+      "execution_count": null,
+      "outputs": []
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

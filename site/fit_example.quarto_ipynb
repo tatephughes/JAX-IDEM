@@ -1,0 +1,229 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Efficient Filtering and Fitting of Models Derived from Integro-Difference Equations\"\n",
+        "author: \"Evan Tate Paterson Hughes\"\n",
+        "format:\n",
+        "    html:\n",
+        "        code-fold: true\n",
+        "        toc: true\n",
+        "        include-in -header: header.html\n",
+        "        mathjax:\n",
+        "            extensions: [\"breqn\", \"bm\", \"ams\"]\n",
+        "jupyter: python3\n",
+        "bibliography: Bibliography.bib\n",
+        "---\n",
+        "\n",
+        ": : : {.content-visible unless-format = \"pdf\"}\n",
+        "[Index](../index.html)\n",
+        ": : :\n",
+        "\n",
+        "# Fitting IDEM using ```jax_idem```\n",
+        "\n",
+        "The primary use of the jax_idem package is to fit Integro-difference equation models to data.\n",
+        "\n",
+        "Currently, the only supported way to do this is through maximum-likelihood estimation with the kalman/information filter and OPTAX.\n",
+        "\n",
+        "# Simple example; synthetic simple data\n",
+        "\n",
+        "We will start by simulating from a simple IDEM with only three time steps. We can quickly make a model using ```gen_example_idem```"
+      ],
+      "id": "ebe6fab2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# | output: false\n",
+        "#| eval: false\n",
+        "import jax\n",
+        "import jax.random as rand\n",
+        "import jax.numpy as jnp\n",
+        "\n",
+        "jax.config.update('jax_enable_x64', True)\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "import jaxidem.idem as idem\n",
+        "import jaxidem.utils as utils\n",
+        "import jaxidem.filters as filts"
+      ],
+      "id": "08c43401",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: fal\n",
+        "#| eval: false\n",
+        "key = jax.random.PRNGKey(2)\n",
+        "keys = rand.split(key, 3)\n",
+        "\n",
+        "process_basis = utils.place_basis(nres=2, min_knot_num=3)\n",
+        "#process_basis = utils.place_cosine_basis(N=9)\n",
+        "nbasis = process_basis.nbasis\n",
+        "truemodel = idem.gen_example_idem(\n",
+        "    keys[0], k_spat_inv=True,\n",
+        "    process_basis=process_basis,\n",
+        "    sigma2_eta=0.02**2,\n",
+        "    sigma2_eps=0.05**2,\n",
+        "    beta = jnp.array([2.0,2.0,2.0]),\n",
+        ")\n",
+        "\n",
+        "alpha_0 = jnp.zeros(nbasis).at[81].set(10)\n",
+        "\n",
+        "process_data, obs_data = truemodel.simulate(nobs=200, T=9, key=keys[1], alpha_0 = alpha_0)\n",
+        "\n",
+        "process_data.save_plot(\"true_process.png\")\n",
+        "obs_data.save_plot(\"synthetic_data.png\")"
+      ],
+      "id": "3a238237",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "::: {#fig-example layout-row=2}\n",
+        "\n",
+        "![Process](true_process.png)\n",
+        "\n",
+        "![Observations](synthetic_data.png)\n",
+        "\n",
+        "An example target simulation, with the underlying process (left), and noisy observations (right).\n",
+        ":::\n",
+        "\n",
+        "\n",
+        "Note that there is one missing process time point that is not plotted here; $t=0$. \n",
+        "In the version of the model used, data is only taken at $t=1,2,3$, while it is assumed that the process exists from time 0.\n",
+        "\n",
+        "## Fitting\n",
+        "\n",
+        "Now, after we initialise with a 'guess' baseline model, we can use ```idem.IDEM_model.fit_kalman_filter``` (recomended for fixed data observation locations) or ```fit_information_filter``` to fit the model to the synthetic data."
+      ],
+      "id": "c7c1f51b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "K_basis = truemodel.kernel.basis\n",
+        "\n",
+        "k = (\n",
+        "            jnp.array([100]),\n",
+        "            jnp.array([0.001]),\n",
+        "            jnp.zeros(truemodel.kernel.basis[2].nbasis),\n",
+        "            jnp.zeros(truemodel.kernel.basis[2].nbasis),\n",
+        ")\n",
+        "\n",
+        "# This is the kind of kernel used by ```gen_example_idem```\n",
+        "kernel = idem.param_exp_kernel(K_basis, k)\n",
+        "\n",
+        "process_basis0 = utils.place_cosine_basis(N=9)\n",
+        "\n",
+        "model0 = idem.Model(process_basis = process_basis0,\n",
+        "                   kernel=kernel,\n",
+        "                   process_grid = utils.create_grid(jnp.array([[0, 1], [0, 1]]),\n",
+        "                                                        jnp.array([41, 41])),\n",
+        "                   sigma2_eta = 0.01**2,\n",
+        "                   sigma2_eps = 0.01**2,\n",
+        "                   beta = jnp.array([0.0, 0.0, 0.0]),)"
+      ],
+      "id": "0e4524f5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "For context, the true values of the kernel parameters are"
+      ],
+      "id": "5d24953a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "print(truemodel.kernel.params)"
+      ],
+      "id": "d4891c06",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "So we've chosen a model with high prior variance and no flow, with inaccurate guesses for the spread, diffusion, and variances.\n",
+        "\n",
+        "The fitting functions output new ```IDEM_Model``` objects, generated using OPTAX to optimise for the likelihood."
+      ],
+      "id": "a2dae096"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: true\n",
+        "#| eval: false\n",
+        "\n",
+        "# OUT OF DATE\n",
+        "\n",
+        "obs_data_wide = obs_data.as_wide()\n",
+        "X_obs = jnp.column_stack([jnp.ones(obs_data_wide['x'].shape[0]), obs_data_wide['x'], obs_data_wide['y']])\n",
+        "X_obs_tuple = [X_obs for _ in range(len(obs_data.z))]\n",
+        "\n",
+        "import optax \n",
+        "\n",
+        "model1, params = model0.fit_kalman_filter(obs_data=obs_data,\n",
+        "                                       X_obs=X_obs, \n",
+        "                                       optimizer=optax.adamax(1e-1),\n",
+        "                                       debug=False,\n",
+        "                                       max_its=200,\n",
+        "                                       eps = 1e-5)\n",
+        "print(model1.kernel.params)\n",
+        "print(truemodel.kernel.params)"
+      ],
+      "id": "d858e44d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "ll, ms, Ps, _, _ = model1.kalman_filter(obs_data, X_obs=X_obs)\n",
+        "#ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)\n",
+        "\n",
+        "data = idem.basis_params_to_st_data(ms, model0.process_basis, model0.process_grid)\n",
+        "\n",
+        "data.show_plot()\n",
+        "print(ll)\n",
+        "print(model1.beta)"
+      ],
+      "id": "f6efb62d",
+      "execution_count": null,
+      "outputs": []
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

@@ -1,0 +1,63 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"IDEM Examples\"\n",
+        "author: \"Evan Tate Paterson Hughes\"\n",
+        "format:\n",
+        "  html:\n",
+        "    code-fold: false\n",
+        "    toc: true\n",
+        "    inclue-in-header: header.html\n",
+        "    mathjax: \n",
+        "      extensions: [\"breqn\", \"bm\", \"ams\"]\n",
+        "jupyter: python3\n",
+        "bibliography: Bibliography.bib\n",
+        "---\n",
+        "\n",
+        "::: {.content-visible unless-format=\"pdf\"}\n",
+        "\n",
+        "[Index](../index.html)\n",
+        "\n",
+        ":::\n",
+        "\n",
+        "Some assorted examples of inference and simulation using JAX-IDEM.\n",
+        "\n",
+        "# Simulation\n",
+        "\n",
+        "(currently empty, though there is an example on the index page)\n",
+        "\n",
+        "# Bayesian Inference\n",
+        "\n",
+        "## Synthetic 'Simplest case'\n",
+        "\n",
+        "## Sydney Radar\n",
+        "\n",
+        "The Sydney Radar Dataset (from ...) is a good example of a spatially invariant kernel IDEM (where flow is consistant across space).\n",
+        "\n",
+        "The example is explored [here](./Sydney_Radar.html).\n",
+        "\n",
+        "# Other\n",
+        "\n",
+        "## Non-IDEM filtering\n",
+        "\n",
+        "While the filters in `jaxidem` are built for filtering IDEMs, we can use the filtering techniques for general Dynamic Linear Models.\n",
+        "A simple tracking example is given [here](./filtering_and_smoothing.html)"
+      ],
+      "id": "66e320d8"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

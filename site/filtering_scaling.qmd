@@ -1,0 +1,1020 @@
+---
+Title: Filtering Algorithms
+---
+
+This contains simplified versions of the filters compared to the main package. This is to not deal with PyTrees, varying data shapes, kinds of correlation etc. 
+For testing and data collection.
+
+# Examples
+
+## Tracking
+
+First, a simple tracking example is common for this kind of problem. This is mostly adapted from Adrien Corenflos' version.
+
+```{python}
+#| code-fold: true
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.scipy as jsc
+import jax.random as jr
+from jax.random import multivariate_normal as smvn
+
+is_64_bit = False
+
+# before setting precision, create precision-invariant innovations
+
+highest_T = 1000
+highest_d = 1000
+highest_n = 1000
+
+key = jr.PRNGKey(seed=12)
+keys = jr.split(key, 6)
+
+inn = jr.normal(keys[0], shape = (highest_T, highest_d + highest_n))
+
+inn_sum = jnp.sum(inn).block_until_ready()
+
+
+master_M = jr.normal(keys[1], shape=(highest_d,highest_d)).block_until_ready()
+master_PHI = jr.normal(keys[2], shape=(highest_n, highest_d)).block_until_ready()
+
+S = jr.normal(keys[3], shape = (highest_d, highest_d))
+master_S2_eta = jnp.linalg.inv(S @ S.T).block_until_ready()
+
+S = jr.normal(keys[4], shape = (highest_n, highest_n))
+master_S2_eps = jnp.linalg.inv(S @ S.T).block_until_ready()
+
+master_coords = jax.random.uniform(
+    keys[5],
+    shape=(1000, 2),
+    minval=0,
+    maxval=1,
+)
+
+jax.config.update("jax_enable_x64", is_64_bit)
+
+
+import jaxidem.idem as idem
+import jaxidem.utils as utils
+from jaxidem.utils import time_jit
+
+if is_64_bit:
+    inn = inn.astype(jnp.float64)
+    master_M = master_M.astype(jnp.float64)
+    master_PHI = master_PHI.astype(jnp.float64)
+    master_S2_eps = master_S2_eps.astype(jnp.float64)
+    master_S2_eta = master_S2_eta.astype(jnp.float64)
+    master_coords = master_coords.astype(jnp.float64)
+
+```
+
+A plottable tracking model we can use to see that things are working properly.
+
+```{python}
+#| code-block-title: "Simulating Tracking Model"
+
+dt = 0.1
+
+M = jnp.eye(4) + dt * jnp.eye(4, k=2)
+PHI = jnp.eye(2, 4)
+S2_eta = 5 * jnp.kron(jnp.array([[dt**3/3, dt**2/2],
+                                [dt**2/2, dt]]), 
+                     jnp.eye(2))
+S2_eps = 0.2 ** 2 * jnp.eye(2)
+
+S_eta = jnp.linalg.cholesky(S2_eta)
+S_eps = jnp.linalg.cholesky(S2_eps)
+
+alphas = [jnp.array([0., 0., 1., -1.])]
+zs = []
+
+
+T = 1000
+log10T = 3
+
+
+
+for i in range(T):
+
+    alphas.append(M @ alphas[-1] + S_eta @ inn[i, :4])
+    zs.append(PHI @ alphas[-1] + S_eps @ inn[i, 4:6])
+
+alphas = jnp.array(alphas)
+zs = jnp.array(zs)
+
+```
+
+```{python}
+#| code-block-title: "Plotting the tracking data"
+#| code-fold: true
+
+import plotly.graph_objects as go
+
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(
+    x=alphas[:50, 0],
+    y=alphas[:50, 1],
+    mode='lines+markers',
+    name='Latent path',
+    line=dict(color='royalblue'),
+    marker=dict(size=6)
+))
+
+fig.add_trace(go.Scatter(
+    x=zs[:50, 0],
+    y=zs[:50, 1],
+    mode='lines+markers',
+    name='Observations',
+    line=dict(color='red', dash='dot', width=1),
+    marker=dict(
+        symbol='cross',
+        color='red',
+        size=8,
+    )
+))
+
+fig.update_layout(
+    title='Tracking Model',
+    xaxis_title='X',
+    yaxis_title='Y',
+    legend=dict(x=0.02, y=0.98),
+    width=700,
+    height=500
+)
+
+#print("Hopefully this plot looks like a camel's back. Otherwise, precision has caused an issue.")
+fig.show()
+
+```
+
+# Filters with Likelihood computation
+
+## Standard Kalman Filter
+
+```{python}
+from jax.scipy.linalg import solve_triangular as st
+
+@jax.jit
+def kalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
+
+    r = m_0.shape[0]
+    nobs = zs.shape[1]
+    
+    @jax.jit
+    def step(carry, z_t):
+        m_tt, P_tt, _, _, ll = carry
+
+        # predict
+        m_pred = M @ m_tt
+        P_pred = M @ P_tt @ M.T + S2_eta
+        # Update
+        e_t = z_t - PHI @ m_pred
+        Sigma_t = PHI @ P_pred @ PHI.T + S2_eps
+        K_t = (jnp.linalg.solve(Sigma_t, PHI) @ P_pred.T).T
+        m_up = m_pred + K_t @ e_t
+        P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred
+
+        # likelihood of epsilon, using cholesky decomposition
+        chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+        z = st(chol_Sigma_t, e_t, lower=True)
+        ll_new = (
+            ll
+            - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+            - 0.5 * jnp.dot(z, z)
+            - 0.5 * nobs * jnp.log(2 * jnp.pi)
+        )
+
+        new_carry = (m_up, P_up, m_pred, P_pred, ll_new)
+        return new_carry, new_carry
+
+
+    carry, seq = jl.scan(
+        step,
+        (m_0, P_0, m_0, P_0, 0),
+        zs,
+    )
+
+    ll, ms, Ps, mpreds, Ppreds = (carry[4], seq[0], seq[1], seq[2], seq[3])
+    
+    filt_results = {"ll": ll,
+                    "ms": ms,
+                    "Ps": Ps,
+                    "mpreds": mpreds,
+                    "Ppreds": Ppreds}
+
+    return filt_results
+
+```
+
+
+```{python}
+m_0 = jnp.zeros(4)
+P_0 = 100*jnp.eye(4)
+
+filt_results_kal = kalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs)
+
+print(f"Log-Likelihood = {filt_results_kal['ll']}")
+```
+
+```{python}
+#| code-fold: true
+
+
+ms = filt_results_kal['ms']
+Ps = filt_results_kal['Ps']
+
+m_x, m_y = ms[:50, 0], ms[:50, 1]
+s2_x, s2_y = Ps[:50, 0,0], Ps[:50, 1,1]
+
+import plotly.graph_objects as go
+
+fig = go.Figure()
+
+import plotly.graph_objects as go
+
+fig.add_trace(go.Scatter(
+    x=alphas[:50, 0],
+    y=alphas[:50, 1],
+    mode='lines+markers',
+    name='Latent path',
+    line=dict(color='royalblue'),
+    marker=dict(size=6)
+))
+
+fig.add_trace(go.Scatter(
+    x=zs[:50, 0],
+    y=zs[:50, 1],
+    mode='lines+markers',
+    name='Observations',
+    line=dict(color='red', dash='dot', width=1),
+    marker=dict(symbol='cross', color='red', size=8, line=dict(width=1))
+))
+
+
+fig.add_trace(go.Scatter(
+    x=m_x,
+    y=m_y,
+    mode='lines',
+    name='Filtered mean',
+    line=dict(color='green', width=2)
+))
+
+# Uncertainty band (±1 std) for filtered position
+fig.add_trace(go.Scatter(
+    x=jnp.concatenate([m_x - jnp.sqrt(s2_x), m_x[::-1] + jnp.sqrt(s2_x[::-1])]),
+    y=jnp.concatenate([m_y - jnp.sqrt(s2_y), m_y[::-1] + jnp.sqrt(s2_y[::-1])]),
+    fill='toself',
+    fillcolor='rgba(0, 128, 0, 0.2)',
+    line=dict(color='rgba(0,0,0,0)'),
+    showlegend=True,
+    name='±1 std deviation'
+))
+
+fig.update_layout(
+    title='Kalman Filter Results with Observations and Uncertainty',
+    xaxis_title='X',
+    yaxis_title='Y',
+    legend=dict(x=0.02, y=0.98),
+    width=800,
+    height=550
+)
+
+fig.show()
+
+```
+
+
+## Information Filter
+
+```{python}
+@jax.jit
+def information_filter(
+        nu_0,
+        Q_0,
+        M,
+        PHI,
+        S2_eta,
+        S2_eps,
+        zs
+):
+
+    r = nu_0.shape[0]
+    nobs = zs.shape[1]
+
+    i = jax.vmap(lambda z: PHI.T @ jnp.linalg.solve(S2_eps, z), in_axes=0)(zs)
+    I = PHI.T @ jnp.linalg.solve(S2_eps, PHI)
+    
+    Minv = jnp.linalg.inv(M)
+    S2_eta_inv = jnp.linalg.inv(S2_eta)
+
+    @jax.jit
+    def step(carry, i):
+        nu_tt, Q_tt, _, _ = carry
+
+        S_t = Minv.T @ Q_tt @ Minv
+        J_t = jnp.linalg.solve((S_t + S2_eta_inv).T, S_t.T).T
+        
+        nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu_tt
+        Q_pred = (jnp.eye(r) - J_t) @ S_t
+
+        nu_up = nu_pred + i
+        Q_up = Q_pred + I
+
+        new_carry = (nu_up, Q_up, nu_pred, Q_pred)
+        
+        return new_carry, new_carry
+    
+    carry, seq = jl.scan(
+        step,
+        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
+        i,
+    )
+    
+    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
+
+    @jax.jit
+    def likelihood_func(z, nu_pred, Q_pred):
+        e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+        chol_Sigma_t = jnp.linalg.cholesky(
+            PHI @ jnp.linalg.solve(Q_pred, PHI.T) + S2_eps
+        )
+        z = st(chol_Sigma_t, e, lower=True)
+
+        ll = (
+            -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+            - 0.5 * jnp.dot(z, z)
+            - 0.5 * nobs * jnp.log(2 * jnp.pi)
+        )
+        return ll
+
+    lls = jax.vmap(likelihood_func)(zs, nupreds, Qpreds)
+    ll = jnp.sum(lls)
+    
+    filt_results = {"ll": ll,
+                    "nus": nus,
+                    "Qs": Qs,
+                    "nupreds": nupreds,
+                    "Qpreds": Qpreds}
+
+    return filt_results
+```
+
+```{python}
+nu_0 = jnp.zeros(4)
+Q_0 = jnp.linalg.inv(P_0)
+
+filt_results_inf = information_filter(nu_0, Q_0, M, PHI, S2_eta, S2_eps, zs)
+
+print(f"Log-Likelihood = {filt_results_inf['ll']}")
+```
+
+
+## Square-root filter
+
+```{python}
+
+@jax.jit
+def qr_R(A, B):
+    """Wrapper for the stacked-QR decompositon"""
+    return jnp.linalg.qr(jnp.vstack([A, B]), mode="r")
+
+@jax.jit
+def sqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs):
+
+    r = m_0.shape[0]
+    nobs = zs.shape[1]
+
+    S_eta = jnp.linalg.cholesky(S2_eta, upper=True)
+    S_eps = jnp.linalg.cholesky(S2_eps, upper=True)
+
+    @jax.jit
+    def step(carry, z_t):
+        m_tt, U_tt, _, _, ll= carry
+
+        # predict
+        m_pred = M @ m_tt
+        U_pred = qr_R(U_tt @ M.T, S_eta)
+        # Update
+        e_t = z_t - PHI @ m_pred
+        Ui_t = qr_R(U_pred @ PHI.T, S_eps)
+
+        # Kalman Gain
+        K_t = (
+            st(
+                Ui_t,
+                st(Ui_t.T, PHI, lower=True)
+                @ U_pred.T
+                @ U_pred,
+            )
+        ).T
+
+        m_up = m_pred + K_t @ e_t
+
+        U_up = qr_R(U_pred @ (jnp.eye(r) - K_t @ PHI).T, S_eps @ K_t.T)
+        s = st(Ui_t.T, e_t, lower=True)
+ 
+        ll_new = (ll
+                  - jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
+                  - 0.5 * jnp.dot(s, s)
+                  - 0.5 * nobs * jnp.log(2 * jnp.pi)
+                  )
+
+        new_carry = (m_up, U_up, m_pred, U_pred, ll_new)
+        return new_carry, new_carry
+
+    carry, seq = jl.scan(
+        step,
+        (m_0, U_0, m_0, U_0, 0),
+        zs,
+    )
+
+    ll, ms, Us, mpreds, Upreds = (carry[4], seq[0], seq[1], seq[2], seq[3])
+
+    filt_results = {"ll": ll,
+                    "ms": ms,
+                    "Us": Us,
+                    "mpreds": mpreds,
+                    "Upreds": Upreds,}
+
+    return filt_results
+
+```
+
+```{python}
+U_0 = jnp.linalg.cholesky(P_0)
+
+filt_results_sqrt = sqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs)
+
+print(f"Log-Likelihood = {filt_results_sqrt['ll']}")
+```
+
+
+## Sqrt-information filter
+
+```{python}
+@jax.jit
+def ql_L(A, B):
+    """Wrapper for the stacked-QL decompositon"""
+    A_flipped = jnp.flip(jnp.vstack([A, B]), axis=1)
+    R = jnp.linalg.qr(A_flipped, mode='r')
+    L = jnp.flip(R, axis=(0, 1))
+
+    return L
+@jax.jit
+def sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, zs):
+
+    r = nu_0.shape[0]
+    nobs = zs.shape[1]
+
+    S_eps, _ = jsc.linalg.cho_factor(S2_eps, lower = False)
+    S_eta, _ = jsc.linalg.cho_factor(S2_eta, lower = False)
+
+    # pretty quick
+    i_ts = jax.vmap(lambda z: PHI.T @ jsc.linalg.cho_solve((S_eps, True), z), in_axes=0)(zs)
+    R = jnp.linalg.qr(st(S_eps.T, PHI, lower=False), mode="r")
+
+    @jax.jit
+    def step(carry, i):
+        nu_tt, R_tt, _, _ = carry
+
+        U_pred = ql_L(st(R_tt.T, M.T, lower=True), S_eta)
+        R_pred = st(U_pred, jnp.eye(r), lower=True).T
+        nu_pred = R_pred.T @ R_pred @ M @ st(R_tt,
+                                             st(R_tt.T,
+                                                nu_tt,
+                                                lower=True), lower=False)
+
+        nu_up = nu_pred + i
+        R_up = qr_R(R_pred, R)
+
+        new_carry = (nu_up, R_up, nu_pred, R_pred)
+        return new_carry, new_carry
+
+    # also pretty quick
+    carry, seq = jl.scan(
+        step,
+        (nu_0, R_0, jnp.zeros(r), jnp.eye(r)),
+        i_ts,
+    )
+
+    nus, Rs, nupreds, Rpreds = (seq[0], seq[1], seq[2], seq[3])
+
+    # THIS is where slowdown happens. why?
+    def likelihood_func(z, nu_pred, R_pred):
+                    
+        e = z - PHI @ st(R_pred, st(R_pred.T, nu_pred, lower=True), lower=False)
+
+        # IS IT THE qr_Rs fault????
+        #Ui_t = qr_R(st(R_pred.T, PHI.T, lower=True), S_eps)
+        Ui_t = jnp.linalg.cholesky(PHI @ st(R_pred, st(R_pred.T, PHI.T, lower=True)) + S2_eps)
+        s = st(Ui_t, e, lower=True)
+
+        ll = (
+            - jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
+            - 0.5 * jnp.dot(s, s)
+            - 0.5 * nobs * jnp.log(2 * jnp.pi)
+        )
+        
+        return ll
+        
+    lls = jax.vmap(likelihood_func)(zs, nupreds, Rpreds)
+    ll = jnp.sum(lls)
+    
+
+    filt_results = {"ll": ll,
+                    "nus": nus,
+                    "Rs": Rs,
+                    "nupreds": nupreds,
+                    "Rpreds": Rpreds}
+    
+    return filt_results
+
+```
+
+
+```{python}
+R_0 = jnp.linalg.cholesky(Q_0)
+
+filt_results_sqinf = sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, zs)
+
+print(f"Log-Likelihood = {filt_results_sqinf['ll']}")
+```
+
+
+
+```{python}
+print(jnp.allclose(filt_results_sqrt['ms'], filt_results_kal['ms']))
+print(jnp.allclose(filt_results_inf['nus'], filt_results_sqinf['nus']))
+```
+
+
+
+
+
+```{python}
+#| code-fold: true
+
+
+ms = filt_results_sqrt['ms']
+Us = filt_results_sqrt['Us']
+Ps = jax.vmap(lambda mat: mat.T@mat)(Us)
+
+m_x, m_y = ms[:50, 0], ms[:50, 1]
+s2_x, s2_y = Ps[:50, 0,0], Ps[:50, 1,1]
+
+import plotly.graph_objects as go
+
+fig = go.Figure()
+
+import plotly.graph_objects as go
+
+fig.add_trace(go.Scatter(
+    x=alphas[:50, 0],
+    y=alphas[:50, 1],
+    mode='lines+markers',
+    name='Latent path',
+    line=dict(color='royalblue'),
+    marker=dict(size=6)
+))
+
+fig.add_trace(go.Scatter(
+    x=zs[:50, 0],
+    y=zs[:50, 1],
+    mode='lines+markers',
+    name='Observations',
+    line=dict(color='red', dash='dot', width=1),
+    marker=dict(symbol='cross', color='red', size=8, line=dict(width=1))
+))
+
+
+fig.add_trace(go.Scatter(
+    x=m_x,
+    y=m_y,
+    mode='lines',
+    name='Filtered mean',
+    line=dict(color='green', width=2)
+))
+
+# Uncertainty band (±1 std) for filtered position
+fig.add_trace(go.Scatter(
+    x=jnp.concatenate([m_x - jnp.sqrt(s2_x), m_x[::-1] + jnp.sqrt(s2_x[::-1])]),
+    y=jnp.concatenate([m_y - jnp.sqrt(s2_y), m_y[::-1] + jnp.sqrt(s2_y[::-1])]),
+    fill='toself',
+    fillcolor='rgba(0, 128, 0, 0.2)',
+    line=dict(color='rgba(0,0,0,0)'),
+    showlegend=True,
+    name='±1 std deviation'
+))
+
+fig.update_layout(
+    title='Kalman Filter Results with Observations and Uncertainty',
+    xaxis_title='X',
+    yaxis_title='Y',
+    legend=dict(x=0.02, y=0.98),
+    width=800,
+    height=550
+)
+
+fig.show()
+
+```
+
+
+## Parallel Filter
+
+
+```{python}
+@jax.jit
+def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
+    
+    r = m_0.shape[0]
+    nobs = zs.shape[1]
+
+    m1pred = M @ m_0
+    P1pred = M @ P_0 @ M.T + S2_eta
+
+    S_1 =  PHI @ P1pred @ PHI.T + S2_eps
+
+    # cholS = jsc.linalg.cho_factor(S_1)
+    #D_1 = (jsc.linalg.cho_solve(cholS, PHI_tree[0])@P1pred.T).T
+
+    D_1 = (jnp.linalg.solve(S_1, PHI @ P1pred)).T
+    
+    A_1  = jnp.zeros((r,r))
+    b_1  = m1pred + D_1 @ (zs[0] - PHI @ m1pred)
+    C_1  = P1pred - D_1 @ S_1 @ D_1.T
+
+    # this is how it is in the paper. Adrien Corenflos has a slighlty different
+    # equation, using the expression for S_k here. Not sure why the discrepency is here.
+    
+    nu_1 = M.T @ PHI.T @ jnp.linalg.solve(S_1, zs[0])
+    Q_1  = M.T @ PHI.T @ jnp.linalg.solve(S_1, PHI) @ M
+
+    first_elt = (A_1, b_1, C_1, nu_1, Q_1)
+
+    @jax.jit
+    def get_element(z_k):
+                
+        S_k = PHI @ S2_eta @ PHI.T + S2_eps
+                
+        D_k = (jnp.linalg.solve(S_k, PHI @ S2_eta)).T
+
+        imdp = (jnp.eye(r) - D_k @ PHI)
+        
+        A_k = imdp @ M
+        b_k = D_k @ z_k
+        
+        C_k = imdp @ S2_eta
+
+        nu_k = M.T @ PHI.T @ jnp.linalg.solve(S_k, z_k)
+        Q_k = M.T @ PHI.T @ jnp.linalg.solve(S_k, PHI @ M)
+    
+        return (A_k, b_k, C_k, nu_k, Q_k)
+
+    elts = jax.vmap(get_element)(zs[1:])
+
+    all_elts = jax.tree.map(lambda f, e: jnp.concatenate([f[None, :], e]), first_elt, elts)
+
+    @jax.vmap
+    def compose(elt_i, elt_j):
+        
+        A_i, b_i, C_i, nu_i, Q_i = elt_i
+        A_j, b_j, C_j, nu_j, Q_j = elt_j
+
+        I = jnp.eye(r)
+        
+        ipcq = I + C_i @ Q_j
+        ipqc = I + Q_j @ C_i
+
+        # lots of cho solves, can be simplifies. 
+        A_ij = A_j @ jnp.linalg.solve(ipcq, A_i)
+        b_ij = A_j @ jnp.linalg.solve(ipcq, (b_i + C_i @ nu_j)) + b_j
+        C_ij = A_j @ jnp.linalg.solve(ipcq, C_i @ A_j.T) + C_j
+        nu_ij = A_i.T @ jnp.linalg.solve(ipqc, nu_j - Q_j@b_i) + nu_i
+        Q_ij = A_i.T @ jnp.linalg.solve(ipqc, Q_j @ A_i) + Q_i
+        
+        return (A_ij, b_ij, C_ij, nu_ij, Q_ij)
+    
+    final_elts = jl.associative_scan(compose, all_elts)
+
+    ms = final_elts[1]
+    Ps = final_elts[2]
+
+    nu, Q = final_elts[3][-1], final_elts[4][-1]
+
+    @jax.jit
+    def get_ll(z, m, P):
+
+        m_pred = M @ m
+        P_pred = M @ P @ M.T + S2_eta
+
+        e = z - PHI @ m_pred
+        S = PHI @ P_pred @ PHI.T + S2_eps
+        
+        cholS = jnp.linalg.cholesky(S)
+        z = st(cholS, e, lower=True)
+        ll = (
+            - jnp.sum(jnp.log(jnp.diag(cholS)))
+            - 0.5 * jnp.dot(z, z)
+            - 0.5 * nobs * jnp.log(2 * jnp.pi)
+        )
+
+        return ll
+    
+    ll = jnp.sum(jax.vmap(get_ll)(zs,
+                                  jnp.concatenate([m_0[None, :], ms])[:-1],
+                                  jnp.concatenate([P_0[None, :, :], Ps])[:-1]))
+
+
+    
+    filt_results = {"ll": ll,
+                    "ms": ms,
+                    "Ps": Ps}
+
+    return filt_results
+
+```
+
+
+```{python}
+filt_results_pkal = pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs)
+```
+
+```{python}
+print(filt_results_kal['ll'].dtype)
+
+print(f"Kalman Log-Likelihood = {filt_results_kal['ll']}")
+print(f"Sqrt   Log-Likelihood = {filt_results_sqrt['ll']}")
+print(f"Info   Log-Likelihood = {filt_results_inf['ll']}")
+print(f"SqInfo Log-Likelihood = {filt_results_sqinf['ll']}")
+print(f"PKal   Log-Likelihood = {filt_results_pkal['ll']}")
+```
+
+# Tracking Example Plot against Time
+
+```{python}
+#| output: false
+from jaxidem.utils import time_jit
+
+jit_kal   = lambda tup: kalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_inf   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+
+#T_vals = range(10, 1000, 10)
+T_vals = jnp.logspace(2, log10T, num=2, base=10).astype(int)
+nreps = 1
+
+results = {
+    "kal": [],
+    "inf": [],
+    "sqrt": [],
+    "sqinf": [],
+    "pkal": []
+}
+
+for T in T_vals:
+    zs_cut = zs[:T, :]
+    inp_tree = (M, PHI, S2_eta, S2_eps, zs_cut)
+    results["kal"].append(time_jit(key, jit_kal, inp_tree, n=nreps).average_time * 1000)
+    results["inf"].append(time_jit(key, jit_inf, inp_tree, n=nreps).average_time * 1000)
+    results["sqrt"].append(time_jit(key, jit_sqrt, inp_tree, n=nreps).average_time * 1000)
+    results["sqinf"].append(time_jit(key, jit_sqinf, inp_tree, n=nreps).average_time * 1000)
+    results["pkal"].append(time_jit(key, jit_pkal, inp_tree, n=nreps).average_time * 1000)
+
+fig = go.Figure()
+
+for method, times in results.items():
+    fig.add_trace(go.Scatter(x=list(T_vals), y=times,
+                             mode='lines',
+                             name=method))
+
+fig.update_layout(
+    title="Average Execution Time vs Sequence Length",
+    xaxis_title="T (Sequence Length)",
+    xaxis=dict(type='log'),
+    yaxis_title="Average Time (ms)",
+    yaxis=dict(type='log'),
+    legend_title="Filter Method",
+    template="plotly_white"
+)
+
+```
+```{python}
+fig.write_image("figure/vary_T.png")
+fig.show()
+#filt_results_kal = kalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs)
+#filt_results_inf = information_filter(nu_0, Q_0, M, PHI, S2_eta, S2_eps, zs)
+#filt_results_sqrt = sqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs)
+#filt_results_sqinf = sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, zs)
+#filt_results_pkal = pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs)
+#
+#print(f"Results for IDEM with nbasis={nbasis} and nobs={nobs}")
+#
+#print(filt_results_kal['ll'].dtype)
+#print(f"Kalman Log-Likelihood = {filt_results_kal['ll']}")
+#print(f"Sqrt   Log-Likelihood = {filt_results_sqrt['ll']}")
+#print(f"Info   Log-Likelihood = {filt_results_inf['ll']}")
+#print(f"SqInfo Log-Likelihood = {filt_results_sqinf['ll']}")
+#print(f"PKal   Log-Likelihood = {filt_results_pkal['ll']}")
+
+```
+
+
+# IDEM
+
+## IDEM
+
+```{python}
+
+process_basis = utils.place_basis(min_knot_num = 5, nres=1, aperture = 1.0) 
+
+covariate_labels=['Intercept', 'x', 'y']
+beta = jnp.zeros(len(covariate_labels)) 
+
+process_grid = utils.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([41, 41]))
+process_basis = utils.place_basis()
+
+K_basis = (
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+)
+k = (
+    jnp.array([150.0]),
+    jnp.array([0.002]),
+    jnp.array([-0.1]),
+    jnp.array([0.1]),
+)
+kernel = idem.param_exp_kernel(K_basis, k)
+
+nobs = 1000
+
+coords = master_coords[:nobs, :]
+
+nbasis = process_basis.nbasis
+S2_eta = 0.05**2 * jnp.eye(nbasis)
+S2_eps = 0.1**2 * jnp.eye(nobs)
+
+model = idem.Model(
+    process_basis=process_basis,
+    kernel=kernel,
+    process_grid=process_grid,
+    sigma2_eta=S2_eta,
+    sigma2_eps=S2_eps,
+    beta=beta,
+    covariate_labels=covariate_labels,
+)
+
+M = model.M
+PHI = model.process_basis.mfun(coords)
+S2_eta = model.sigma2_eta
+S2_eps = model.sigma2_eps
+
+S_eta = jnp.linalg.cholesky(S2_eta)
+S_eps = jnp.linalg.cholesky(S2_eps)
+
+alpha_0 = jnp.zeros(nbasis).at[74].set(5.)
+alphas = [alpha_0]
+zs = []
+
+T = 9
+for i in range(T):
+    alphas.append(M @ alphas[-1] + S_eta @ inn[i, :nbasis])
+    zs.append(PHI @ alphas[-1] + S_eps @ inn[i, nbasis:nbasis + nobs])
+
+alphas = jnp.array(alphas[1:])
+zs = jnp.array(zs)
+
+
+n = 100
+coords_sample = coords[:n, :]
+
+times = jnp.repeat(jnp.arange(1, T + 1), coords_sample.shape[0])
+rep_coords = jnp.tile(coords_sample, (T, 1))
+
+process_data = idem.basis_params_to_st_data(alphas, process_basis, process_grid, times=None)
+obs_data = utils.st_data(x = rep_coords[:, 0], y = rep_coords[:, 1], times = times, z = jnp.concatenate(list(zs[:,:n])))
+
+process_data.save_plot("figure/simple_idem_process.png")
+obs_data.save_plot("figure/simple_idem_obs.png")
+
+```
+
+
+::: {#fig-process layout-ncol=2}
+
+![Process](figure/simple_idem_process.png)
+
+![Observations](figure/simple_idem_obs.png)
+
+An example IDEM simulation, with the underlying process (left), noisy observations randomly placed at each time interval (right)
+
+:::
+
+```{python}
+
+m_0 = jnp.zeros(nbasis)
+P_0 = 100*jnp.eye(nbasis)
+U_0 = jnp.linalg.cholesky(P_0)
+
+nu_0 = jnp.zeros(nbasis)
+Q_0 = 0.01*jnp.eye(nbasis)
+R_0 = jnp.linalg.cholesky(Q_0)
+
+jit_kal   = lambda tup: kalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_inf   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+
+inp_tree = (M, PHI, S2_eta, S2_eps, zs)
+time_kal_gpu   = time_jit(key, jit_kal, inp_tree, n=10)
+time_inf_gpu   = time_jit(key, jit_inf, inp_tree, n=10)
+time_sqrt_gpu  = time_jit(key, jit_sqrt, inp_tree, n=10)
+time_sqinf_gpu = time_jit(key, jit_sqinf, inp_tree, n=10)
+time_pkal_gpu  = time_jit(key, jit_pkal, inp_tree, n=10)
+
+import pandas as pd
+
+data = [
+    ["kal", "GPU", time_kal_gpu.compile_time, time_kal_gpu.average_time * 1000, time_kal_gpu.value],
+    ["inf", "GPU", time_inf_gpu.compile_time, time_inf_gpu.average_time * 1000, time_inf_gpu.value],
+    ["sqrt", "GPU", time_sqrt_gpu.compile_time, time_sqrt_gpu.average_time * 1000, time_sqrt_gpu.value],
+    ["sqinf", "GPU", time_sqinf_gpu.compile_time, time_sqinf_gpu.average_time * 1000, time_sqinf_gpu.value],
+    ["pkal", "GPU", time_pkal_gpu.compile_time, time_pkal_gpu.average_time * 1000, time_pkal_gpu.value],
+]
+
+df = pd.DataFrame(data, columns=["Method", "Device", "Compile Time (s)", "Average Time (ms)", "Log Likelihood"])
+```
+
+```{python}
+#| eval: true
+print(f"Results for IDEM with nbasis={nbasis} and nobs={nobs}")
+print(f"Precision: {M.dtype}")
+
+# look into the sqrt filter; values come out different to sqinf filter in 32-bit.
+# maybe because the matrices are way too big?
+
+print(df.to_markdown(index=False))
+```
+
+## Observation dimension vs. compute time
+
+```{python}
+#| output: false
+jit_kal   = lambda tup: kalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_inf   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+
+n_vals = range(10, 200, 30)
+#n_vals = [10,20]
+nreps = 1
+
+results = {
+    "Kalman": [],
+    "Information": [],
+#    "sqrt": [],
+#    "sqinf": [],
+#    "pkal": []
+}
+
+for n in n_vals:
+    zs_cut = zs[:, :n]
+    S2_eps_cut = S2_eps[:n, :n]
+    PHI_cut = PHI[:n, :]
+    inp_tree = (M, PHI_cut, S2_eta, S2_eps_cut, zs_cut)
+    results["Kalman"].append(time_jit(key, jit_kal, inp_tree, n=nreps).average_time * 1000)
+    results["Information"].append(time_jit(key, jit_inf, inp_tree, n=nreps).average_time * 1000)
+#    results["sqrt"].append(time_jit(key, jit_sqrt, inp_tree, n=nreps).average_time * 1000)
+#    results["sqinf"].append(time_jit(key, jit_sqinf, inp_tree, n=nreps).average_time * 1000)
+#    results["pkal"].append(time_jit(key, jit_pkal, inp_tree, n=nreps).average_time * 1000)
+
+fig = go.Figure()
+
+for method, times in results.items():
+    fig.add_trace(go.Scatter(x=list(n_vals), y=times,
+                             mode='lines',
+                             name=method))
+
+fig.update_layout(
+    title="Average Execution Time vs number of observations",
+    xaxis_title="n (Observation Dimension)",
+#    xaxis=dict(type='log'),
+    yaxis_title="Average Time (ms)",
+#    yaxis=dict(type='log'),
+    legend_title="Filter Method",
+    template="plotly_white"
+)
+```
+
+```{python}
+fig.write_image("figure/vary_n.png")
+fig.show()
+```

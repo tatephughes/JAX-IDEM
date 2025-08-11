@@ -1,0 +1,606 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Bayesian Inference on a simple example\"\n",
+        "author: \"Evan Tate Paterson Hughes\"\n",
+        "format:\n",
+        "  html:\n",
+        "    code-fold: true\n",
+        "    toc: true\n",
+        "    code-link: true\n",
+        "    mathjax: \n",
+        "      extensions: [\"breqn\", \"bm\", \"ams\"]\n",
+        "    code-links:\n",
+        "      - text: Github\n",
+        "        icon: file-code\n",
+        "        repo: https://github.com/tatephughes/JAX-IDEM\n",
+        "        href: https://github.com/tatephughes/JAX-IDEM\n",
+        "jupyter: python3\n",
+        "---\n",
+        "\n",
+        "# Simulation\n",
+        "\n",
+        "We create a simple model with downward-movement and diffusion, on 16 bisquare basis functions."
+      ],
+      "id": "eddb95aa"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: false\n",
+        "#| eval: true\n",
+        "\n",
+        "import jax\n",
+        "#jax.config.update(\"jax_enable_x64\", True)\n",
+        "import jax.numpy as jnp\n",
+        "\n",
+        "import jaxidem.utils as utils\n",
+        "import jaxidem.idem as idem\n",
+        "\n",
+        "seed = 4\n",
+        "key = jax.random.PRNGKey(seed)\n",
+        "keys = jax.random.split(key, 10)\n",
+        "\n",
+        "process_basis = utils.place_basis(min_knot_num = 5, nres=1, aperture = 1.0) \n",
+        "\n",
+        "\n",
+        "# this function creates models like in this example. for practical uses, use `init_model`.\n",
+        "true_model = idem.gen_example_idem(keys[0],\n",
+        "                                   process_basis = process_basis,\n",
+        "                                   beta = jnp.array([0.0]))\n",
+        "\n",
+        "# create a 'ball' at the top left \n",
+        "alpha_0 = jnp.zeros(process_basis.nbasis).at[21].set(1.)\n",
+        "\n",
+        "\n",
+        "T = 6\n",
+        "nobs = 100\n",
+        "\n",
+        "coords = jax.random.uniform(\n",
+        "                keys[0],\n",
+        "                shape=(nobs, 2),\n",
+        "                minval=0,\n",
+        "                maxval=1,\n",
+        "            )\n",
+        "times = jnp.repeat(jnp.arange(1, T + 1), coords.shape[0])\n",
+        "rep_coords = jnp.tile(coords, (T, 1))\n",
+        "x = rep_coords[:,0]\n",
+        "y = rep_coords[:,1]\n",
+        "\n",
+        "\n",
+        "process_data, obs_data = true_model.simulate(keys[1], x, y, times, alpha_0 = alpha_0)\n",
+        "\n",
+        "process_data.save_plot(\"figure/simple_idem_process.png\")\n",
+        "obs_data.save_plot(\"figure/simple_idem_obs.png\")\n",
+        "true_model.kernel.save_plot(\"figure/simple_idem_kernel.png\")"
+      ],
+      "id": "9e988157",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "::: {#fig-process layout-ncol=3}\n",
+        "\n",
+        "![Process](figure/simple_idem_process.png)\n",
+        "\n",
+        "![Observations](figure/simple_idem_obs.png)\n",
+        "\n",
+        "![Kernel Direction](figure/simple_idem_kernel.png)\n",
+        "\n",
+        "An example IDEM simulation, with the underlying process (left), noisy observations randomly placed at each time interval (center), and the direction of 'flow' dictated by the kernel (right). \n",
+        "\n",
+        ":::\n",
+        "\n",
+        "\n",
+        "Now the parameters of the model can be seen in `Model.params`;"
+      ],
+      "id": "9070b7ab"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "idem.print_params(true_model.params)"
+      ],
+      "id": "6a561085",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "These are the true values of the parameters.\n",
+        "Let's make a new model which we will fit to the truth;"
+      ],
+      "id": "5334f74a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "model_0 = idem.init_model(obs_data,\n",
+        "                          basis_type = 'bisquare',\n",
+        "                          basis_args=[1, 4], # 1 resolution 4x4 knots\n",
+        "                          k_spat_inv = True)\n",
+        "\n",
+        "idem.print_params(model_0.params)"
+      ],
+      "id": "e99a8cfd",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "In this case, the only parameters that are wrong are the offsets; the direction of flow, and the variances.\n",
+        "\n",
+        "In this example, we'll use a strong prior on the shape, scale, and beta; in practical examples, a strong prior on shape and scale, perhaps around the MLE, is usually a good idea."
+      ],
+      "id": "af7c7196"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "true_params = true_model.params\n",
+        "\n",
+        "def log_prior(params):\n",
+        "    return (-0.5*(params.trans_kernel_params[0] - true_params.trans_kernel_params[0])**2/0.1**2\n",
+        "            -0.5*(params.trans_kernel_params[1] - true_params.trans_kernel_params[1])**2/0.1**2\n",
+        "#            -0.5*(params.trans_kernel_params[2] - 0.0)**2/3**2\n",
+        "#            -0.5*(params.trans_kernel_params[3] - 0.0)**2/3**2\n",
+        "            -0.5*(params.beta - true_params.beta)**2/0.1**2)[0]"
+      ],
+      "id": "8a8f2e0b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can now get the marginal log-likelihood, and construct the log posterior"
+      ],
+      "id": "f711fb64"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "log_marginal = model_0.get_log_like(obs_data, method=\"sqinf\", likelihood='partial')\n",
+        "\n",
+        "\n",
+        "def log_post(params): return log_prior(params) + log_marginal(params)"
+      ],
+      "id": "07239d71",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can know do with this anything; for example, here is a NUTS chain from BLACKJAX"
+      ],
+      "id": "df811454"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "rng_key = jax.random.PRNGKey(42)\n",
+        "\n",
+        "import blackjax\n",
+        "\n",
+        "step_size = 1e-2\n",
+        "imm = jnp.ones(model_0.nparams)\n",
+        "\n",
+        "nuts = blackjax.nuts(log_post, step_size, imm)\n",
+        "\n",
+        "init_nuts_state = nuts.init(model_0.params)\n",
+        "\n",
+        "def nuts_step(state, key):\n",
+        "    new_state,_ = nuts.step(key, state)\n",
+        "    return new_state, new_state\n",
+        "\n",
+        "n = 50\n",
+        "keys = jax.random.split(rng_key, n)\n",
+        "\n",
+        "_, chain = jax.lax.scan(nuts_step, init_nuts_state, keys)"
+      ],
+      "id": "f38ff129",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can extract the offset parameters like so, and make a trajectory plot from them;"
+      ],
+      "id": "d44f0c23"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "offset_sample = jnp.hstack(chain.position.trans_kernel_params[2:])\n",
+        "\n",
+        "res_mean = jnp.mean(offset_sample, axis=0)\n",
+        "res_cov = jnp.cov(offset_sample.T)\n",
+        "\n",
+        "\n",
+        "print(res_mean)\n",
+        "print(res_cov)"
+      ],
+      "id": "e3db40eb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| code-fold: true\n",
+        "import plotly.graph_objects as go\n",
+        "\n",
+        "x, y = offset_sample[:, 0], offset_sample[:, 1]\n",
+        "\n",
+        "fig = go.Figure()\n",
+        "\n",
+        "# Add trajectory line\n",
+        "fig.add_trace(go.Scatter(\n",
+        "    x=x, y=y,\n",
+        "    mode='lines+markers',\n",
+        "    line=dict(color='blue'),\n",
+        "    marker=dict(size=2),\n",
+        "    name='Trajectory'\n",
+        "))\n",
+        "\n",
+        "fig.add_trace(go.Scatter(\n",
+        "    x=[x[0]], y=[y[0]],\n",
+        "    mode='markers',\n",
+        "    marker=dict(size=10, color='green'),\n",
+        "    name='Start'\n",
+        "))\n",
+        "\n",
+        "\n",
+        "fig.add_trace(go.Scatter(\n",
+        "    x=[-0.1], y=[0.1],\n",
+        "    mode='markers',\n",
+        "    marker=dict(size=10, color='yellow'),\n",
+        "    name='Truth'\n",
+        "))\n",
+        "\n",
+        "fig.add_trace(go.Scatter(\n",
+        "    x=[x[-1]], y=[y[-1]],\n",
+        "    mode='markers',\n",
+        "    marker=dict(size=10, color='red'),\n",
+        "    name='End'\n",
+        "))\n",
+        "\n",
+        "# Layout settings\n",
+        "fig.update_layout(\n",
+        "    title='HMC Trajectory',\n",
+        "    xaxis_title='X_1',\n",
+        "    yaxis_title='X_2',\n",
+        "    showlegend=True,\n",
+        "    width=700,\n",
+        "    height=600\n",
+        ")\n",
+        "\n",
+        "fig.show()"
+      ],
+      "id": "1d51fddb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "# Simulation\n",
+        "\n",
+        "We create a simple model with downward-movement and diffusion, on 16 bisquare basis functions."
+      ],
+      "id": "76a5b21d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: false\n",
+        "#| eval: true\n",
+        "\n",
+        "import jax\n",
+        "jax.config.update(\"jax_enable_x64\", True)\n",
+        "import jax.numpy as jnp\n",
+        "\n",
+        "import jaxidem.utils as utils\n",
+        "import jaxidem.idem as idem\n",
+        "\n",
+        "seed = 4\n",
+        "key = jax.random.PRNGKey(seed)\n",
+        "keys = jax.random.split(key, 10)\n",
+        "\n",
+        "process_basis = utils.place_basis(min_knot_num = 5, nres=1, aperture = 1.0) \n",
+        "\n",
+        "\n",
+        "# this function creates models like in this example. for practical uses, use `init_model`.\n",
+        "true_model = idem.gen_example_idem(keys[0],\n",
+        "                                   process_basis = process_basis,\n",
+        "                                   beta = jnp.array([0.0]))\n",
+        "\n",
+        "# create a 'ball' at the top left \n",
+        "alpha_0 = jnp.zeros(process_basis.nbasis).at[21].set(1.)\n",
+        "\n",
+        "\n",
+        "T = 6\n",
+        "nobs = 100\n",
+        "\n",
+        "coords = jax.random.uniform(\n",
+        "                keys[0],\n",
+        "                shape=(nobs, 2),\n",
+        "                minval=0,\n",
+        "                maxval=1,\n",
+        "            )\n",
+        "times = jnp.repeat(jnp.arange(1, T + 1), coords.shape[0])\n",
+        "rep_coords = jnp.tile(coords, (T, 1))\n",
+        "x = rep_coords[:,0]\n",
+        "y = rep_coords[:,1]\n",
+        "\n",
+        "\n",
+        "process_data, obs_data = true_model.simulate(keys[1], x, y, times, alpha_0 = alpha_0)\n",
+        "\n",
+        "process_data.save_plot(\"figure/simple_idem_process.png\")\n",
+        "obs_data.save_plot(\"figure/simple_idem_obs.png\")\n",
+        "true_model.kernel.save_plot(\"figure/simple_idem_kernel.png\")"
+      ],
+      "id": "446f6244",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "::: {#fig-process layout-ncol=3}\n",
+        "\n",
+        "![Process](figure/simple_idem_process.png)\n",
+        "\n",
+        "![Observations](figure/simple_idem_obs.png)\n",
+        "\n",
+        "![Kernel Direction](figure/simple_idem_kernel.png)\n",
+        "\n",
+        "An example IDEM simulation, with the underlying process (left), noisy observations randomly placed at each time interval (center), and the direction of 'flow' dictated by the kernel (right). \n",
+        "\n",
+        ":::\n",
+        "\n",
+        "\n",
+        "Now the parameters of the model can be seen in `Model.params`;"
+      ],
+      "id": "5dbaf681"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "idem.print_params(true_model.params)"
+      ],
+      "id": "173c496a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "These are the true values of the parameters.\n",
+        "Let's make a new model which we will fit to the truth;"
+      ],
+      "id": "a6c3c79a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "model_0 = idem.init_model(obs_data,\n",
+        "                          basis_type = 'bisquare',\n",
+        "                          basis_args=[1, 4], # 1 resolution 4x4 knots\n",
+        "                          k_spat_inv = True)\n",
+        "\n",
+        "idem.print_params(model_0.params)"
+      ],
+      "id": "491ad7b8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "In this case, the only parameters that are wrong are the offsets; the direction of flow, and the variances.\n",
+        "\n",
+        "In this example, we'll use a strong prior on the shape, scale, and beta; in practical examples, a strong prior on shape and scale, perhaps around the MLE, is usually a good idea."
+      ],
+      "id": "7dbe3237"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "true_params = true_model.params\n",
+        "\n",
+        "def log_prior(params):\n",
+        "    return (-0.5*(params.trans_kernel_params[0] - true_params.trans_kernel_params[0])**2/0.1**2\n",
+        "            -0.5*(params.trans_kernel_params[1] - true_params.trans_kernel_params[1])**2/0.1**2\n",
+        "#            -0.5*(params.trans_kernel_params[2] - 0.0)**2/3**2\n",
+        "#            -0.5*(params.trans_kernel_params[3] - 0.0)**2/3**2\n",
+        "            -0.5*(params.beta - true_params.beta)**2/0.1**2)[0]"
+      ],
+      "id": "51ad97dc",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can now get the marginal log-likelihood, and construct the log posterior"
+      ],
+      "id": "9b43efce"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "log_marginal = model_0.get_log_like(obs_data, method=\"sqinf\", likelihood='partial')\n",
+        "\n",
+        "\n",
+        "def log_post(params): return log_prior(params) + log_marginal(params)"
+      ],
+      "id": "546c57f5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can know do with this anything; for example, here is a NUTS chain from BLACKJAX"
+      ],
+      "id": "eef044a2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "rng_key = jax.random.PRNGKey(42)\n",
+        "\n",
+        "import blackjax\n",
+        "\n",
+        "step_size = 1e-2\n",
+        "imm = jnp.ones(model_0.nparams)\n",
+        "\n",
+        "nuts = blackjax.nuts(log_post, step_size, imm)\n",
+        "\n",
+        "init_nuts_state = nuts.init(model_0.params)\n",
+        "\n",
+        "def nuts_step(state, key):\n",
+        "    new_state,_ = nuts.step(key, state)\n",
+        "    return new_state, new_state\n",
+        "\n",
+        "n = 50\n",
+        "keys = jax.random.split(rng_key, n)\n",
+        "\n",
+        "_, chain = jax.lax.scan(nuts_step, init_nuts_state, keys)"
+      ],
+      "id": "f6874d1a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can extract the offset parameters like so, and make a trajectory plot from them;"
+      ],
+      "id": "7c8abae2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "offset_sample = jnp.hstack(chain.position.trans_kernel_params[2:])\n",
+        "\n",
+        "res_mean = jnp.mean(offset_sample, axis=0)\n",
+        "res_cov = jnp.cov(offset_sample.T)\n",
+        "\n",
+        "\n",
+        "print(res_mean)\n",
+        "print(res_cov)"
+      ],
+      "id": "07e9459c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| code-fold: true\n",
+        "import plotly.graph_objects as go\n",
+        "\n",
+        "x, y = offset_sample[:, 0], offset_sample[:, 1]\n",
+        "\n",
+        "fig = go.Figure()\n",
+        "\n",
+        "# Add trajectory line\n",
+        "fig.add_trace(go.Scatter(\n",
+        "    x=x, y=y,\n",
+        "    mode='lines+markers',\n",
+        "    line=dict(color='blue'),\n",
+        "    marker=dict(size=2),\n",
+        "    name='Trajectory'\n",
+        "))\n",
+        "\n",
+        "fig.add_trace(go.Scatter(\n",
+        "    x=[x[0]], y=[y[0]],\n",
+        "    mode='markers',\n",
+        "    marker=dict(size=10, color='green'),\n",
+        "    name='Start'\n",
+        "))\n",
+        "\n",
+        "\n",
+        "fig.add_trace(go.Scatter(\n",
+        "    x=[-0.1], y=[0.1],\n",
+        "    mode='markers',\n",
+        "    marker=dict(size=10, color='yellow'),\n",
+        "    name='Truth'\n",
+        "))\n",
+        "\n",
+        "fig.add_trace(go.Scatter(\n",
+        "    x=[x[-1]], y=[y[-1]],\n",
+        "    mode='markers',\n",
+        "    marker=dict(size=10, color='red'),\n",
+        "    name='End'\n",
+        "))\n",
+        "\n",
+        "# Layout settings\n",
+        "fig.update_layout(\n",
+        "    title='HMC Trajectory (64 bit)',\n",
+        "    xaxis_title='X_1',\n",
+        "    yaxis_title='X_2',\n",
+        "    showlegend=True,\n",
+        "    width=700,\n",
+        "    height=600\n",
+        ")\n",
+        "\n",
+        "fig.show()"
+      ],
+      "id": "d8ba64ea",
+      "execution_count": null,
+      "outputs": []
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

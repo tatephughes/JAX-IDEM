@@ -627,7 +627,9 @@ def sqrt_information_filter(
             #chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
 
             # or
-            
+
+            # CHANGE THIS TO THE CHOLESKY VERSION
+            # Its way faster (on GPU) and seems about as stable
             Ui_t = qr_R(st(R_pred.T, PHI.T, lower=True), sigma_eps)
             #chol_Sigma_t = jnp.linalg.cholesky(R_t.T @ R_t)
 
