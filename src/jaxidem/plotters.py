@@ -11,9 +11,12 @@ from jaxtyping import ArrayLike, PyTree
 from typing import Callable, NamedTuple
 
 from jaxidem.utils import st_data
+from jaxidem.idem import Kernel
+
+from jaxidem.utils import create_grid
 
 import plotly.graph_objects as go
-
+import plotly.figure_factory as ff
 
 import imageio
 import os
@@ -252,9 +255,43 @@ def save_st_gif(frames, filename, apply_theme=apply_catppuccin_mocha):
     # Save each frame as PNG
     for i, frame in enumerate(frames):
         fig = go.Figure(data=frame.data)
-        fig.update_layout(...)  # match layout if needed
+        apply_theme(fig, fontsize=20)
         fig.write_image(f"frames/frame_{i:03d}.png", width=800, height=600)
 
     # Stitch into GIF
     images = [imageio.imread(f"frames/frame_{i:03d}.png") for i in range(len(frames))]
-    imageio.mimsave(filename, images, duration=0.1)  # duration in seconds per frame
+    imageio.mimsave(filename, images, duration=0.1, loop=0)  # duration in seconds per frame
+
+
+def kernel_plot(kernel):
+
+    """
+    Half-finished; how do i determing the bounds?
+    """
+    
+    @jax.vmap
+    def offset(s):
+        return -jnp.array(
+            [
+                kernel.params[2] @ kernel.basis[2].vfun(s),
+                kernel.params[3] @ kernel.basis[3].vfun(s),
+            ]
+        )
+
+    bounds = jnp.array([[0, 1], [0, 1]])
+    grid = create_grid(bounds, jnp.array([10, 10])).coords
+    x, y = grid[:, 0], grid[:, 1]
+    offsets = offset(grid)
+    dx, dy = offsets[:, 0], offsets[:, 1]
+
+    fig = ff.create_quiver(x, y, dx*5, dy*5)
+
+    fig.update_layout(
+        xaxis=dict(scaleanchor="y", showgrid=True, zeroline=False),
+        yaxis=dict(showgrid=True, zeroline=False),
+        margin=dict(t=20, b=20, l=20, r=20)
+    )
+    
+    return fig
+
+    

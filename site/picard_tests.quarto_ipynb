@@ -50,7 +50,7 @@
         "\n",
         "Here is a very simple example of a RMH algorithm targetting a simple 2D Gaussian"
       ],
-      "id": "33a0ea56"
+      "id": "d69bd938"
     },
     {
       "cell_type": "code",
@@ -138,7 +138,7 @@
         "acceptance_rate = jnp.mean(accepted)\n",
         "print(f\"Acceptance rate is approximately: {100*acceptance_rate:6f}%.\")\n"
       ],
-      "id": "dd4d0b22",
+      "id": "25e85237",
       "execution_count": null,
       "outputs": []
     },
@@ -187,7 +187,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "39052438",
+      "id": "ffc2beb9",
       "execution_count": null,
       "outputs": []
     },
@@ -226,7 +226,7 @@
         "\n",
         "Now we define a function that takes a particular step function $g(\\bv X_i,W_i)$ and gives the picard map corresponding to $f(\\bv X_i,W_i) = g(\\bv X_i, W_i) - \\bv X_i$."
       ],
-      "id": "e137f2f6"
+      "id": "84ab5f58"
     },
     {
       "cell_type": "code",
@@ -244,7 +244,7 @@
         "        return jnp.vstack([init_state, cumsum])\n",
         "    return picard_map"
       ],
-      "id": "6add9989",
+      "id": "627c0955",
       "execution_count": null,
       "outputs": []
     },
@@ -256,7 +256,7 @@
         "\n",
         "# JIT-Luc Picard"
       ],
-      "id": "5ebe8167"
+      "id": "77456663"
     },
     {
       "cell_type": "code",
@@ -310,7 +310,7 @@
         "\n",
         "print(f\"\\nStandard sequential RMH took {seq_time:.6f} seconds\")"
       ],
-      "id": "e40f3468",
+      "id": "2eccccd7",
       "execution_count": null,
       "outputs": []
     },
@@ -334,7 +334,7 @@
         "\n",
         "(note that, in my implementation, theres a bit of a quirk; K-1 steps are actually computed at once, as opposed to K.)\n"
       ],
-      "id": "3a868aef"
+      "id": "4d8f4dcf"
     },
     {
       "cell_type": "code",
@@ -406,7 +406,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "04977484",
+      "id": "2a1e4803",
       "execution_count": null,
       "outputs": []
     },
@@ -423,7 +423,7 @@
         "\n",
         "# Quick alternative"
       ],
-      "id": "dd62b470"
+      "id": "7de26e60"
     },
     {
       "cell_type": "code",
@@ -497,7 +497,7 @@
         "\n",
         "print(f\"\\nStandard sequential RMH took {seq_time:.6f} seconds\")\n"
       ],
-      "id": "5abc3c28",
+      "id": "ba7b4498",
       "execution_count": null,
       "outputs": []
     },
@@ -507,7 +507,7 @@
       "source": [
         "# Varying Acceptance Rates\n"
       ],
-      "id": "cc46af79"
+      "id": "4dba5082"
     },
     {
       "cell_type": "code",
@@ -530,7 +530,7 @@
         "df_avg = df.groupby(['prop_scale', 'K'], as_index=False).mean()\n",
         "df_avg = df_avg.drop(columns=['j', 'success'])"
       ],
-      "id": "2b095abd",
+      "id": "e32157f1",
       "execution_count": null,
       "outputs": []
     },
@@ -570,7 +570,7 @@
         "fig.update_layout(title='Time vs Acceptance Rate by K', height=500)\n",
         "fig.show()\n"
       ],
-      "id": "d53b1fe3",
+      "id": "90c966f6",
       "execution_count": null,
       "outputs": []
     }

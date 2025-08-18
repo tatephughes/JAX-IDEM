@@ -17,7 +17,7 @@
         "\n",
         "First, a simple tracking example is common for this kind of problem. This is mostly adapted from Adrien Corenflos' version."
       ],
-      "id": "4830b20a"
+      "id": "6e816710"
     },
     {
       "cell_type": "code",
@@ -78,7 +78,7 @@
         "    master_S2_eta = master_S2_eta.astype(jnp.float64)\n",
         "    master_coords = master_coords.astype(jnp.float64)"
       ],
-      "id": "930334d8",
+      "id": "f33d7efb",
       "execution_count": null,
       "outputs": []
     },
@@ -88,7 +88,7 @@
       "source": [
         "A plottable tracking model we can use to see that things are working properly."
       ],
-      "id": "ffb34c4a"
+      "id": "2c6af4f3"
     },
     {
       "cell_type": "code",
@@ -125,7 +125,7 @@
         "alphas = jnp.array(alphas)\n",
         "zs = jnp.array(zs)"
       ],
-      "id": "821958dc",
+      "id": "b1d190f2",
       "execution_count": null,
       "outputs": []
     },
@@ -335,7 +335,7 @@
         "\n",
         "    return fig\n"
       ],
-      "id": "71b58884",
+      "id": "bb6f6467",
       "execution_count": null,
       "outputs": []
     },
@@ -387,7 +387,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "2fa261e3",
+      "id": "e19ec4bd",
       "execution_count": null,
       "outputs": []
     },
@@ -399,7 +399,7 @@
         "\n",
         "## Standard Kalman Filter"
       ],
-      "id": "b41b2c02"
+      "id": "2d585dfb"
     },
     {
       "cell_type": "code",
@@ -461,7 +461,7 @@
         "\n",
         "    return filt_results"
       ],
-      "id": "ffa8bb72",
+      "id": "95533b07",
       "execution_count": null,
       "outputs": []
     },
@@ -476,7 +476,7 @@
         "\n",
         "print(f\"Log-Likelihood = {filt_results_kal['ll']}\")"
       ],
-      "id": "da066c17",
+      "id": "55d5b144",
       "execution_count": null,
       "outputs": []
     },
@@ -553,7 +553,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "3fbf5877",
+      "id": "76ed0fc7",
       "execution_count": null,
       "outputs": []
     },
@@ -563,7 +563,7 @@
       "source": [
         "## Information Filter"
       ],
-      "id": "72135560"
+      "id": "4167eed4"
     },
     {
       "cell_type": "code",
@@ -640,7 +640,7 @@
         "\n",
         "    return filt_results"
       ],
-      "id": "85549574",
+      "id": "e4ffb5de",
       "execution_count": null,
       "outputs": []
     },
@@ -655,7 +655,7 @@
         "\n",
         "print(f\"Log-Likelihood = {filt_results_inf['ll']}\")"
       ],
-      "id": "c44a01ba",
+      "id": "ab01b1fb",
       "execution_count": null,
       "outputs": []
     },
@@ -665,7 +665,7 @@
       "source": [
         "## Square-root filter"
       ],
-      "id": "e49b411a"
+      "id": "a19d24f4"
     },
     {
       "cell_type": "code",
@@ -738,7 +738,7 @@
         "\n",
         "    return filt_results"
       ],
-      "id": "b4d1ce71",
+      "id": "8c6cd317",
       "execution_count": null,
       "outputs": []
     },
@@ -752,7 +752,7 @@
         "\n",
         "print(f\"Log-Likelihood = {filt_results_sqrt['ll']}\")"
       ],
-      "id": "fba8d0bd",
+      "id": "1acb11da",
       "execution_count": null,
       "outputs": []
     },
@@ -762,7 +762,7 @@
       "source": [
         "## Sqrt-information filter"
       ],
-      "id": "ad3d7ac4"
+      "id": "1882ca7a"
     },
     {
       "cell_type": "code",
@@ -862,7 +862,7 @@
         "    \n",
         "    return filt_results"
       ],
-      "id": "0d270afb",
+      "id": "f22ec629",
       "execution_count": null,
       "outputs": []
     },
@@ -877,7 +877,7 @@
         "\n",
         "print(f\"Log-Likelihood = {filt_results_sqinf['ll']}\")"
       ],
-      "id": "84209582",
+      "id": "49d5d4c5",
       "execution_count": null,
       "outputs": []
     },
@@ -888,7 +888,7 @@
         "print(jnp.allclose(filt_results_sqrt['ms'], filt_results_kal['ms']))\n",
         "print(jnp.allclose(filt_results_inf['nus'], filt_results_sqinf['nus']))"
       ],
-      "id": "49352806",
+      "id": "4779355f",
       "execution_count": null,
       "outputs": []
     },
@@ -898,7 +898,7 @@
       "source": [
         "## Parallel Filter\n"
       ],
-      "id": "a2c0eaa6"
+      "id": "bb68fa71"
     },
     {
       "cell_type": "code",
@@ -1013,7 +1013,7 @@
         "\n",
         "    return filt_results"
       ],
-      "id": "7f095456",
+      "id": "fc3050d8",
       "execution_count": null,
       "outputs": []
     },
@@ -1023,7 +1023,7 @@
       "source": [
         "filt_results_pkal = pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs)"
       ],
-      "id": "84842d45",
+      "id": "76e4e6d1",
       "execution_count": null,
       "outputs": []
     },
@@ -1033,7 +1033,7 @@
       "source": [
         "## Square-Root Parallel Filter\n"
       ],
-      "id": "adc90748"
+      "id": "421578aa"
     },
     {
       "cell_type": "code",
@@ -1178,7 +1178,7 @@
         "\n",
         "    return filt_results"
       ],
-      "id": "d9ac3148",
+      "id": "9ed71de5",
       "execution_count": null,
       "outputs": []
     },
@@ -1188,7 +1188,7 @@
       "source": [
         "filt_results_psqrt = psqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs)"
       ],
-      "id": "4130a165",
+      "id": "3605d752",
       "execution_count": null,
       "outputs": []
     },
@@ -1205,7 +1205,7 @@
         "print(f\"PKal   Log-Likelihood = {filt_results_pkal['ll']}\")\n",
         "print(f\"PSqrt  Log-Likelihood = {filt_results_psqrt['ll']}\")"
       ],
-      "id": "36999dec",
+      "id": "79a5b2e2",
       "execution_count": null,
       "outputs": []
     },
@@ -1215,7 +1215,7 @@
       "source": [
         "# Tracking Example Plot against Time"
       ],
-      "id": "ad2757a5"
+      "id": "f2b4338e"
     },
     {
       "cell_type": "code",
@@ -1268,7 +1268,7 @@
         "    template=\"plotly_white\"\n",
         ")"
       ],
-      "id": "83284eb4",
+      "id": "296d0191",
       "execution_count": null,
       "outputs": []
     },
@@ -1294,7 +1294,7 @@
         "#print(f\"SqInfo Log-Likelihood = {filt_results_sqinf['ll']}\")\n",
         "#print(f\"PKal   Log-Likelihood = {filt_results_pkal['ll']}\")"
       ],
-      "id": "171b06f2",
+      "id": "5c972792",
       "execution_count": null,
       "outputs": []
     },
@@ -1306,7 +1306,7 @@
         "\n",
         "## IDEM"
       ],
-      "id": "dda279dd"
+      "id": "1981998c"
     },
     {
       "cell_type": "code",
@@ -1399,7 +1399,7 @@
         ")\n",
         "fig.show()"
       ],
-      "id": "3836ae2c",
+      "id": "877291e7",
       "execution_count": null,
       "outputs": []
     },
@@ -1419,7 +1419,7 @@
         ")\n",
         "fig.show()"
       ],
-      "id": "120fd83f",
+      "id": "dd4e7f4d",
       "execution_count": null,
       "outputs": []
     },
@@ -1437,7 +1437,7 @@
         "\n",
         ":::"
       ],
-      "id": "8048af49"
+      "id": "0a89476c"
     },
     {
       "cell_type": "code",
@@ -1478,7 +1478,7 @@
         "\n",
         "df = pd.DataFrame(data, columns=[\"Method\", \"Device\", \"Compile Time (s)\", \"Average Time (ms)\", \"Log Likelihood\"])"
       ],
-      "id": "4a23e5c6",
+      "id": "56aabda0",
       "execution_count": null,
       "outputs": []
     },
@@ -1495,7 +1495,7 @@
         "\n",
         "print(df.to_markdown(index=False))"
       ],
-      "id": "dd9e61fc",
+      "id": "e24d3866",
       "execution_count": null,
       "outputs": []
     },
@@ -1505,7 +1505,7 @@
       "source": [
         "## Observation dimension vs. compute time"
       ],
-      "id": "35aaff91"
+      "id": "66cd35da"
     },
     {
       "cell_type": "code",
@@ -1564,7 +1564,7 @@
         "\n",
         "apply_catppuccin_mocha(fig, fontsize=20)"
       ],
-      "id": "56c347a1",
+      "id": "de8a40e4",
       "execution_count": null,
       "outputs": []
     },
@@ -1576,7 +1576,7 @@
         "fig.write_image(\"figure/vary_n.png\")\n",
         "fig.show()"
       ],
-      "id": "e08f4847",
+      "id": "273ebe8e",
       "execution_count": null,
       "outputs": []
     }

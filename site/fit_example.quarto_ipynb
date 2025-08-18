@@ -32,7 +32,7 @@
         "\n",
         "We will start by simulating from a simple IDEM with only three time steps. We can quickly make a model using ```gen_example_idem```"
       ],
-      "id": "006ee7ad"
+      "id": "320d9517"
     },
     {
       "cell_type": "code",
@@ -51,7 +51,7 @@
         "import jaxidem.utils as utils\n",
         "import jaxidem.filters as filts"
       ],
-      "id": "fb506e15",
+      "id": "7ec9865b",
       "execution_count": null,
       "outputs": []
     },
@@ -82,7 +82,7 @@
         "process_data.save_plot(\"true_process.png\")\n",
         "obs_data.save_plot(\"synthetic_data.png\")"
       ],
-      "id": "dcd98903",
+      "id": "37d26901",
       "execution_count": null,
       "outputs": []
     },
@@ -107,7 +107,7 @@
         "\n",
         "Now, after we initialise with a 'guess' baseline model, we can use ```idem.IDEM_model.fit_kalman_filter``` (recomended for fixed data observation locations) or ```fit_information_filter``` to fit the model to the synthetic data."
       ],
-      "id": "1c3a7cff"
+      "id": "baa178a7"
     },
     {
       "cell_type": "code",
@@ -136,7 +136,7 @@
         "                   sigma2_eps = 0.01**2,\n",
         "                   beta = jnp.array([0.0, 0.0, 0.0]),)"
       ],
-      "id": "b27b7256",
+      "id": "cd82bbad",
       "execution_count": null,
       "outputs": []
     },
@@ -146,7 +146,7 @@
       "source": [
         "For context, the true values of the kernel parameters are"
       ],
-      "id": "3f808d43"
+      "id": "bc4769e2"
     },
     {
       "cell_type": "code",
@@ -155,7 +155,7 @@
         "#| eval: false\n",
         "print(truemodel.kernel.params)"
       ],
-      "id": "180f9c95",
+      "id": "afa67695",
       "execution_count": null,
       "outputs": []
     },
@@ -167,7 +167,7 @@
         "\n",
         "The fitting functions output new ```IDEM_Model``` objects, generated using OPTAX to optimise for the likelihood."
       ],
-      "id": "4e68d1cd"
+      "id": "7c7d7edd"
     },
     {
       "cell_type": "code",
@@ -193,7 +193,7 @@
         "print(model1.kernel.params)\n",
         "print(truemodel.kernel.params)"
       ],
-      "id": "5a838390",
+      "id": "978e676d",
       "execution_count": null,
       "outputs": []
     },
@@ -211,7 +211,7 @@
         "print(ll)\n",
         "print(model1.beta)"
       ],
-      "id": "53ba4f6a",
+      "id": "f851598e",
       "execution_count": null,
       "outputs": []
     }

@@ -65,7 +65,7 @@
         "\n",
         "We will fit to the same data, using as much the same as possible, fitting to target the same likelihood as a stopping rule, where we can then compare the time and parameters between the two implementations."
       ],
-      "id": "58bd2e94"
+      "id": "b335f984"
     },
     {
       "cell_type": "code",
@@ -126,7 +126,7 @@
         "                    sigma2_eps = jnp.var(ztilde),\n",
         "                    beta = betahat,)"
       ],
-      "id": "775128ac",
+      "id": "bb18897e",
       "execution_count": null,
       "outputs": []
     },
@@ -159,7 +159,7 @@
         "print(\"\\nFitted parameters are: \\n\", idem.format_params(params))\n",
         "print(f\"with ll {model1.kalman_filter(obs_data, X_obs=X_obs, likelihood = 'partial')[0].tolist()}\")"
       ],
-      "id": "f76a76ae",
+      "id": "b5fc3ba8",
       "execution_count": null,
       "outputs": []
     }

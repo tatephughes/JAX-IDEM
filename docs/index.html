@@ -72,10 +72,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-bc185b5c5bdbcb35c2eb49d8a876ef70.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-991b1886d3c685c7aa2b62b80640c7af.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-8efe912791747f478df3a2454da72ac3.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <script src="site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
 <link href="site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
 <link href="site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
@@ -214,7 +214,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<div id="6b26f988" class="cell" data-execution_count="1">
+<div id="7e00d8cf" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
@@ -224,70 +224,91 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jaxidem.idem <span class="im">as</span> idem</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> PIL <span class="im">import</span> Image, ImageSequence</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>seed <span class="op">=</span> <span class="dv">4</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(seed)</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>keys <span class="op">=</span> jax.random.split(key, <span class="dv">10</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jaxidem.plotters <span class="im">import</span> <span class="op">*</span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>process_basis <span class="op">=</span> utils.place_cosine_basis(N <span class="op">=</span> <span class="dv">10</span>)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">#process_basis = utils.place_basis()</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>sigma2_eta <span class="op">=</span> jnp.diag((<span class="fl">0.01</span><span class="op">*</span>jnp.ones(process_basis.nbasis)).at[<span class="dv">1</span>].<span class="bu">set</span>(<span class="fl">40.0</span>).at[<span class="dv">30</span>].<span class="bu">set</span>(<span class="fl">80.0</span>).at[<span class="dv">31</span>].<span class="bu">set</span>(<span class="fl">60.0</span>))</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co">#sigma2_eta = 0.01</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>covariate_labels<span class="op">=</span>[<span class="st">'Intercept'</span>, <span class="st">'x'</span>, <span class="st">'y'</span>]</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> idem.gen_example_idem(keys[<span class="dv">0</span>], k_spat_inv<span class="op">=</span><span class="va">False</span>, ngrid<span class="op">=</span>jnp.array([<span class="dv">40</span>, <span class="dv">40</span>]), process_basis <span class="op">=</span> process_basis, sigma2_eta <span class="op">=</span> sigma2_eta, covariate_labels<span class="op">=</span>covariate_labels)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>seed <span class="op">=</span> <span class="dv">4</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(seed)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>keys <span class="op">=</span> jax.random.split(key, <span class="dv">10</span>)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>process_basis <span class="op">=</span> utils.place_cosine_basis(N <span class="op">=</span> <span class="dv">10</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co">#process_basis = utils.place_basis()</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>sigma2_eta <span class="op">=</span> jnp.diag((<span class="fl">0.01</span><span class="op">*</span>jnp.ones(process_basis.nbasis)).at[<span class="dv">1</span>].<span class="bu">set</span>(<span class="fl">40.0</span>).at[<span class="dv">30</span>].<span class="bu">set</span>(<span class="fl">80.0</span>).at[<span class="dv">31</span>].<span class="bu">set</span>(<span class="fl">60.0</span>))</span>
 <span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulation</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>T <span class="op">=</span> <span class="dv">35</span></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>nobs <span class="op">=</span> <span class="dv">50</span></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>coords <span class="op">=</span> jax.random.uniform(</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>                keys[<span class="dv">0</span>],</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>                shape<span class="op">=</span>(nobs, <span class="dv">2</span>),</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>                minval<span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>                maxval<span class="op">=</span><span class="dv">1</span>,</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>times <span class="op">=</span> jnp.repeat(jnp.arange(<span class="dv">1</span>, T <span class="op">+</span> <span class="dv">1</span>), coords.shape[<span class="dv">0</span>])</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>rep_coords <span class="op">=</span> jnp.tile(coords, (T, <span class="dv">1</span>))</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rep_coords[:,<span class="dv">0</span>]</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rep_coords[:,<span class="dv">1</span>]</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co">#sigma2_eta = 0.01</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>covariate_labels<span class="op">=</span>[<span class="st">'Intercept'</span>, <span class="st">'x'</span>, <span class="st">'y'</span>]</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> idem.gen_example_idem(keys[<span class="dv">0</span>], k_spat_inv<span class="op">=</span><span class="va">False</span>, ngrid<span class="op">=</span>jnp.array([<span class="dv">40</span>, <span class="dv">40</span>]), process_basis <span class="op">=</span> process_basis, sigma2_eta <span class="op">=</span> sigma2_eta, covariate_labels<span class="op">=</span>covariate_labels)</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulation</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>T <span class="op">=</span> <span class="dv">35</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>nobs <span class="op">=</span> <span class="dv">50</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>coords <span class="op">=</span> jax.random.uniform(</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>                keys[<span class="dv">0</span>],</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>                shape<span class="op">=</span>(nobs, <span class="dv">2</span>),</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>                minval<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>                maxval<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>            )</span>
 <span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>process_data, obs_data <span class="op">=</span> model.simulate(keys[<span class="dv">1</span>], x, y, times,</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>                                        covariates <span class="op">=</span> jnp.column_stack([x,y]))</span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>dpi <span class="op">=</span> <span class="dv">200</span></span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">576</span> <span class="op">/</span> dpi</span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>height <span class="op">=</span> <span class="dv">480</span> <span class="op">/</span> dpi</span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a><span class="co"># plot the objects</span></span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>utils.gif_st_grid(process_data, <span class="st">"site/figure/process.gif"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>utils.gif_st_pts(obs_data, <span class="st">"site/figure/obs.gif"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>model.kernel.save_plot(<span class="st">"site/figure/kernel.png"</span>, width<span class="op">=</span>width, height<span class="op">=</span>height)</span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>gif1 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'site/figure/process.gif'</span>)</span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>gif2 <span class="op">=</span> Image.<span class="bu">open</span>(<span class="st">'site/figure/tardis.gif'</span>)</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>width, height <span class="op">=</span> gif1.size</span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>frames <span class="op">=</span> []</span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>num_frames_gif1 <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(ImageSequence.Iterator(gif1)))</span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>num_frames_gif2 <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(ImageSequence.Iterator(gif2)))</span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>max_frames <span class="op">=</span> <span class="bu">max</span>(num_frames_gif1, num_frames_gif2)</span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(max_frames):</span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>    frame1 <span class="op">=</span> ImageSequence.Iterator(gif1)[i <span class="op">%</span> num_frames_gif1].convert(<span class="st">"RGBA"</span>)</span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    frame2 <span class="op">=</span> ImageSequence.Iterator(gif2)[i <span class="op">%</span> num_frames_gif2].convert(<span class="st">"RGBA"</span>)</span>
-<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>    frame2 <span class="op">=</span> frame2.resize((width, height), Image.LANCZOS)</span>
-<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>    combined <span class="op">=</span> Image.alpha_composite(frame1, frame2)</span>
-<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>    frames.append(combined)</span>
-<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>frames[<span class="dv">0</span>].save(<span class="st">'site/figure/process.gif'</span>, save_all<span class="op">=</span><span class="va">True</span>, append_images<span class="op">=</span>frames[<span class="dv">1</span>:], duration<span class="op">=</span>gif1.info[<span class="st">'duration'</span>], loop<span class="op">=</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>times <span class="op">=</span> jnp.repeat(jnp.arange(<span class="dv">1</span>, T <span class="op">+</span> <span class="dv">1</span>), coords.shape[<span class="dv">0</span>])</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>rep_coords <span class="op">=</span> jnp.tile(coords, (T, <span class="dv">1</span>))</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rep_coords[:,<span class="dv">0</span>]</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rep_coords[:,<span class="dv">1</span>]</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>process_data, obs_data <span class="op">=</span> model.simulate(keys[<span class="dv">1</span>], x, y, times,</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>                                        covariates <span class="op">=</span> jnp.column_stack([x,y]))</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>dpi <span class="op">=</span> <span class="dv">200</span></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">576</span> <span class="op">/</span> dpi</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>height <span class="op">=</span> <span class="dv">480</span> <span class="op">/</span> dpi</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="co"># plot the objects</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a><span class="co">#utils.gif_st_grid(process_data, "site/figure/process.gif", width=width, height=height)</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a><span class="co">#utils.gif_st_pts(obs_data, "site/figure/obs.gif", width=width, height=height)</span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a><span class="co">#model.kernel.save_plot("site/figure/kernel.png", width=width, height=height)</span></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a><span class="co">#gif1 = Image.open('site/figure/process.gif')</span></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a><span class="co">#gif2 = Image.open('site/figure/tardis.gif')</span></span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a><span class="co">#width, height = gif1.size</span></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a><span class="co">#frames = []</span></span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a><span class="co">#num_frames_gif1 = len(list(ImageSequence.Iterator(gif1)))</span></span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a><span class="co">#num_frames_gif2 = len(list(ImageSequence.Iterator(gif2)))</span></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a><span class="co">#max_frames = max(num_frames_gif1, num_frames_gif2)</span></span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a><span class="co">#for i in range(max_frames):</span></span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a><span class="co">#    frame1 = ImageSequence.Iterator(gif1)[i % num_frames_gif1].convert("RGBA")</span></span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a><span class="co">#    frame2 = ImageSequence.Iterator(gif2)[i % num_frames_gif2].convert("RGBA")</span></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a><span class="co">#    frame2 = frame2.resize((width, height), Image.LANCZOS)</span></span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a><span class="co">#    </span></span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a><span class="co">#    combined = Image.alpha_composite(frame1, frame2)</span></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a><span class="co">#    frames.append(combined)</span></span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a><span class="co">#frames[0].save('site/figure/process.gif', save_all=True, append_images=frames[1:], duration=gif1.info['duration'], loop=0)</span></span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>proc_frames <span class="op">=</span> plotly_st_grid(process_data)</span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>obs_frames <span class="op">=</span> plotly_st_scatter(obs_data)</span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>proc_fig <span class="op">=</span> make_interactive_fig(proc_frames)</span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>obs_fig <span class="op">=</span> make_interactive_fig(obs_frames)</span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>kernel_fig <span class="op">=</span> kernel_plot(model.kernel)</span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a>apply_catppuccin_mocha(proc_fig, fontsize<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a>apply_catppuccin_mocha(obs_fig, fontsize<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>apply_catppuccin_mocha(kernel_fig, fontsize<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a>save_st_gif(proc_frames, <span class="st">"site/figure/proc2.gif"</span>, apply_theme<span class="op">=</span>apply_catppuccin_mocha)</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a>save_st_gif(obs_frames, <span class="st">"site/figure/obs2.gif"</span>, apply_theme<span class="op">=</span>apply_catppuccin_mocha)</span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a>kernel_fig.write_image(<span class="st">"site/figure/kernel.png"</span>, <span class="bu">format</span><span class="op">=</span><span class="st">"png"</span>, scale<span class="op">=</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div id="fig-example" class="quarto-layout-panel">
@@ -297,7 +318,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><a href="site/figure/process.gif" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Process"><img src="site/figure/process.gif" class="img-fluid figure-img"></a></p>
+<p><a href="site/figure/proc2.gif" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Process"><img src="site/figure/proc2.gif" class="img-fluid figure-img"></a></p>
 <figcaption>Process</figcaption>
 </figure>
 </div>
@@ -305,7 +326,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><a href="site/figure/obs.gif" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="Observations"><img src="site/figure/obs.gif" class="img-fluid figure-img"></a></p>
+<p><a href="site/figure/obs2.gif" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="Observations"><img src="site/figure/obs2.gif" class="img-fluid figure-img"></a></p>
 <figcaption>Observations</figcaption>
 </figure>
 </div>
