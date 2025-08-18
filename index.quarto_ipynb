@@ -23,7 +23,7 @@
         "bibliography: site/Bibliography.bib\n",
         "---"
       ],
-      "id": "3f1acffa"
+      "id": "03421070"
     },
     {
       "cell_type": "code",
@@ -104,7 +104,7 @@
         "\n",
         "frames[0].save('site/figure/process.gif', save_all=True, append_images=frames[1:], duration=gif1.info['duration'], loop=0)"
       ],
-      "id": "04ab856f",
+      "id": "a88acfbb",
       "execution_count": null,
       "outputs": []
     },
@@ -140,7 +140,7 @@
         "\n",
         "[Sydney Radar example](site/Sydney_Radar.html)\n"
       ],
-      "id": "97b24db3"
+      "id": "591998c5"
     }
   ],
   "metadata": {
@@ -148,7 +148,7 @@
       "name": "python3",
       "language": "python",
       "display_name": "Python 3 (ipykernel)",
-      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+      "path": "/home/tate/.virtualenvs/jax-cuda/share/jupyter/kernels/python3"
     }
   },
   "nbformat": 4,

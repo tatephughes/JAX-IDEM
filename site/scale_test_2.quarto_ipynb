@@ -8,7 +8,7 @@
         "title: \"More scaling tests\"\n",
         "---"
       ],
-      "id": "8667f3e5"
+      "id": "a6bde49a"
     },
     {
       "cell_type": "code",
@@ -40,7 +40,7 @@
         "\n",
         "fig.show() "
       ],
-      "id": "73307c35",
+      "id": "129d0f15",
       "execution_count": null,
       "outputs": []
     }
@@ -50,7 +50,7 @@
       "name": "python3",
       "language": "python",
       "display_name": "Python 3 (ipykernel)",
-      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+      "path": "/home/tate/.virtualenvs/jax-cuda/share/jupyter/kernels/python3"
     }
   },
   "nbformat": 4,

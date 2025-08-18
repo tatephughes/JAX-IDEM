@@ -26,7 +26,7 @@
         "\n",
         "We create a simple model with downward-movement and diffusion, on 16 bisquare basis functions."
       ],
-      "id": "e1ad1d65"
+      "id": "74ee999b"
     },
     {
       "cell_type": "code",
@@ -79,7 +79,7 @@
         "obs_data.save_plot(\"figure/simple_idem_obs.png\")\n",
         "true_model.kernel.save_plot(\"figure/simple_idem_kernel.png\")"
       ],
-      "id": "01e0b78e",
+      "id": "8740dc7d",
       "execution_count": null,
       "outputs": []
     },
@@ -102,7 +102,7 @@
         "\n",
         "Now the parameters of the model can be seen in `Model.params`;"
       ],
-      "id": "93c509d9"
+      "id": "28d922d3"
     },
     {
       "cell_type": "code",
@@ -110,7 +110,7 @@
       "source": [
         "idem.print_params(true_model.params)"
       ],
-      "id": "bd4193d9",
+      "id": "4cdf2245",
       "execution_count": null,
       "outputs": []
     },
@@ -121,7 +121,7 @@
         "These are the true values of the parameters.\n",
         "Let's make a new model which we will fit to the truth;"
       ],
-      "id": "d3df6ed5"
+      "id": "df1f4bf4"
     },
     {
       "cell_type": "code",
@@ -134,7 +134,7 @@
         "\n",
         "idem.print_params(model_0.params)"
       ],
-      "id": "1f7094dd",
+      "id": "f90d9822",
       "execution_count": null,
       "outputs": []
     },
@@ -146,7 +146,7 @@
         "\n",
         "In this example, we'll use a strong prior on the shape, scale, and beta; in practical examples, a strong prior on shape and scale, perhaps around the MLE, is usually a good idea."
       ],
-      "id": "807e8fa9"
+      "id": "36d64e34"
     },
     {
       "cell_type": "code",
@@ -161,7 +161,7 @@
         "#            -0.5*(params.trans_kernel_params[3] - 0.0)**2/3**2\n",
         "            -0.5*(params.beta - true_params.beta)**2/0.1**2)[0]"
       ],
-      "id": "91f2473c",
+      "id": "d965b220",
       "execution_count": null,
       "outputs": []
     },
@@ -171,7 +171,7 @@
       "source": [
         "We can now get the marginal log-likelihood, and construct the log posterior"
       ],
-      "id": "b52abf62"
+      "id": "4866952d"
     },
     {
       "cell_type": "code",
@@ -182,7 +182,7 @@
         "\n",
         "def log_post(params): return log_prior(params) + log_marginal(params)"
       ],
-      "id": "d1d9c82f",
+      "id": "a3da6b7d",
       "execution_count": null,
       "outputs": []
     },
@@ -192,7 +192,7 @@
       "source": [
         "We can know do with this anything; for example, here is a NUTS chain from BLACKJAX"
       ],
-      "id": "b221f406"
+      "id": "3770a2e3"
     },
     {
       "cell_type": "code",
@@ -218,7 +218,7 @@
         "\n",
         "_, chain = jax.lax.scan(nuts_step, init_nuts_state, keys)"
       ],
-      "id": "a9f0d6f2",
+      "id": "1c66c0ab",
       "execution_count": null,
       "outputs": []
     },
@@ -228,7 +228,7 @@
       "source": [
         "We can extract the offset parameters like so, and make a trajectory plot from them;"
       ],
-      "id": "c37dccd9"
+      "id": "8bdc7f64"
     },
     {
       "cell_type": "code",
@@ -243,7 +243,7 @@
         "print(res_mean)\n",
         "print(res_cov)"
       ],
-      "id": "683f1834",
+      "id": "fd84e1c5",
       "execution_count": null,
       "outputs": []
     },
@@ -301,7 +301,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "b2f57945",
+      "id": "6592be98",
       "execution_count": null,
       "outputs": []
     },
@@ -313,7 +313,7 @@
         "\n",
         "We create a simple model with downward-movement and diffusion, on 16 bisquare basis functions."
       ],
-      "id": "d82ec9fc"
+      "id": "c4997739"
     },
     {
       "cell_type": "code",
@@ -366,7 +366,7 @@
         "obs_data.save_plot(\"figure/simple_idem_obs.png\")\n",
         "true_model.kernel.save_plot(\"figure/simple_idem_kernel.png\")"
       ],
-      "id": "6dfe751c",
+      "id": "ac0028a7",
       "execution_count": null,
       "outputs": []
     },
@@ -389,7 +389,7 @@
         "\n",
         "Now the parameters of the model can be seen in `Model.params`;"
       ],
-      "id": "bbf8af0b"
+      "id": "304e6e4b"
     },
     {
       "cell_type": "code",
@@ -397,7 +397,7 @@
       "source": [
         "idem.print_params(true_model.params)"
       ],
-      "id": "3f2f98f6",
+      "id": "b836f713",
       "execution_count": null,
       "outputs": []
     },
@@ -408,7 +408,7 @@
         "These are the true values of the parameters.\n",
         "Let's make a new model which we will fit to the truth;"
       ],
-      "id": "bd3b1e2d"
+      "id": "7ba55cad"
     },
     {
       "cell_type": "code",
@@ -421,7 +421,7 @@
         "\n",
         "idem.print_params(model_0.params)"
       ],
-      "id": "f49ca696",
+      "id": "d18c4517",
       "execution_count": null,
       "outputs": []
     },
@@ -433,7 +433,7 @@
         "\n",
         "In this example, we'll use a strong prior on the shape, scale, and beta; in practical examples, a strong prior on shape and scale, perhaps around the MLE, is usually a good idea."
       ],
-      "id": "99a352e6"
+      "id": "c6fa54e2"
     },
     {
       "cell_type": "code",
@@ -448,7 +448,7 @@
         "#            -0.5*(params.trans_kernel_params[3] - 0.0)**2/3**2\n",
         "            -0.5*(params.beta - true_params.beta)**2/0.1**2)[0]"
       ],
-      "id": "bc33e910",
+      "id": "eef63bfb",
       "execution_count": null,
       "outputs": []
     },
@@ -458,7 +458,7 @@
       "source": [
         "We can now get the marginal log-likelihood, and construct the log posterior"
       ],
-      "id": "08cf6389"
+      "id": "dbcb4134"
     },
     {
       "cell_type": "code",
@@ -469,7 +469,7 @@
         "\n",
         "def log_post(params): return log_prior(params) + log_marginal(params)"
       ],
-      "id": "628ff6bf",
+      "id": "4517c102",
       "execution_count": null,
       "outputs": []
     },
@@ -479,7 +479,7 @@
       "source": [
         "We can know do with this anything; for example, here is a NUTS chain from BLACKJAX"
       ],
-      "id": "f188a8f9"
+      "id": "da9bc51d"
     },
     {
       "cell_type": "code",
@@ -505,7 +505,7 @@
         "\n",
         "_, chain = jax.lax.scan(nuts_step, init_nuts_state, keys)"
       ],
-      "id": "eb6e5051",
+      "id": "5872bb27",
       "execution_count": null,
       "outputs": []
     },
@@ -515,7 +515,7 @@
       "source": [
         "We can extract the offset parameters like so, and make a trajectory plot from them;"
       ],
-      "id": "69bce784"
+      "id": "6d100a85"
     },
     {
       "cell_type": "code",
@@ -530,7 +530,7 @@
         "print(res_mean)\n",
         "print(res_cov)"
       ],
-      "id": "e6ddf594",
+      "id": "8d3dfcb2",
       "execution_count": null,
       "outputs": []
     },
@@ -588,7 +588,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "abe7acd5",
+      "id": "2f80f70d",
       "execution_count": null,
       "outputs": []
     }
@@ -598,7 +598,7 @@
       "name": "python3",
       "language": "python",
       "display_name": "Python 3 (ipykernel)",
-      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+      "path": "/home/tate/.virtualenvs/jax-cuda/share/jupyter/kernels/python3"
     }
   },
   "nbformat": 4,

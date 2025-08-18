@@ -106,6 +106,211 @@ zs = jnp.array(zs)
 ```
 
 ```{python}
+#| code-fold: true
+# Theming
+# Define Catppuccin palettes
+
+# Catppuccin Mocha palette
+cat = {
+    "base": "#181825",
+    "mantle": "#181825",
+    "crust": "#11111b",
+    "text": "#cdd6f4",
+    "subtext1": "#bac2de",
+    "surface0": "#313244",
+    "surface1": "#45475a",
+    "overlay0": "#6c7086",
+    "blue": "#89b4fa",
+    "lavender": "#b4befe",
+    "sky": "#89dceb",
+    "teal": "#94e2d5",
+    "green": "#a6e3a1",
+    "yellow": "#f9e2af",
+    "peach": "#fab387",
+    "maroon": "#eba0ac",
+    "red": "#f38ba8",
+    "mauve": "#cba6f7",
+    "pink": "#f5c2e7",
+    "flamingo": "#f2cdcd",
+    "rosewater": "#f5e0dc",
+}
+
+# applies the theme to a figure
+def apply_catppuccin_mocha(fig, fontsize):
+    fig.update_layout(
+        paper_bgcolor=cat["base"],
+        plot_bgcolor=cat["mantle"],
+        font=dict(color=cat["text"], size=fontsize),
+        title_font=dict(color=cat["text"]),
+    )
+    fig.update_xaxes(
+        showgrid=True, gridcolor=cat["surface0"],
+        zeroline=False, linecolor=cat["overlay0"], ticks="outside",
+        tickfont=dict(color=cat["subtext1"])
+    )
+    fig.update_yaxes(
+        showgrid=True, gridcolor=cat["surface0"],
+        zeroline=False, linecolor=cat["overlay0"], ticks="outside",
+        tickfont=dict(color=cat["subtext1"])
+    )
+    fig.update_layout(
+        annotations=[
+            ann.update(font=dict(size=fontsize)) or ann
+            for ann in fig.layout.annotations
+        ]
+    )
+
+import plotly.graph_objects as go
+
+
+# creates frames to gridded data
+def plotly_st_grid(st,
+                   title="Spatio-Temporal Field",
+                   colorscale="Viridis",
+                   sort_axes=True,      # sort unique x, y, t; set False to keep first-seen order
+                   show_colorbar=True,
+                   frame_duration=100,  # ms
+                   ):
+
+    # adapted from (and probably stolen by) an llm. Probably rethink or find a proper attributation.
+    
+    x = st.x
+    y = st.y
+    z = st.z
+    t = st.t
+
+    def unique_axis(vals):
+        if sort_axes:
+            uniq = jnp.unique(vals)
+            to_idx = lambda v: jnp.searchsorted(uniq, v)
+        else:
+            _, idx = jnp.unique(vals, return_index=True)
+            order = jnp.sort(idx)
+            uniq = vals[order]
+            mapping = {v: i for i, v in enumerate(uniq.tolist())}
+            to_idx = lambda v: jnp.fromiter((mapping[vi] for vi in v.tolist()), dtype=int)
+        return uniq, to_idx
+
+    ux, xi = unique_axis(x)
+    uy, yi = unique_axis(y)
+    ut, ti = unique_axis(t)
+
+    if callable(xi):
+        xi = xi(x)
+        yi = yi(y)
+        ti = ti(t)
+
+    nx, ny, nt = len(ux), len(uy), len(ut)
+
+    z_grid = jnp.full((nt, ny, nx), jnp.nan, dtype=float)
+    z_grid = z_grid.at[ti, yi, xi].set(z)
+
+    zmin = float(jnp.nanmin(z_grid))
+    zmax = float(jnp.nanmax(z_grid))
+    
+    frames = []
+    for i in range(nt):
+        frames.append(
+            go.Frame(
+                name=f"t = {ut[i]}",
+                data=[
+                    go.Heatmap(
+                        z=z_grid[i],
+                        x=ux,
+                        y=uy,
+                        colorscale=colorscale,
+                        zmin=zmin,
+                        zmax=zmax,
+                        colorbar=dict(title="z") if show_colorbar else None,
+                        showscale=show_colorbar,
+                    )
+                ],
+            )
+        )
+
+    return frames
+
+
+# creates frames to scattered data
+def plotly_st_scat(st,
+                   title="Spatio-Temporal Field",
+                   colorscale="Viridis",
+                   ):
+
+    T = st.T
+
+    klass = go.Scattergl
+
+    zmin = float(jnp.nanmin(st.z))
+    zmax = float(jnp.nanmax(st.z))
+
+    frames = []
+    for t in range(T):
+        x = st.coords_tree[t][:,0]
+        y = st.coords_tree[t][:,1]
+        z = st.zs_tree[t]
+
+        trace = go.Scattergl(
+            x=x.tolist(),
+            y=y.tolist(),
+            mode="markers",
+            marker=dict(
+                size = 15,
+                color=z.tolist(),
+                colorscale=colorscale,
+                cmin=zmin,
+                cmax=zmax,
+                showscale=True
+            ),
+            showlegend=False
+        )
+        frames.append(go.Frame(name=str(t), data=[trace]))
+
+
+        
+    coloraxis = dict(
+        colorscale=colorscale,
+        cmin=float(zmin),
+        cmax=float(zmax),
+        colorbar=dict(title="z")  # customize as needed
+    )
+        
+    return frames
+
+from plotly.subplots import make_subplots
+
+def make_st_fig(frames, ncols=3, spacing = [0.02, 0.02]):
+    
+    nframes = len(frames)
+    nrows = int(jnp.ceil(nframes / ncols))
+
+    fig = make_subplots(
+        rows=nrows, cols=ncols,
+        subplot_titles=[f"t = {int(ti)+1}" for ti in range(nframes)],
+        horizontal_spacing=spacing[0],
+        vertical_spacing=spacing[1]
+    )
+
+    for idx, fr in enumerate(frames):
+        row = int(jnp.floor(idx /ncols)) + 1
+        col = int(idx % ncols) + 1
+        fig.add_trace(fr.data[0], row=row, col=col)
+
+    for i in range(1, nrows * ncols + 1):
+        fig.update_xaxes(matches='x', row=(i-1)//ncols + 1, col=(i-1)%ncols + 1)
+        fig.update_yaxes(matches='y', row=(i-1)//ncols + 1, col=(i-1)%ncols + 1)
+            
+    # Also anchor y to x for square cells
+    for c in range(1, 4):
+        fig.update_yaxes(scaleanchor=f"x{c}", row=1, col=c)
+    fig.update_xaxes(constrain="domain")
+    fig.update_yaxes(scaleanchor="x", scaleratio=1.0)
+
+    return fig
+
+    
+```
+```{python}
 #| code-block-title: "Plotting the tracking data"
 #| code-fold: true
 
@@ -117,8 +322,8 @@ fig.add_trace(go.Scatter(
     x=alphas[:50, 0],
     y=alphas[:50, 1],
     mode='lines+markers',
-    name='Latent path',
-    line=dict(color='royalblue'),
+    name='Process',
+    line=dict(color=cat["blue"]),
     marker=dict(size=6)
 ))
 
@@ -127,10 +332,10 @@ fig.add_trace(go.Scatter(
     y=zs[:50, 1],
     mode='lines+markers',
     name='Observations',
-    line=dict(color='red', dash='dot', width=1),
+    line=dict(color=cat["red"], dash='dot', width=1),
     marker=dict(
         symbol='cross',
-        color='red',
+        color=cat["red"],
         size=8,
     )
 ))
@@ -141,13 +346,15 @@ fig.update_layout(
     yaxis_title='Y',
     legend=dict(x=0.02, y=0.98),
     width=700,
-    height=500
+    height=500,
+    paper_bgcolor=cat["base"],
+    plot_bgcolor=cat["base"],
+    font=dict(color=cat["text"], size=16),
 )
 
-#print("Hopefully this plot looks like a camel's back. Otherwise, precision has caused an issue.")
 fig.show()
-
 ```
+
 
 # Filters with Likelihood computation
 
@@ -242,8 +449,8 @@ fig.add_trace(go.Scatter(
     x=alphas[:50, 0],
     y=alphas[:50, 1],
     mode='lines+markers',
-    name='Latent path',
-    line=dict(color='royalblue'),
+    name='Process',
+    line=dict(color=cat["blue"]),
     marker=dict(size=6)
 ))
 
@@ -252,8 +459,8 @@ fig.add_trace(go.Scatter(
     y=zs[:50, 1],
     mode='lines+markers',
     name='Observations',
-    line=dict(color='red', dash='dot', width=1),
-    marker=dict(symbol='cross', color='red', size=8, line=dict(width=1))
+    line=dict(color=cat["red"], dash='dot', width=1),
+    marker=dict(symbol='cross', color=cat["red"], size=8, line=dict(width=1))
 ))
 
 
@@ -262,7 +469,7 @@ fig.add_trace(go.Scatter(
     y=m_y,
     mode='lines',
     name='Filtered mean',
-    line=dict(color='green', width=2)
+    line=dict(color=cat["yellow"], width=2)
 ))
 
 # Uncertainty band (±1 std) for filtered position
@@ -270,20 +477,25 @@ fig.add_trace(go.Scatter(
     x=jnp.concatenate([m_x - jnp.sqrt(s2_x), m_x[::-1] + jnp.sqrt(s2_x[::-1])]),
     y=jnp.concatenate([m_y - jnp.sqrt(s2_y), m_y[::-1] + jnp.sqrt(s2_y[::-1])]),
     fill='toself',
-    fillcolor='rgba(0, 128, 0, 0.2)',
+    fillcolor='rgba(250, 179, 135, 0.2)',
     line=dict(color='rgba(0,0,0,0)'),
     showlegend=True,
     name='±1 std deviation'
 ))
 
+
 fig.update_layout(
-    title='Kalman Filter Results with Observations and Uncertainty',
+    title='Tracking Model',
     xaxis_title='X',
     yaxis_title='Y',
     legend=dict(x=0.02, y=0.98),
-    width=800,
-    height=550
+    width=700,
+    height=500,
+    paper_bgcolor=cat["base"],
+    plot_bgcolor=cat["base"],
+    font=dict(color=cat["text"], size=16),
 )
+
 
 fig.show()
 
@@ -399,12 +611,12 @@ def sqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs):
 
         # predict
         m_pred = M @ m_tt
-        #U_pred = qr_R(U_tt @ M.T, S_eta)
-        U_pred = jnp.linalg.cholesky(M @ U_tt.T @U_tt @ M.T + S2_eta, upper=True)
+        U_pred = qr_R(U_tt @ M.T, S_eta)
+        #U_pred = jnp.linalg.cholesky(M @ U_tt.T @U_tt @ M.T + S2_eta, upper=True)
         # Update
         e_t = z_t - PHI @ m_pred
-        #Ui_t = qr_R(U_pred @ PHI.T, S_eps)
-        Ui_t = jnp.linalg.cholesky(PHI @ U_pred.T@U_pred @ PHI.T + S2_eps, upper=True)
+        Ui_t = qr_R(U_pred @ PHI.T, S_eps)
+        #Ui_t = jnp.linalg.cholesky(PHI @ U_pred.T@U_pred @ PHI.T + S2_eps, upper=True)
 
         # Kalman Gain2
         K_t =(
@@ -468,6 +680,21 @@ def ql_L(A, B):
     L = jnp.flip(R, axis=(0, 1))
 
     return L
+
+
+def safe_cholesky(matrix):
+    def zero_case(_):
+        return jnp.zeros_like(matrix)
+    def nonzero_case(matrix):
+        return jnp.linalg.cholesky(matrix, upper=True)
+    return jax.lax.cond(
+        jnp.all(matrix == 0),
+        zero_case,
+        nonzero_case,
+        operand=matrix
+        )
+
+
 @jax.jit
 def sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, zs):
 
@@ -480,6 +707,7 @@ def sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, zs):
     # pretty quick
     i_ts = jax.vmap(lambda z: PHI.T @ jsc.linalg.cho_solve((S_eps, True), z), in_axes=0)(zs)
     R = jnp.linalg.qr(st(S_eps.T, PHI, lower=False), mode="r")
+    #R = safe_cholesky(PHI.T @ jsc.linalg.cho_solve((S_eps, True), PHI))
 
     @jax.jit
     def step(carry, i):
@@ -543,6 +771,7 @@ def sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, zs):
 
 ```{python}
 R_0 = jnp.linalg.cholesky(Q_0)
+#R_0 = jnp.zeros((4,4))
 
 filt_results_sqinf = sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, zs)
 
@@ -554,78 +783,6 @@ print(f"Log-Likelihood = {filt_results_sqinf['ll']}")
 ```{python}
 print(jnp.allclose(filt_results_sqrt['ms'], filt_results_kal['ms']))
 print(jnp.allclose(filt_results_inf['nus'], filt_results_sqinf['nus']))
-```
-
-
-
-
-
-```{python}
-#| code-fold: true
-
-
-ms = filt_results_sqrt['ms']
-Us = filt_results_sqrt['Us']
-Ps = jax.vmap(lambda mat: mat.T@mat)(Us)
-
-m_x, m_y = ms[:50, 0], ms[:50, 1]
-s2_x, s2_y = Ps[:50, 0,0], Ps[:50, 1,1]
-
-import plotly.graph_objects as go
-
-fig = go.Figure()
-
-import plotly.graph_objects as go
-
-fig.add_trace(go.Scatter(
-    x=alphas[:50, 0],
-    y=alphas[:50, 1],
-    mode='lines+markers',
-    name='Latent path',
-    line=dict(color='royalblue'),
-    marker=dict(size=6)
-))
-
-fig.add_trace(go.Scatter(
-    x=zs[:50, 0],
-    y=zs[:50, 1],
-    mode='lines+markers',
-    name='Observations',
-    line=dict(color='red', dash='dot', width=1),
-    marker=dict(symbol='cross', color='red', size=8, line=dict(width=1))
-))
-
-
-fig.add_trace(go.Scatter(
-    x=m_x,
-    y=m_y,
-    mode='lines',
-    name='Filtered mean',
-    line=dict(color='green', width=2)
-))
-
-# Uncertainty band (±1 std) for filtered position
-fig.add_trace(go.Scatter(
-    x=jnp.concatenate([m_x - jnp.sqrt(s2_x), m_x[::-1] + jnp.sqrt(s2_x[::-1])]),
-    y=jnp.concatenate([m_y - jnp.sqrt(s2_y), m_y[::-1] + jnp.sqrt(s2_y[::-1])]),
-    fill='toself',
-    fillcolor='rgba(0, 128, 0, 0.2)',
-    line=dict(color='rgba(0,0,0,0)'),
-    showlegend=True,
-    name='±1 std deviation'
-))
-
-fig.update_layout(
-    title='Kalman Filter Results with Observations and Uncertainty',
-    xaxis_title='X',
-    yaxis_title='Y',
-    legend=dict(x=0.02, y=0.98),
-    width=800,
-    height=550
-)
-
-fig.show()
-
 ```
 
 
@@ -666,7 +823,7 @@ def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
                 
         S_k = PHI @ S2_eta @ PHI.T + S2_eps
                 
-        D_k = (jnp.linalg.solve(S_k, PHI @ S2_eta)).T
+        D_k = (jsc.linalg.solve(S_k, PHI @ S2_eta)).T
 
         imdp = (jnp.eye(r) - D_k @ PHI)
         
@@ -675,8 +832,8 @@ def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
         
         C_k = imdp @ S2_eta
 
-        nu_k = M.T @ PHI.T @ jnp.linalg.solve(S_k, z_k)
-        Q_k = M.T @ PHI.T @ jnp.linalg.solve(S_k, PHI @ M)
+        nu_k = M.T @ PHI.T @ jsc.linalg.solve(S_k, z_k)
+        Q_k = M.T @ PHI.T @ jsc.linalg.solve(S_k, PHI @ M)
     
         return (A_k, b_k, C_k, nu_k, Q_k)
 
@@ -696,11 +853,11 @@ def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
         ipqc = I + Q_j @ C_i
 
         # lots of cho solves, can be simplifies. 
-        A_ij = A_j @ jnp.linalg.solve(ipcq, A_i)
-        b_ij = A_j @ jnp.linalg.solve(ipcq, (b_i + C_i @ nu_j)) + b_j
-        C_ij = A_j @ jnp.linalg.solve(ipcq, C_i @ A_j.T) + C_j
-        nu_ij = A_i.T @ jnp.linalg.solve(ipqc, nu_j - Q_j@b_i) + nu_i
-        Q_ij = A_i.T @ jnp.linalg.solve(ipqc, Q_j @ A_i) + Q_i
+        A_ij = A_j @ jsc.linalg.solve(ipcq, A_i)
+        b_ij = A_j @ jsc.linalg.solve(ipcq, (b_i + C_i @ nu_j)) + b_j
+        C_ij = A_j @ jsc.linalg.solve(ipcq, C_i @ A_j.T) + C_j
+        nu_ij = A_i.T @ jsc.linalg.solve(ipqc, nu_j - Q_j@b_i) + nu_i
+        Q_ij = A_i.T @ jsc.linalg.solve(ipqc, Q_j @ A_i) + Q_i
         
         return (A_ij, b_ij, C_ij, nu_ij, Q_ij)
     
@@ -749,6 +906,159 @@ def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
 filt_results_pkal = pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs)
 ```
 
+
+## Square-Root Parallel Filter
+
+
+```{python}
+@jax.jit
+def psqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs):
+    
+    r = m_0.shape[0]
+    nobs = zs.shape[1]
+    Ir = jnp.eye(r)
+    In = jnp.eye(nobs)
+
+    S_eta = jnp.linalg.cholesky(S2_eta, upper=True)
+    S_eps = jnp.linalg.cholesky(S2_eps, upper=True)
+    
+    m1pred = M @ m_0
+    U1pred = qr_R(U_0 @ M.T, S_eta)
+
+    #S_1 =  PHI @ P1pred @ PHI.T + S2_eps
+    W_1 = qr_R(U1pred@PHI.T, S_eps)
+
+    # cholS = jsc.linalg.cho_factor(S_1)
+    #D_1 = (jsc.linalg.cho_solve(cholS, PHI_tree[0])@P1pred.T).T
+    #D_1 = (jnp.linalg.solve(S_1, PHI @ P1pred)).T
+
+    # tentatively correct
+    D_1 = (st(W_1.T, (st(W_1, PHI, lower=True)), lower=False) @ U1pred @ U1pred.T).T
+    
+    A_1  = jnp.zeros((r,r))
+    b_1  = m1pred + D_1 @ (zs[0] - PHI @ m1pred)
+    #C_1  = P1pred - D_1 @ S_1 @ D_1.T
+
+    # tentatively named
+    U_1 = qr_R(U1pred@(Ir-D_1@PHI).T, S_eps @ D_1.T)
+
+    # this is how it is in the paper. Adrien Corenflos has a slighlty different
+    # equation, using the expression for S_k here. Not sure why the discrepency is here.
+    
+    #nu_1 = M.T @ PHI.T @ jnp.linalg.solve(S_1, zs[0])
+    nu_1 = M.T @ PHI.T @ st(W_1.T, (st(W_1, zs[0], lower=True)), lower=False)
+    #Q_1  = M.T @ PHI.T @ jnp.linalg.solve(W_1.T@W_1, PHI) @ M
+    #R_1 = jnp.linalg.qr(st(W_1, PHI, lower=True) @ M, mode='r')
+    R_1 = qr_R(st(W_1, PHI, lower=True), jnp.zeros((r,r)))
+    #R_1 =  jnp.linalg.cholesky(M.T @ PHI.T @ st(W_1.T, (st(W_1, PHI, lower=True)), lower=False)@M + 0.0001*jnp.eye(r))
+
+    first_elt = (A_1, b_1, U_1, nu_1, R_1)
+
+    @jax.jit
+    def get_element(z_k):
+                
+        #S_k = PHI @ S2_eta @ PHI.T + S2_eps
+        W_k = qr_R(S_eta @PHI.T, S_eps)
+                
+        #D_k = (jnp.linalg.solve(S_k, PHI @ S2_eta)).T
+        D_k = (st(W_k.T, (st(W_k, PHI, lower=True)), lower=False) @ S2_eta).T
+        
+        imdp = (Ir - D_k @ PHI)
+        
+        A_k = imdp @ M
+        b_k = D_k @ z_k
+        
+        U_k = qr_R(S_eta@imdp.T, S_eps@D_k.T)
+
+        #nu_k = M.T @ PHI.T @ jnp.linalg.solve(S_k, z_k)
+        nu_k = M.T @ PHI.T @ st(W_k.T, (st(W_k, z_k, lower=True)), lower=False)
+        #Q_k = M.T @ PHI.T @ jnp.linalg.solve(S_k, PHI @ M)
+        #R_k = jnp.linalg.qr(st(W_k, PHI, lower=True) @ M, mode='r')
+        #R_k = jnp.linalg.cholesky(M.T @ PHI.T @ st(W_k.T, (st(W_k, PHI@M, lower=True)), lower=False) + 0.0001*jnp.eye(r))
+        R_k = qr_R(st(W_k, PHI, lower=True) @ M, jnp.zeros((r,r)))
+        
+        return (A_k, b_k, U_k, nu_k, R_k)
+
+    elts = jax.vmap(get_element)(zs[1:])
+
+    all_elts = jax.tree.map(lambda f, e: jnp.concatenate([f[None, :], e]), first_elt, elts)
+
+    @jax.vmap
+    def compose(elt_i, elt_j):
+        
+        A_i, b_i, U_i, nu_i, R_i = elt_i
+        A_j, b_j, U_j, nu_j, R_j = elt_j
+        
+        #ipcq = Ir + C_i @ Q_j
+
+        C_i = U_i.T@U_i
+        Q_j = R_j.T@R_j
+        
+        ipcq = Ir + C_i@Q_j
+        ipqc = Ir + Q_j@C_i
+
+        sipcqc = jnp.linalg.cholesky(ipcq@C_i)
+        sipqcq = jnp.linalg.cholesky(ipqc@Q_j)
+
+        # can be simplified with cho solves?
+        A_ij = A_j @ jnp.linalg.solve(ipcq, A_i)
+        b_ij = A_j @ jnp.linalg.solve(ipcq, (b_i + C_i @ nu_j)) + b_j
+        #C_ij = A_j @ jnp.linalg.solve(ipcq, C_i @ A_j.T) + C_j
+        U_ij = qr_R(sipcqc @ A_j.T, U_j) 
+        nu_ij = A_i.T @ jnp.linalg.solve(ipqc, nu_j - Q_j@b_i) + nu_i
+
+        R_ij = qr_R(sipqcq @ A_i, R_i)
+        
+        return (A_ij, b_ij, U_ij, nu_ij, R_ij)
+    
+    final_elts = jl.associative_scan(compose, all_elts)
+
+    ms = final_elts[1]
+    Us = final_elts[2]
+
+    nu, R = final_elts[3][-1], final_elts[4][-1]
+
+    @jax.jit
+    def get_ll(z, m, U):
+
+        m_pred = M @ m
+        # caution!
+        U_pred = qr_R(U @ M.T, S_eta)
+
+        e = z - PHI @ m_pred
+        Ui_t = qr_R(U_pred @ PHI.T, S_eps)
+        
+        s = st(Ui_t, e, lower=True)
+        
+        ll = (
+            - jnp.sum(jnp.log(jnp.diag(Ui_t)))
+            - 0.5 * jnp.dot(s, s)
+            - 0.5 * nobs * jnp.log(2 * jnp.pi) 
+        )
+
+        return ll
+    
+    ll = jnp.sum(jax.vmap(get_ll)(zs,
+                                  jnp.concatenate([m_0[None, :], ms])[:-1],
+                                  jnp.concatenate([U_0[None, :, :], Us])[:-1]))
+
+
+    
+    filt_results = {"ll": ll,
+                    "ms": ms,
+                    "Us": Us}
+
+    return filt_results
+
+```
+
+
+```{python}
+filt_results_psqrt = psqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs)
+```
+
+
+
 ```{python}
 print(filt_results_kal['ll'].dtype)
 
@@ -757,13 +1067,14 @@ print(f"Sqrt   Log-Likelihood = {filt_results_sqrt['ll']}")
 print(f"Info   Log-Likelihood = {filt_results_inf['ll']}")
 print(f"SqInfo Log-Likelihood = {filt_results_sqinf['ll']}")
 print(f"PKal   Log-Likelihood = {filt_results_pkal['ll']}")
+print(f"PSqrt  Log-Likelihood = {filt_results_psqrt['ll']}")
 ```
 
 # Tracking Example Plot against Time
 
 ```{python}
 #| output: false
-from jaxidem.utils import time_jit
+#| eval: false
 
 jit_kal   = lambda tup: kalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
 jit_inf   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
@@ -772,7 +1083,7 @@ jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, tup[0], tup[1], tup[2], tup[3], 
 jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
 
 #T_vals = range(10, 1000, 10)
-T_vals = jnp.logspace(2, log10T, num=2, base=10).astype(int)
+T_vals = jnp.logspace(2, log10T, num=1, base=10).astype(int)
 nreps = 1
 
 results = {
@@ -811,6 +1122,7 @@ fig.update_layout(
 
 ```
 ```{python}
+#| eval: false
 fig.write_image("figure/vary_T.png")
 fig.show()
 #filt_results_kal = kalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs)
@@ -836,6 +1148,7 @@ fig.show()
 ## IDEM
 
 ```{python}
+#| eval: true
 
 process_basis = utils.place_basis(min_knot_num = 5, nres=1, aperture = 1.0) 
 
@@ -910,6 +1223,33 @@ obs_data = utils.st_data(x = rep_coords[:, 0], y = rep_coords[:, 1], times = tim
 process_data.save_plot("figure/simple_idem_process.png")
 obs_data.save_plot("figure/simple_idem_obs.png")
 
+frames = plotly_st_scat(obs_data)
+fig =  make_st_fig(frames, spacing=[0.05, 0.08])
+fig.update_layout(height=800)
+apply_catppuccin_mocha(fig, fontsize=20)
+fig.update_xaxes(title_text=None, showticklabels=False)
+fig.update_yaxes(title_text=None, showticklabels=False)
+fig.write_image(
+    "figure/obs_data.pdf",
+    scale=2             # multiplier for crisper text & lines
+)
+fig.show()
+```
+
+```{python}
+
+frames = plotly_st_grid(process_data)
+fig =  make_st_fig(frames, spacing=[0.05, 0.08])
+fig.update_layout(height=800)
+apply_catppuccin_mocha(fig, fontsize=20)
+fig.update_xaxes(title_text=None, showticklabels=False)
+fig.update_yaxes(title_text=None, showticklabels=False)
+fig.write_image(
+    "figure/proc_data.pdf",
+    scale=2             # multiplier for crisper text & lines
+)
+fig.show()
+
 ```
 
 
@@ -924,6 +1264,7 @@ An example IDEM simulation, with the underlying process (left), noisy observatio
 :::
 
 ```{python}
+#| eval: true
 
 m_0 = jnp.zeros(nbasis)
 P_0 = 100*jnp.eye(nbasis)
@@ -940,11 +1281,11 @@ jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, tup[0], tup[1], tup[2], tup[3], 
 jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
 
 inp_tree = (M, PHI, S2_eta, S2_eps, zs)
-time_kal_gpu   = time_jit(key, jit_kal, inp_tree, n=10)
-time_inf_gpu   = time_jit(key, jit_inf, inp_tree, n=10)
-time_sqrt_gpu  = time_jit(key, jit_sqrt, inp_tree, n=10)
-time_sqinf_gpu = time_jit(key, jit_sqinf, inp_tree, n=10)
-time_pkal_gpu  = time_jit(key, jit_pkal, inp_tree, n=10)
+time_kal_gpu   = time_jit(key, jit_kal, inp_tree, n=1)
+time_inf_gpu   = time_jit(key, jit_inf, inp_tree, n=1)
+time_sqrt_gpu  = time_jit(key, jit_sqrt, inp_tree, n=1)
+time_sqinf_gpu = time_jit(key, jit_sqinf, inp_tree, n=1)
+time_pkal_gpu  = time_jit(key, jit_pkal, inp_tree, n=1)
 
 import pandas as pd
 
@@ -960,7 +1301,7 @@ df = pd.DataFrame(data, columns=["Method", "Device", "Compile Time (s)", "Averag
 ```
 
 ```{python}
-#| eval: true
+#| eval: false
 print(f"Results for IDEM with nbasis={nbasis} and nobs={nobs}")
 print(f"Precision: {M.dtype}")
 
@@ -973,6 +1314,7 @@ print(df.to_markdown(index=False))
 ## Observation dimension vs. compute time
 
 ```{python}
+#| eval: true
 #| output: false
 jit_kal   = lambda tup: kalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
 jit_inf   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
@@ -980,9 +1322,9 @@ jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, tup[0], tup[1], tup[2], tup[3], tu
 jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
 jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
 
-n_vals = range(10, 200, 30)
+n_vals = range(10, 200, 10)
 #n_vals = [10,20]
-nreps = 1
+nreps = 20
 
 results = {
     "Kalman": [],
@@ -1006,22 +1348,29 @@ for n in n_vals:
 fig = go.Figure()
 
 for method, times in results.items():
+    if method == "Kalman":
+        color = cat["red"]
+    if method == "Information":
+        color = cat["blue"]
     fig.add_trace(go.Scatter(x=list(n_vals), y=times,
                              mode='lines',
-                             name=method))
+                             name=method,
+                             line=dict(color=color, width=2)))
 
 fig.update_layout(
     title="Average Execution Time vs number of observations",
     xaxis_title="n (Observation Dimension)",
-#    xaxis=dict(type='log'),
     yaxis_title="Average Time (ms)",
-#    yaxis=dict(type='log'),
     legend_title="Filter Method",
-    template="plotly_white"
+    margin=dict(t=40)
 )
+
+apply_catppuccin_mocha(fig, fontsize=20)
+
 ```
 
 ```{python}
+#| eval: true
 fig.write_image("figure/vary_n.png")
 fig.show()
 ```

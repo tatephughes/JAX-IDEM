@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jaxidem"
-version = "0.1.16"
+version = "0.1.17"
 authors = [
   { name="Evan Tate Paterson Hughes", email="etatephughes@gmail.com" },
 ]
@@ -27,9 +27,15 @@ dependencies = [
     "pandas>=2.0.3",
     "pytest>=8.3.5",
     "quarto>=0.1.0",
-    "quarto-cli>=1.7.31",
     "seaborn>=0.13.2",
     "tqdm>=4.67.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+  "quarto",
 ]
 
 [project.urls]

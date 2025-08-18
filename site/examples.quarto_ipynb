@@ -47,7 +47,7 @@
         "While the filters in `jaxidem` are built for filtering IDEMs, we can use the filtering techniques for general Dynamic Linear Models.\n",
         "A simple tracking example is given [here](./filtering_and_smoothing.html)"
       ],
-      "id": "c6cb133f"
+      "id": "4cbd5bd2"
     }
   ],
   "metadata": {
@@ -55,7 +55,7 @@
       "name": "python3",
       "language": "python",
       "display_name": "Python 3 (ipykernel)",
-      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+      "path": "/home/tate/.virtualenvs/jax-cuda/share/jupyter/kernels/python3"
     }
   },
   "nbformat": 4,

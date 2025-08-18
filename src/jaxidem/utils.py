@@ -833,7 +833,7 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = "", device=None):
     Returns a tuple containing the compile time and the average run time.
     """
 
-    func_jit = jax.jit(func, device)
+    func_jit = jax.jit(func)
 
     failed = False
     

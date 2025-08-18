@@ -213,7 +213,7 @@ Consider whether time should be the first index
 - RSS
 - BISP
 
-** TODO Start making a filtering presentation
+** DONE Start making a filtering presentation
 - look at jax smfb for some guidance for git and docs
 ** TODO Outline structure for a paper
 
@@ -232,3 +232,15 @@ Ask for more details for presentation
 Work on presentation
 
 Do simpler filter implementations
+
+
+
+
+
+
+* 13th August
+
+** Presentation
+*** Add github and others to final slide
+- qr code too
+*** change sqrt filters to just talk abou the update

@@ -17,7 +17,8 @@ format:
   html:
     css:
       - reference/_styles-quartodoc.css
-
+    theme:
+      - _extensions/catppuccin/mocha.scss
 
 
 

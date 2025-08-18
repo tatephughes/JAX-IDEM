@@ -540,8 +540,8 @@ def sqrt_information_filter(
                 i_k = PHI_k.T @ z_k / sigma2_eps_k
                 # Below cholseky _should_ be faster, but is much less stable; why?
                 #R_k = safe_qr(PHI_k) / jnp.sqrt(sigma2_eps_k)
-                R_k = jnp.linalg.qr((PHI_k), mode="r") / jnp.sqrt(sigma2_eps_k)
-                #R_k = safe_cholesky(PHI_k.T @ PHI_k / sigma2_eps_k)
+                #R_k = jnp.linalg.qr((PHI_k), mode="r") / jnp.sqrt(sigma2_eps_k)
+                R_k = safe_cholesky(PHI_k.T @ PHI_k / sigma2_eps_k)
             case 1:
                 sigma_eps = jnp.diag(jnp.sqrt(sigma2_eps_k))
                 i_k = PHI_k.T @ st(sigma_eps, st(sigma_eps.T, z_k, lower=False), lower=True)

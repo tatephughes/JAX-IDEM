@@ -18,7 +18,7 @@
         "bibliography: Bibliography.bib\n",
         "---\n"
       ],
-      "id": "f59334ec"
+      "id": "87501e39"
     },
     {
       "cell_type": "code",
@@ -36,7 +36,7 @@
         "import jaxidem.idem as idem\n",
         "import jaxidem.utils as utils\n"
       ],
-      "id": "5fdc057b",
+      "id": "cda5dd1d",
       "execution_count": null,
       "outputs": []
     },
@@ -82,7 +82,7 @@
         "plt.tight_layout(rect=[0, 0, 1, 0.96]) \n",
         "plt.show()"
       ],
-      "id": "d7ed728f",
+      "id": "b7f91994",
       "execution_count": null,
       "outputs": []
     },
@@ -128,7 +128,7 @@
         "plt.tight_layout(rect=[0, 0, 1, 0.96]) \n",
         "plt.show()"
       ],
-      "id": "c0bc092c",
+      "id": "d6e7b2d9",
       "execution_count": null,
       "outputs": []
     },
@@ -178,7 +178,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "69ae4630",
+      "id": "c64bae5b",
       "execution_count": null,
       "outputs": []
     },
@@ -227,7 +227,7 @@
         "\n",
         "fig.show()"
       ],
-      "id": "f6393bd9",
+      "id": "f336b931",
       "execution_count": null,
       "outputs": []
     }
@@ -237,7 +237,7 @@
       "name": "python3",
       "language": "python",
       "display_name": "Python 3 (ipykernel)",
-      "path": "/home/tate/.local/share/jupyter/kernels/python3"
+      "path": "/home/tate/.virtualenvs/jax-cuda/share/jupyter/kernels/python3"
     }
   },
   "nbformat": 4,
