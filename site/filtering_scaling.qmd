@@ -704,9 +704,10 @@ def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
 filt_results_pkal = pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs)
 ```
 
-
+<!--
 ## Square-Root Parallel Filter
 
+UNFINISHED mostly for testing
 
 ```{python}
 @jax.jit
@@ -866,7 +867,7 @@ def psqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs):
 ```{python}
 filt_results_psqrt = psqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs)
 ```
-
+-->
 
 
 ```{python}
@@ -877,7 +878,8 @@ print(f"Sqrt   Log-Likelihood = {filt_results_sqrt['ll']}")
 print(f"Info   Log-Likelihood = {filt_results_inf['ll']}")
 print(f"SqInfo Log-Likelihood = {filt_results_sqinf['ll']}")
 print(f"PKal   Log-Likelihood = {filt_results_pkal['ll']}")
-print(f"PSqrt  Log-Likelihood = {filt_results_psqrt['ll']}")
+# COMING SOON...
+#print(f"PSqrt  Log-Likelihood = {filt_results_psqrt['ll']}")
 ```
 
 # Tracking Example Plot against Time

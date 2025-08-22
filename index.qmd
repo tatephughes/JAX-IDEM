@@ -139,9 +139,9 @@ Documentation for the package is available [here](reference/index.html).
 
 ## Other sections
 
-[IDEM fit example](site/fit_example.html)
+<!--[IDEM fit example](site/fit_example.html)-->
 
-[Filtering example](site/filtering_and_smoothing.html)
+[Filtering examples](site/filtering_scaling.html)
 
 [Sydney Radar example](site/Sydney_Radar.html)
 
