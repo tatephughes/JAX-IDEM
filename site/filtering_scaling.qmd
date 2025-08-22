@@ -20,6 +20,9 @@ import jax.scipy as jsc
 import jax.random as jr
 from jax.random import multivariate_normal as smvn
 
+import jaxidem.plotters as plotters
+from jaxidem.plotters import cat
+
 is_64_bit = True
 
 # before setting precision, create precision-invariant innovations
@@ -57,7 +60,7 @@ jax.config.update("jax_enable_x64", is_64_bit)
 
 import jaxidem.idem as idem
 import jaxidem.utils as utils
-import jaxidem.plotters as plotters
+
 from jaxidem.utils import time_jit
 
 if is_64_bit:
@@ -106,211 +109,6 @@ zs = jnp.array(zs)
 
 ```
 
-```{python}
-#| code-fold: true
-# Theming
-# Define Catppuccin palettes
-
-# Catppuccin Mocha palette
-cat = {
-    "base": "#181825",
-    "mantle": "#181825",
-    "crust": "#11111b",
-    "text": "#cdd6f4",
-    "subtext1": "#bac2de",
-    "surface0": "#313244",
-    "surface1": "#45475a",
-    "overlay0": "#6c7086",
-    "blue": "#89b4fa",
-    "lavender": "#b4befe",
-    "sky": "#89dceb",
-    "teal": "#94e2d5",
-    "green": "#a6e3a1",
-    "yellow": "#f9e2af",
-    "peach": "#fab387",
-    "maroon": "#eba0ac",
-    "red": "#f38ba8",
-    "mauve": "#cba6f7",
-    "pink": "#f5c2e7",
-    "flamingo": "#f2cdcd",
-    "rosewater": "#f5e0dc",
-}
-
-# applies the theme to a figure
-def apply_catppuccin_mocha(fig, fontsize):
-    fig.update_layout(
-        paper_bgcolor=cat["base"],
-        plot_bgcolor=cat["mantle"],
-        font=dict(color=cat["text"], size=fontsize),
-        title_font=dict(color=cat["text"]),
-    )
-    fig.update_xaxes(
-        showgrid=True, gridcolor=cat["surface0"],
-        zeroline=False, linecolor=cat["overlay0"], ticks="outside",
-        tickfont=dict(color=cat["subtext1"])
-    )
-    fig.update_yaxes(
-        showgrid=True, gridcolor=cat["surface0"],
-        zeroline=False, linecolor=cat["overlay0"], ticks="outside",
-        tickfont=dict(color=cat["subtext1"])
-    )
-    fig.update_layout(
-        annotations=[
-            ann.update(font=dict(size=fontsize)) or ann
-            for ann in fig.layout.annotations
-        ]
-    )
-
-import plotly.graph_objects as go
-
-
-# creates frames to gridded data
-def plotly_st_grid(st,
-                   title="Spatio-Temporal Field",
-                   colorscale="Viridis",
-                   sort_axes=True,      # sort unique x, y, t; set False to keep first-seen order
-                   show_colorbar=True,
-                   frame_duration=100,  # ms
-                   ):
-
-    # adapted from (and probably stolen by) an llm. Probably rethink or find a proper attributation.
-    
-    x = st.x
-    y = st.y
-    z = st.z
-    t = st.t
-
-    def unique_axis(vals):
-        if sort_axes:
-            uniq = jnp.unique(vals)
-            to_idx = lambda v: jnp.searchsorted(uniq, v)
-        else:
-            _, idx = jnp.unique(vals, return_index=True)
-            order = jnp.sort(idx)
-            uniq = vals[order]
-            mapping = {v: i for i, v in enumerate(uniq.tolist())}
-            to_idx = lambda v: jnp.fromiter((mapping[vi] for vi in v.tolist()), dtype=int)
-        return uniq, to_idx
-
-    ux, xi = unique_axis(x)
-    uy, yi = unique_axis(y)
-    ut, ti = unique_axis(t)
-
-    if callable(xi):
-        xi = xi(x)
-        yi = yi(y)
-        ti = ti(t)
-
-    nx, ny, nt = len(ux), len(uy), len(ut)
-
-    z_grid = jnp.full((nt, ny, nx), jnp.nan, dtype=float)
-    z_grid = z_grid.at[ti, yi, xi].set(z)
-
-    zmin = float(jnp.nanmin(z_grid))
-    zmax = float(jnp.nanmax(z_grid))
-    
-    frames = []
-    for i in range(nt):
-        frames.append(
-            go.Frame(
-                name=f"t = {ut[i]}",
-                data=[
-                    go.Heatmap(
-                        z=z_grid[i],
-                        x=ux,
-                        y=uy,
-                        colorscale=colorscale,
-                        zmin=zmin,
-                        zmax=zmax,
-                        colorbar=dict(title="z") if show_colorbar else None,
-                        showscale=show_colorbar,
-                    )
-                ],
-            )
-        )
-
-    return frames
-
-
-# creates frames to scattered data
-def plotly_st_scat(st,
-                   title="Spatio-Temporal Field",
-                   colorscale="Viridis",
-                   ):
-
-    T = st.T
-
-    klass = go.Scattergl
-
-    zmin = float(jnp.nanmin(st.z))
-    zmax = float(jnp.nanmax(st.z))
-
-    frames = []
-    for t in range(T):
-        x = st.coords_tree[t][:,0]
-        y = st.coords_tree[t][:,1]
-        z = st.zs_tree[t]
-
-        trace = go.Scattergl(
-            x=x.tolist(),
-            y=y.tolist(),
-            mode="markers",
-            marker=dict(
-                size = 15,
-                color=z.tolist(),
-                colorscale=colorscale,
-                cmin=zmin,
-                cmax=zmax,
-                showscale=True
-            ),
-            showlegend=False
-        )
-        frames.append(go.Frame(name=str(t), data=[trace]))
-
-
-        
-    coloraxis = dict(
-        colorscale=colorscale,
-        cmin=float(zmin),
-        cmax=float(zmax),
-        colorbar=dict(title="z")  # customize as needed
-    )
-        
-    return frames
-
-from plotly.subplots import make_subplots
-
-def make_st_fig(frames, ncols=3, spacing = [0.02, 0.02]):
-    
-    nframes = len(frames)
-    nrows = int(jnp.ceil(nframes / ncols))
-
-    fig = make_subplots(
-        rows=nrows, cols=ncols,
-        subplot_titles=[f"t = {int(ti)+1}" for ti in range(nframes)],
-        horizontal_spacing=spacing[0],
-        vertical_spacing=spacing[1]
-    )
-
-    for idx, fr in enumerate(frames):
-        row = int(jnp.floor(idx /ncols)) + 1
-        col = int(idx % ncols) + 1
-        fig.add_trace(fr.data[0], row=row, col=col)
-
-    for i in range(1, nrows * ncols + 1):
-        fig.update_xaxes(matches='x', row=(i-1)//ncols + 1, col=(i-1)%ncols + 1)
-        fig.update_yaxes(matches='y', row=(i-1)//ncols + 1, col=(i-1)%ncols + 1)
-            
-    # Also anchor y to x for square cells
-    for c in range(1, 4):
-        fig.update_yaxes(scaleanchor=f"x{c}", row=1, col=c)
-    fig.update_xaxes(constrain="domain")
-    fig.update_yaxes(scaleanchor="x", scaleratio=1.0)
-
-    return fig
-
-    
-```
 ```{python}
 #| code-block-title: "Plotting the tracking data"
 #| code-fold: true
@@ -440,11 +238,9 @@ Ps = filt_results_kal['Ps']
 m_x, m_y = ms[:50, 0], ms[:50, 1]
 s2_x, s2_y = Ps[:50, 0,0], Ps[:50, 1,1]
 
-import plotly.graph_objects as go
+
 
 fig = go.Figure()
-
-import plotly.graph_objects as go
 
 fig.add_trace(go.Scatter(
     x=alphas[:50, 0],
@@ -497,6 +293,7 @@ fig.update_layout(
     font=dict(color=cat["text"], size=16),
 )
 
+plotters.apply_catppuccin_mocha(fig)
 
 fig.show()
 
@@ -1002,6 +799,7 @@ def psqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs):
         # THIS CAN BE DONE BETTER i think
         sipqcq = jnp.linalg.cholesky(jnp.linalg.solve(ipqc,Q_j), upper=True)
         
+        
 
         # can be simplified with cho solves?
         A_ij = A_j @ jnp.linalg.solve(ipcq, A_i)
@@ -1224,32 +1022,35 @@ obs_data = utils.st_data(x = rep_coords[:, 0], y = rep_coords[:, 1], times = tim
 process_data.save_plot("figure/simple_idem_process.png")
 obs_data.save_plot("figure/simple_idem_obs.png")
 
-frames = plotly_st_scat(obs_data)
-fig =  make_st_fig(frames, spacing=[0.05, 0.08])
-fig.update_layout(height=800)
-apply_catppuccin_mocha(fig, fontsize=20)
-fig.update_xaxes(title_text=None, showticklabels=False)
-fig.update_yaxes(title_text=None, showticklabels=False)
-fig.write_image(
-    "figure/obs_data.pdf",
-    scale=2             # multiplier for crisper text & lines
-)
-fig.show()
-```
+obs_frames = plotters.plotly_st_scatter(obs_data, title="Simple IDEM process")
+obs_fig = plotters.make_st_fig(obs_frames, spacing=[0.05, 0.08])
 
-```{python}
+plotters.apply_catppuccin_mocha(obs_fig, fontsize = 20)
 
-frames = plotly_st_grid(process_data)
-fig =  make_st_fig(frames, spacing=[0.05, 0.08])
-fig.update_layout(height=800)
-apply_catppuccin_mocha(fig, fontsize=20)
-fig.update_xaxes(title_text=None, showticklabels=False)
-fig.update_yaxes(title_text=None, showticklabels=False)
-fig.write_image(
-    "figure/proc_data.pdf",
-    scale=2             # multiplier for crisper text & lines
+obs_fig.update_xaxes(title_text=None, showticklabels=False)
+obs_fig.update_yaxes(title_text=None, showticklabels=False)
+
+obs_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
 )
-fig.show()
+
+proc_frames = plotters.plotly_st_grid(process_data)
+proc_fig = plotters.make_st_fig(proc_frames, spacing=[0.05, 0.08])
+
+plotters.apply_catppuccin_mocha(proc_fig, fontsize = 20)
+
+proc_fig.update_xaxes(title_text=None, showticklabels=False)
+proc_fig.update_yaxes(title_text=None, showticklabels=False)
+
+proc_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
+
+obs_fig.write_image("figure/simple_idem_obs.png", format="png", scale=2)
+proc_fig.write_image("figure/simple_idem_process.png", format="png", scale=2)
+
 
 ```
 
@@ -1366,7 +1167,7 @@ fig.update_layout(
     margin=dict(t=40)
 )
 
-apply_catppuccin_mocha(fig, fontsize=20)
+plotters.apply_catppuccin_mocha(fig, fontsize=20)
 
 ```
 

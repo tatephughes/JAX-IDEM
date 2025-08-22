@@ -145,7 +145,7 @@ def plotly_st_grid(st,
     zmax = float(jnp.nanmax(z_grid))
     
     frames = []
-    for i in range(st.T-1):
+    for i in range(st.T):
         frames.append(
             go.Frame(
                 name=f"t = {ut[i]}",
