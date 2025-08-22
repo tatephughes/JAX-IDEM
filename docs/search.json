@@ -101,8 +101,8 @@
     "objectID": "site/examples.html#non-idem-filtering",
     "href": "site/examples.html#non-idem-filtering",
     "title": "IDEM Examples",
-    "section": "3.1 Non-IDEM filtering",
-    "text": "3.1 Non-IDEM filtering\nWhile the filters in jaxidem are built for filtering IDEMs, we can use the filtering techniques for general Dynamic Linear Models. A simple tracking example is given here"
+    "section": "3.2 Non-IDEM filtering",
+    "text": "3.2 Non-IDEM filtering\nWhile the filters in jaxidem are built for filtering IDEMs, we can use the filtering techniques for general Dynamic Linear Models. A simple tracking example is given here"
   },
   {
     "objectID": "reference/st_data.html",
@@ -739,5 +739,12 @@
     "title": "Sydney Radar Data",
     "section": "2.1 PLotting",
     "text": "2.1 PLotting\nThere is an optional module for jaxidem, jaxidem.plotters (install it with pip install jaxidem[plotters]) that includes some built-in functions to make plots of various objects relating to modelling. Note that this module uses plotly to create interactive html-based plots, primarily for notebooks such as this. For saving static images of plots, plotly requires kaleido, which itself requires chrome. This is the reason that this module is optional, but if you need to install chrome, you can use plotly_get_chrome in bash, assuming you are on linux.\nThe plotters module uses the functions plotly_st_grid or plotly_st_scatter (the former for gridded data, the latter for scattered data) to create a list of frames for each time point.\nThe Sydney Radar data are 28x40 images, so we can use the grid version;\n\nimport jaxidem.plotters as plotters\n\nframes = plotters.plotly_st_grid(radar_data, title=\"Sydney Radar Data\")\n\nThere are a few ways to then present this data; a static grid of each data points using make_st_fig, an interactive plot with a slider to see each time point using make_interactive_fig, and a gif using save_st_gif.\nTo make an interactive plot,\n\nsydney_fig = plotters.make_interactive_fig(frames)\n\n# Apply the catppuccin mocha theme to match these notebooks\nplotters.apply_catppuccin_mocha(sydney_fig, fontsize = 20)\n\nsydney_fig.update_layout(\n    xaxis=dict(showticklabels=False),\n    yaxis=dict(showticklabels=False, scaleanchor=\"x\")\n)\n\nsydney_fig.show()\n\n        \n        \n        \n\n\n                            \n                                            \n\n\nMore options of plotting will be looked at when we do filtering, fitting, and inference on this model."
+  },
+  {
+    "objectID": "site/examples.html#scaling-of-filtering-algorithms",
+    "href": "site/examples.html#scaling-of-filtering-algorithms",
+    "title": "IDEM Examples",
+    "section": "3.1 Scaling of filtering algorithms",
+    "text": "3.1 Scaling of filtering algorithms\nCoverage of the various variants of the Kalman filter, as well as performance comparisons is given here\n(Will likely relace the non-IDEM filtering page below)"
   }
 ]
