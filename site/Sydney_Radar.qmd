@@ -37,6 +37,7 @@ import pandas as pd
 import jaxidem.idem as idem
 import jaxidem.utils as utils
 import matplotlib.pyplot as plt
+import jaxidem.plotters as plotters
 
 radar_df = pd.read_csv('data/radar_df.csv')
 
@@ -49,272 +50,88 @@ We should put this data into `jax-idem`s `st_data` type;
 radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z') 
 ```
 
-```{python}
-# function to make a plot of st_data which lies on a grid
+## PLotting
 
-import plotly.graph_objects as go
+There is an optional module for jaxidem, jaxidem.plotters (install it with `pip install jaxidem[plotters]`) that includes some built-in functions to make plots of various objects relating to modelling. 
+Note that this module uses plotly to create interactive html-based plots, primarily for notebooks such as this.
+For saving static images of plots, plotly requires kaleido, which itself requires chrome. 
+This is the reason that this module is optional, but if you need to install chrome, you can use `plotly_get_chrome` in bash, assuming you are on linux.
 
-def plotly_st_grid(st,
-                   title="Spatio-Temporal Field",
-                   colorscale="Viridis",
-                   sort_axes=True,      # sort unique x, y, t; set False to keep first-seen order
-                   show_colorbar=True,
-                   frame_duration=100,  # ms
-                   ):
+The `plotters` module uses the functions `plotly_st_grid` or `plotly_st_scatter` (the former for gridded data, the latter for scattered data) to create a list of frames for each time point. 
 
-    # adapted from (and probably stolen by) an llm. Probably rethink or find a proper attributation.
-    
-    x = st.x
-    y = st.y
-    z = st.z
-    t = st.t
-
-    def unique_axis(vals):
-        if sort_axes:
-            uniq = jnp.unique(vals)
-            to_idx = lambda v: jnp.searchsorted(uniq, v)
-        else:
-            _, idx = jnp.unique(vals, return_index=True)
-            order = jnp.sort(idx)
-            uniq = vals[order]
-            mapping = {v: i for i, v in enumerate(uniq.tolist())}
-            to_idx = lambda v: jnp.fromiter((mapping[vi] for vi in v.tolist()), dtype=int)
-        return uniq, to_idx
-
-    ux, xi = unique_axis(x)
-    uy, yi = unique_axis(y)
-    ut, ti = unique_axis(t)
-
-    if callable(xi):
-        xi = xi(x)
-        yi = yi(y)
-        ti = ti(t)
-
-    nx, ny, nt = len(ux), len(uy), len(ut)
-
-    z_grid = jnp.full((nt, ny, nx), jnp.nan, dtype=float)
-    z_grid = z_grid.at[ti, yi, xi].set(z)
-
-    zmin = float(jnp.nanmin(z_grid))
-    zmax = float(jnp.nanmax(z_grid))
-    
-    frames = []
-    for i in range(nt):
-        frames.append(
-            go.Frame(
-                name=f"t = {ut[i]}",
-                data=[
-                    go.Heatmap(
-                        z=z_grid[i],
-                        x=ux,
-                        y=uy,
-                        colorscale=colorscale,
-                        zmin=zmin,
-                        zmax=zmax,
-                        colorbar=dict(title="z") if show_colorbar else None,
-                        showscale=show_colorbar,
-                    )
-                ],
-            )
-        )
-
-    return frames
-
-# Catppuccin Mocha palette
-catppuccin_mocha = {
-    "base": "#181825",
-    "mantle": "#181825",
-    "crust": "#11111b",
-    "text": "#cdd6f4",
-    "subtext1": "#bac2de",
-    "surface0": "#313244",
-    "surface1": "#45475a",
-    "overlay0": "#6c7086",
-    "blue": "#89b4fa",
-    "lavender": "#b4befe",
-    "sky": "#89dceb",
-    "teal": "#94e2d5",
-    "green": "#a6e3a1",
-    "yellow": "#f9e2af",
-    "peach": "#fab387",
-    "maroon": "#eba0ac",
-    "red": "#f38ba8",
-    "mauve": "#cba6f7",
-    "pink": "#f5c2e7",
-    "flamingo": "#f2cdcd",
-    "rosewater": "#f5e0dc",
-}
-
-def apply_catppuccin_mocha(fig, fontsize):
-    fig.update_layout(
-        paper_bgcolor=catppuccin_mocha["base"],
-        plot_bgcolor=catppuccin_mocha["mantle"],
-        font=dict(color=catppuccin_mocha["text"], size=fontsize),
-        title_font=dict(color=catppuccin_mocha["text"]),
-    )
-    fig.update_xaxes(
-        showgrid=True, gridcolor=catppuccin_mocha["surface0"],
-        zeroline=False, linecolor=catppuccin_mocha["overlay0"], ticks="outside",
-        tickfont=dict(color=catppuccin_mocha["subtext1"])
-    )
-    fig.update_yaxes(
-        showgrid=True, gridcolor=catppuccin_mocha["surface0"],
-        zeroline=False, linecolor=catppuccin_mocha["overlay0"], ticks="outside",
-        tickfont=dict(color=catppuccin_mocha["subtext1"])
-    )
-    fig.update_layout(
-        annotations=[
-            ann.update(font=dict(size=fontsize)) or ann
-            for ann in fig.layout.annotations
-        ]
-    )
-
-from plotly.subplots import make_subplots
-frames = plotly_st_grid(radar_data)
-
-def make_st_fig(frames, ncols=3, spacing = [0.02, 0.02]):
-    
-    nframes = len(frames)
-    nrows = int(jnp.ceil(nframes / ncols))
-
-    fig = make_subplots(
-        rows=nrows, cols=ncols,
-        subplot_titles=[f"t = {int(ti)+1}" for ti in range(nframes)],
-        horizontal_spacing=spacing[0],
-        vertical_spacing=spacing[1]
-    )
-
-    for idx, fr in enumerate(frames):
-        row = int(jnp.floor(idx /ncols)) + 1
-        col = int(idx % ncols) + 1
-        fig.add_trace(fr.data[0], row=row, col=col)
-
-    for i in range(1, nrows * ncols + 1):
-        fig.update_xaxes(matches='x', row=(i-1)//ncols + 1, col=(i-1)%ncols + 1)
-        fig.update_yaxes(matches='y', row=(i-1)//ncols + 1, col=(i-1)%ncols + 1)
-            
-    # Also anchor y to x for square cells
-    for c in range(1, 4):
-        fig.update_yaxes(scaleanchor=f"x{c}", row=1, col=c)
-    fig.update_xaxes(constrain="domain")
-    fig.update_yaxes(scaleanchor="x", scaleratio=1.0)
-
-    return fig
-
-fig =  make_st_fig(frames, spacing=[0.05, 0.08])
-
-fig.update_xaxes(title_text=None)
-fig.update_yaxes(title_text=None)
-
-fig.update_layout(
-    height=800   # pixels
-)
-    
-apply_catppuccin_mocha(fig, fontsize=20)
-fig.update_xaxes(title_text=None, showticklabels=False)
-fig.update_yaxes(title_text=None, showticklabels=False)
-fig.write_image(
-    "figure/sydney_plot.pdf",
-#    width=1200,         # in px, scales your figure before PDF render
-#    height=800,
-    scale=2             # multiplier for crisper text & lines
-)
-fig.show()
-
-```
+The Sydney Radar data are 28x40 images, so we can use the grid version;
 
 ```{python}
+import jaxidem.plotters as plotters
 
-fig = go.Figure(
-    data=frames[0].data,  # initial frame
-    frames=frames         # all frames
-)
-
-fig.update_layout(
-    sliders=[{
-        "active": 0,
-        "pad": {"t": 50},
-        "steps": [{
-            "label": f"t = {i}",
-            "method": "animate",
-            "args": [[f.name], {"mode": "immediate",
-                                "frame": {"duration": 0, "redraw": True},
-                                "transition": {"duration": 0}}]
-        } for i, f in enumerate(frames)]
-    }]
-)
-
-apply_catppuccin_mocha(fig, fontsize=20)
-
-
-fig.show()
-
-
+frames = plotters.plotly_st_grid(radar_data, title="Sydney Radar Data")
 ```
+
+There are a few ways to then present this data; a static grid of each data points using `make_st_fig`, an interactive plot with a slider to see each time point using `make_interactive_fig`, and a gif using `save_st_gif`. 
+
+To make an interactive plot,
 
 ```{python}
+sydney_fig = plotters.make_interactive_fig(frames)
 
+# Apply the catppuccin mocha theme to match these notebooks
+plotters.apply_catppuccin_mocha(sydney_fig, fontsize = 20)
 
-import imageio
-import os
- 
+sydney_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
 
-def save_st_gif(frames, filename, apply_theme=apply_catppuccin_mocha):
-
-    # Create a temporary folder
-    os.makedirs("frames", exist_ok=True)
-
-    # Save each frame as PNG
-    for i, frame in enumerate(frames):
-        fig = go.Figure(data=frame.data)
-        apply_theme(fig, fontsize=20)
-        fig.write_image(f"frames/frame_{i:03d}.png", width=800, height=600)
-
-    # Stitch into GIF
-    images = [imageio.imread(f"frames/frame_{i:03d}.png") for i in range(len(frames))]
-    imageio.mimsave(filename, images, duration=0.1)  # duration in seconds per frame
-
-
-save_st_gif(frames, "figure/sydney_gif.gif")
+sydney_fig.show()
 ```
 
-## Plotting the data
+More options of plotting will be looked at when we do filtering, fitting, and inference on this model.
 
-Firstly, lets take a look at the data set. I is a collection of 12 images taken at evenly spaced intervals. 
-We can use the method `st_data.show_plot` to uickly make a plot of data like this;
-
-```{python}
-#| output: false
-radar_data.save_plot('figure/Sydney_plot.png')
-```
-
-::: {#fig-example layout-ncol=1}
-
-![Process](figure/Sydney_plot.png)
-
-:::
 
 ## Modelling
 
 We will firstly censor the data, so that we can assess the 'blanks' we filled in.
 
+For this example, we have 12 time points. 
+We will remove the first, last, and one middle point, to test backcasting, intracasting and forecasting respectively.
+
+Note that, in removing the middle time, our data now has 'varying' observation dimension (we have 28x40 observation points, one for each pixel, at every time point except the middle one, where we have 'dimension 0').
+While there is no reason analytically that any Kalman filter variant cannot handle this kind of, case, this functionality is only implemented into the information filters (including the parallel filters) in `jax-idem`.
+This is not a problem here however, as the observation dimension is generally much higher than the process dimensions we might choose, so the information filters are much more performant anyway.
+
 ```{python}
-#| eval: false
+#| eval: true
 # Censor the data!
 radar_df_censored = radar_df
-# remove the final time measurements (for forecast testing)
+# remove the first time measurements (for backcast testing)
 radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 08:45:00"]
 # remove the a specific time (for intracast testing)
-radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 10:15:00"]
+radar_df_censored = radar_df_censored[radar_df_censored['time'] != "2000-11-03 09:25:00"]
+# remove the a final two times (for forecast testing)
+radar_df_censored = radar_df_censored[~radar_df_censored['time'].isin(["2000-11-03 10:15:00", "2000-11-03 10:05:00"])]
 # three randomly chose indices ('dead pixels')
-import numpy as np
-np.random.seed(42) # reproducibility (jax.random is used elsewhere)
-random_indices = np.random.choice(radar_df_censored.index, size=300, replace=False)
-radar_df_censored = radar_df_censored.drop(random_indices)
-
 
 # no covariates (besides intercept)
 radar_data = utils.pd_to_st(radar_df_censored, 's2', 's1', 'time', 'z')
+
+# make a new plot to show the missing data
+
+frames = plotters.plotly_st_grid(radar_data, title="Sydney Radar Data")
+
+sydney_fig = plotters.make_st_fig(frames, spacing = [0.01, 0.1])
+
+# Apply the catppuccin mocha theme to match these notebooks
+plotters.apply_catppuccin_mocha(sydney_fig, fontsize = 20)
+
+sydney_fig.update_xaxes(title_text=None, showticklabels=False)
+sydney_fig.update_yaxes(title_text=None, showticklabels=False)
+
+sydney_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
+
+sydney_fig.show()
 ```
 
 
@@ -322,6 +139,7 @@ We now create an initial model for this data
 
 ```{python}
 #| output: false
+#| eval: false
 model = idem.init_model(data=radar_data)
 ```
 
@@ -329,6 +147,7 @@ This, by default, creates an invariant kernel model with no covariates beside an
 We can now get the marginal data likelihood function of this model with the `get_log_like` method;
 
 ```{python}
+#| eval: false
 log_marginal = model.get_log_like(radar_data, method="sqinf", likelihood='partial')
 ```
 
@@ -339,7 +158,7 @@ The `Model` class has a value of these paramters, `Model.params`, and a method i
 
 ```{python}
 #| output: true
-
+#| eval: false
 idem.print_params(model.params)
 ```
 
@@ -363,7 +182,7 @@ fit_model_mle, mle_params = model.fit_mle(radar_data,
 ```
 
 ```{python}
-#| eval: true
+#| eval: false
 #| echo: false
 #| output: false
 
@@ -376,6 +195,7 @@ fit_model_mle = model.update(mle_params)
 The resulting parameters are then
 
 ```{python}
+#| eval: false
 idem.print_params(mle_params)
 ```
 
@@ -412,7 +232,7 @@ sample, _ = model.sample_posterior(key,
 ```
 
 ```{python}
-#| eval: true
+#| eval: false
 #| echo: false
 #| output: false
 
@@ -426,6 +246,7 @@ sample = jnp.array(csv_data)[10000:60000,1:]
 ```
 
 ```{python}
+#| eval: false
 #| output: false
 num_params = sample.shape[1]
 fig, axes = plt.subplots(num_params, 1, figsize=(10, 10), sharex=True)
@@ -449,6 +270,7 @@ plt.savefig('figure/hmc_trace.png')
 Lets take the posterior mean for some filtering and predicting.
 
 ```{python}
+#| eval: false
 # gets the function used to go from a flat array to a parameter of the type used in the models
 fparams, unflatten = utils.flatten_and_unflatten(model.params)
 
@@ -462,6 +284,7 @@ filt_data, filt_results = new_model.filter(radar_data, forecast = 3, method="kal
 
 ```{python}
 #| output: false
+#| eval: false
 filt_data.save_plot('figure/filtered_plot.png')
 ```
 
@@ -474,6 +297,7 @@ filt_data.save_plot('figure/filtered_plot.png')
 We've also forecasted the next 3 time points, and we can get them like this
 
 ```{python}
+#| eval: false
 #nuforecast = filt_results['nuforecast']
 #Rforecast = filt_results['Rforecast']
 #
@@ -489,6 +313,7 @@ fore_data = idem.basis_params_to_st_data(mforecast, model.process_basis, model.p
 
 
 ```{python}
+#| eval: false
 #| output: false
 fore_data.save_plot('figure/fore_plot.png')
 ```
@@ -502,6 +327,7 @@ fore_data.save_plot('figure/fore_plot.png')
 We can also plot the variances computed in the Kalman filter
 
 ```{python}
+#| eval: false
 Ps = filt_results['Ps']
 Pforecast = filt_results['Pforecast']
 combined = jnp.concatenate([Ps])#, Pforecast])
@@ -520,6 +346,7 @@ var_data = utils.st_data(x=coords[:, 0], y=coords[:, 1], times=times, z=marginal
 ```
 
 ```{python}
+#| eval: false
 #| output: false
 var_data.save_plot('figure/var_plot.png')
 ```

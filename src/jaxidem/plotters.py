@@ -15,11 +15,19 @@ from jaxidem.idem import Kernel
 
 from jaxidem.utils import create_grid
 
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
-
 import imageio
 import os
+
+
+try:
+    import plotly.graph_objects as go
+    import plotly.figure_factory as ff
+    from plotly.subplots import make_subplots
+except ImportError as e:
+    raise ImportError(
+        "Plotting requires the 'plotting' extra. "
+        "Install it with: pip install jaxidem[plotting]"
+    ) from e
 
 
 
@@ -48,7 +56,7 @@ cat = {
     "rosewater": "#f5e0dc",
 }
 
-def apply_catppuccin_mocha(fig, fontsize):
+def apply_catppuccin_mocha(fig, fontsize=20):
     
     # applies catppuccin mocha theme to a figure
     fig.update_layout(
@@ -82,7 +90,6 @@ def plotly_st_grid(st,
                    colorscale="Viridis",
                    sort_axes=True,      # sort unique x, y, t; set False to keep first-seen order
                    show_colorbar=True,
-                   frame_duration=100,  # ms
                    ):
 
     # adapted from (and probably stolen by) an llm. Probably rethink or find a proper attributation.
@@ -92,37 +99,53 @@ def plotly_st_grid(st,
     z = st.z
     t = st.t
 
-    def unique_axis(vals):
-        if sort_axes:
-            uniq = jnp.unique(vals)
-            to_idx = lambda v: jnp.searchsorted(uniq, v)
-        else:
-            _, idx = jnp.unique(vals, return_index=True)
-            order = jnp.sort(idx)
-            uniq = vals[order]
-            mapping = {v: i for i, v in enumerate(uniq.tolist())}
-            to_idx = lambda v: jnp.fromiter((mapping[vi] for vi in v.tolist()), dtype=int)
-        return uniq, to_idx
+    #def unique_axis(vals):
+    #    if sort_axes:
+    #        uniq = jnp.unique(vals)
+    #        to_idx = lambda v: jnp.searchsorted(uniq, v)
+    #    else:
+    #        _, idx = jnp.unique(vals, return_index=True)
+    #        order = jnp.sort(idx)
+    #        uniq = vals[order]
+    #        mapping = {v: i for i, v in enumerate(uniq.tolist())}
+    #        to_idx = lambda v: jnp.fromiter((mapping[vi] for vi in v.tolist()), dtype=int)
+    #    return uniq, to_idx
 
-    ux, xi = unique_axis(x)
-    uy, yi = unique_axis(y)
-    ut, ti = unique_axis(t)
+    #ux, xi = unique_axis(x)
+    #uy, yi = unique_axis(y)
+    #ut, ti = unique_axis(t)
 
-    if callable(xi):
-        xi = xi(x)
-        yi = yi(y)
-        ti = ti(t)
+    ux = jnp.unique(st.x)
+    uy = jnp.unique(st.y)
+    ut = st.full_times
+    
+    #if callable(xi):
+    #    xi = xi(x)
+    #    yi = yi(y)
+    #    ti = ti(t)
 
-    nx, ny, nt = len(ux), len(uy), len(ut)
+    nx, ny = len(ux), len(uy)
 
-    z_grid = jnp.full((nt, ny, nx), jnp.nan, dtype=float)
+    idx = jnp.searchsorted(ux, x, side="left")
+    idx_clipped = jnp.clip(idx, 0, ux.size - 1)
+    matches = ux[idx_clipped] == x
+    xi = jnp.where(matches, idx_clipped, -1)
+
+    idy = jnp.searchsorted(uy, y, side="left")
+    idy_clipped = jnp.clip(idy, 0, uy.size - 1)
+    matches = uy[idy_clipped] == y
+    yi = jnp.where(matches, idy_clipped, -1)
+
+    ti = st.t.astype("int32")
+    
+    z_grid = jnp.full((st.T-1, ny, nx), jnp.nan, dtype=float)
     z_grid = z_grid.at[ti, yi, xi].set(z)
 
     zmin = float(jnp.nanmin(z_grid))
     zmax = float(jnp.nanmax(z_grid))
     
     frames = []
-    for i in range(nt):
+    for i in range(st.T-1):
         frames.append(
             go.Frame(
                 name=f"t = {ut[i]}",
@@ -134,7 +157,7 @@ def plotly_st_grid(st,
                         colorscale=colorscale,
                         zmin=zmin,
                         zmax=zmax,
-                        colorbar=dict(title="z") if show_colorbar else None,
+                        colorbar=dict(title="") if show_colorbar else None,
                         showscale=show_colorbar,
                     )
                 ],
@@ -235,7 +258,7 @@ def make_interactive_fig(frames):
             "active": 0,
             "pad": {"t": 50},
             "steps": [{
-                "label": f"t = {i}",
+                "label": f"{i}",
                 "method": "animate",
                 "args": [[f.name], {"mode": "immediate",
                                     "frame": {"duration": 0, "redraw": True},
@@ -247,6 +270,7 @@ def make_interactive_fig(frames):
     return fig
 
 
+# NEED TO MAKE IT REMOVE THE TEMP FOLDER
 def save_st_gif(frames, filename, apply_theme=apply_catppuccin_mocha):
 
     # Create a temporary folder
@@ -266,7 +290,7 @@ def save_st_gif(frames, filename, apply_theme=apply_catppuccin_mocha):
 def kernel_plot(kernel):
 
     """
-    Half-finished; how do i determing the bounds?
+    Half-finished; how do i determine the bounds?
     """
     
     @jax.vmap

@@ -31,12 +31,15 @@ dependencies = [
     "tqdm>=4.67.1",
 ]
 
+
 [project.optional-dependencies]
-dev = [
-  "pytest",
-  "ruff",
-  "quarto",
+plotting = [
+    "plotly>=6.1.1",
+    "kaleido>=1.0.0",
+    "imageio>=2.37.0"
 ]
+
+
 
 [project.urls]
 Homepage = "https://github.com/tatephughes/JAX-IDEM"
