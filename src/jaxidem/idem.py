@@ -585,18 +585,24 @@ class Model:
             )
 
             nus = filt_results['nus']
+            nufores = filt_results['nuforecast']
             
             match method:
                 case "sqinf":
                     Rs = (filt_results['Rs'], False)
                     ms = jax.scipy.linalg.cho_solve(Rs, nus[..., None]).squeeze(-1)
+                    Rfores = (filt_results['Rforecast'], False)
+                    mfores = jax.scipy.linalg.cho_solve(Rfores, nufores[..., None]).squeeze(-1)
                 case "inf":
                     Qs = filt_results['Qs']
                     ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
+                    Qfores = filt_results['Qforecast']
+                    mfores = jnp.linalg.solve(Qfores, nufores[..., None]).squeeze(-1)
 
             filt_data = basis_params_to_st_data(ms, self.process_basis, self.process_grid)
-
-            return (filt_data, filt_results)
+            fore_data = basis_params_to_st_data(mfores, self.process_basis, self.process_grid)
+            
+            return (filt_data, fore_data, filt_results)
         
         else:
             raise ValueError(f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf'].")
@@ -818,7 +824,7 @@ class Model:
                          key,
                          obs_data,
                          n,
-                         burnin,
+                         #burnin, # nto implemented
                          init=None,
                          sampling_kernel=None,):
         
@@ -826,7 +832,7 @@ class Model:
 
         if sampling_kernel is None:
 
-            log_marginal = model.get_log_like(obs_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(slef.process_basis.nbasis)) 
+            log_marginal = model.get_log_like(obs_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(self.process_basis.nbasis)) 
        
             imm = jnp.ones(nparams)
             num_int = 5
@@ -835,7 +841,7 @@ class Model:
             init = samp.init(model.params)
         
             def sampling_kernel(carry, i):
-                nuts_key = jax.random.fold_in(rng_key, i)
+                nuts_key = jax.random.fold_in(key, i)
                 new_state, info = step(nuts_key, carry)
                 return new_state, (new_state, info)
         

@@ -271,7 +271,10 @@ def make_interactive_fig(frames):
 
 
 # NEED TO MAKE IT REMOVE THE TEMP FOLDER
-def save_st_gif(frames, filename, apply_theme=apply_catppuccin_mocha):
+def save_st_gif(frames,
+                filename,
+                apply_theme=apply_catppuccin_mocha,
+                showticklabels=False):
 
     # Create a temporary folder
     os.makedirs("frames", exist_ok=True)
@@ -280,6 +283,10 @@ def save_st_gif(frames, filename, apply_theme=apply_catppuccin_mocha):
     for i, frame in enumerate(frames):
         fig = go.Figure(data=frame.data)
         apply_theme(fig, fontsize=20)
+        fig.update_layout(
+            xaxis=dict(showticklabels=showticklabels),
+            yaxis=dict(showticklabels=showticklabels, scaleanchor="x")
+        )
         fig.write_image(f"frames/frame_{i:03d}.png", width=800, height=600)
 
     # Stitch into GIF

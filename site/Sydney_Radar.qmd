@@ -50,7 +50,7 @@ We should put this data into `jax-idem`s `st_data` type;
 radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z') 
 ```
 
-## PLotting
+## Plotting
 
 There is an optional module for jaxidem, jaxidem.plotters (install it with `pip install jaxidem[plotters]`) that includes some built-in functions to make plots of various objects relating to modelling. 
 Note that this module uses plotly to create interactive html-based plots, primarily for notebooks such as this.
@@ -139,7 +139,7 @@ We now create an initial model for this data
 
 ```{python}
 #| output: false
-#| eval: false
+#| eval: true
 model = idem.init_model(data=radar_data)
 ```
 
@@ -147,7 +147,7 @@ This, by default, creates an invariant kernel model with no covariates beside an
 We can now get the marginal data likelihood function of this model with the `get_log_like` method;
 
 ```{python}
-#| eval: false
+#| eval: true
 log_marginal = model.get_log_like(radar_data, method="sqinf", likelihood='partial')
 ```
 
@@ -158,7 +158,7 @@ The `Model` class has a value of these paramters, `Model.params`, and a method i
 
 ```{python}
 #| output: true
-#| eval: false
+#| eval: true
 idem.print_params(model.params)
 ```
 
@@ -173,7 +173,6 @@ Obviously, we can no just take this lgo marginal function and maximise it in any
 
 import optax
 
-
 fit_model_mle, mle_params = model.fit_mle(radar_data,
                                           optimizer = optax.adam(1e-2),
                                           max_its = 100,
@@ -182,7 +181,7 @@ fit_model_mle, mle_params = model.fit_mle(radar_data,
 ```
 
 ```{python}
-#| eval: false
+#| eval: true
 #| echo: false
 #| output: false
 
@@ -195,7 +194,7 @@ fit_model_mle = model.update(mle_params)
 The resulting parameters are then
 
 ```{python}
-#| eval: false
+#| eval: true
 idem.print_params(mle_params)
 ```
 
@@ -215,24 +214,38 @@ From there, it is easy to sample from the posterior
 
 ```{python}
 #| eval: false
+import blackjax
+
 key = jax.random.PRNGKey(1) # PRNG key
 inverse_mass_matrix = jnp.ones(model.nparams)
 num_integration_steps = 10
 step_size = 1e-5
+
+samp = blackjax.hmc(log_marginal,
+                    step_size,
+                    inverse_mass_matrix,
+                    num_integration_steps)
+step=samp.step
+init = samp.init(mle_params)
+
+def sampling_kernel(carry, i):
+    nuts_key = jax.random.fold_in(key, i)
+    new_state, info = step(nuts_key, carry)
+    return new_state, (new_state, info)
+
 sample, _ = model.sample_posterior(key,
+                                   obs_data=radar_data,
                                    n=10,
                                    burnin=0,
-                                   obs_data=radar_data,
-                                   X_obs=[X_obs for _ in range(T)],
-                                   inverse_mass_matrix=inverse_mass_matrix,
-                                   num_integration_steps=num_integration_steps,
-                                   step_size = step_size,
-                                   likelihood_method="sqinf",)
+                                   init=init,
+                                   sampling_kernel=sampling_kernel)
+
+sample_arr = jnp.column_stack(jax.tree.leaves(sample.position))
 
 ```
 
 ```{python}
-#| eval: false
+#| eval: true
 #| echo: false
 #| output: false
 
@@ -241,118 +254,91 @@ import matplotlib.pyplot as plt
 
 csv_data = np.loadtxt('data/Chains/HMC_chain_32.csv', delimiter=',')
 # Convert the NumPy array to a JAX array
-sample = jnp.array(csv_data)[10000:60000,1:]
+sample_arr = jnp.array(csv_data)[10000:60000,1:]
 
 ```
 
 ```{python}
-#| eval: false
-#| output: false
-num_params = sample.shape[1]
-fig, axes = plt.subplots(num_params, 1, figsize=(10, 10), sharex=True)
-for i in range(num_params):
-    axes[i].plot(sample[:, i], lw=0.8, color='b')
-    axes[i].set_ylabel('')
-    axes[i].grid(True)
-axes[-1].set_xlabel('Iteration')
-fig.suptitle('Trace Plots', fontsize=16, y=0.95)
-plt.tight_layout(rect=[0, 0, 1, 0.96]) 
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-plt.savefig('figure/hmc_trace.png')
+fig = make_subplots(rows=7, cols=1, shared_xaxes=True,
+#                    subplot_titles=[f"Parameter {i+1}" for i in range(n_params)],
+                    vertical_spacing=0.02)
+
+for i in range(7):
+    fig.add_trace(
+        go.Scatter(y=sample_arr[:, i], mode='lines'),
+        row=i+1, col=1
+    )
+
+plotters.apply_catppuccin_mocha(fig, fontsize=20)
+fig.update_layout(height=200 * 7, width=800,
+                  title_text="MCMC Trace Plots", showlegend=False)
+
+fig.show()
 ```
-
-::: {#fig-example layout-ncol=1}
-
-![Process](figure/hmc_trace.png)
-
-:::
 
 Lets take the posterior mean for some filtering and predicting.
 
 ```{python}
-#| eval: false
+#| eval: true
 # gets the function used to go from a flat array to a parameter of the type used in the models
 fparams, unflatten = utils.flatten_and_unflatten(model.params)
 
-post_mean = jnp.mean(sample, axis=0)
+post_mean = jnp.mean(sample_arr, axis=0)
 new_params = unflatten(post_mean)
 
 new_model = model.update(new_params)
 
-filt_data, filt_results = new_model.filter(radar_data, forecast = 3, method="kalman")
+filt_data, fore_data, filt_results = new_model.filter(radar_data, forecast = 3, method="sqinf")
 ```
 
 ```{python}
-#| output: false
-#| eval: false
-filt_data.save_plot('figure/filtered_plot.png')
+#| output: true
+#| eval: true
+#filt_data.save_plot('figure/filtered_plot.png')
+frames = plotters.plotly_st_grid(filt_data, title="Sydney Radar Datam filtered using the model")
+
+filt_fig = plotters.make_st_fig(frames, spacing = [0.01, 0.1])
+
+# Apply the catppuccin mocha theme to match these notebooks
+plotters.apply_catppuccin_mocha(filt_fig, fontsize = 20)
+
+filt_fig.update_xaxes(title_text=None, showticklabels=False)
+filt_fig.update_yaxes(title_text=None, showticklabels=False)
+
+filt_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x"),
+)
+
+filt_fig.show()
 ```
 
-::: {#fig-filter layout-ncol=1}
-
-![Filtered Process](figure/filtered_plot.png)
-
-:::
 
 We've also forecasted the next 3 time points, and we can get them like this
 
 ```{python}
-#| eval: false
-#nuforecast = filt_results['nuforecast']
-#Rforecast = filt_results['Rforecast']
-#
-#from jax.scipy.linalg import solve_triangular as st
+#| eval: true
+#| output: true
+#fore_data.save_plot('figure/fore_plot.png')
+frames = plotters.plotly_st_grid(fore_data, title="Sydney Radar Data forecasted using the model")
 
-#mforecast = st(Rforecast, nuforecast[..., None]).squeeze(-1)
+fore_fig = plotters.make_st_fig(frames, spacing = [0.01, 0.1])
 
-mforecast = jnp.vstack((filt_results['ms'], filt_results['mforecast']))
+# Apply the catppuccin mocha theme to match these notebooks
+plotters.apply_catppuccin_mocha(fore_fig, fontsize = 20)
 
-# will build this in to the Model.filter method soon!
-fore_data = idem.basis_params_to_st_data(mforecast, model.process_basis, model.process_grid)
+fore_fig.update_xaxes(title_text=None, showticklabels=False)
+fore_fig.update_yaxes(title_text=None, showticklabels=False)
+
+fore_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x"),
+    height = 200
+)
+
+fore_fig.show()
+
 ```
-
-
-```{python}
-#| eval: false
-#| output: false
-fore_data.save_plot('figure/fore_plot.png')
-```
-
-::: {#fig-fore layout-ncol=1}
-
-![Forecasted Process](figure/fore_plot.png)
-
-:::
-
-We can also plot the variances computed in the Kalman filter
-
-```{python}
-#| eval: false
-Ps = filt_results['Ps']
-Pforecast = filt_results['Pforecast']
-combined = jnp.concatenate([Ps])#, Pforecast])
-
-PHI = model.PHI_proc
-
-process_variances = PHI @ combined @ PHI.T
-
-marginals = jnp.diagonal(process_variances, axis1=1, axis2=2)
-
-T = marginals.shape[0]
-
-coords = jnp.concatenate([model.process_grid.coords for _ in range(T)])
-times = jnp.repeat(jnp.arange(T), model.process_grid.coords.shape[0])
-var_data = utils.st_data(x=coords[:, 0], y=coords[:, 1], times=times, z=marginals.ravel())
-```
-
-```{python}
-#| eval: false
-#| output: false
-var_data.save_plot('figure/var_plot.png')
-```
-
-::: {#fig-fore layout-ncol=1}
-
-![Variances](figure/var_plot.png)
-
-:::

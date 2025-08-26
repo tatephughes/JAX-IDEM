@@ -22,7 +22,6 @@ format:
       - marginparwidth=70.3mm
       - top=20mm
     fig-pos: 'h'
-jupyter: python3
 bibliography: Bibliography.bib
 ---
 
@@ -31,18 +30,17 @@ bibliography: Bibliography.bib
 
 The Integro-Difference equation model (here abbreviated as IDEM ^[Historically, this has been abbreviated as IDE. However, with that abbreviation almost universally meaning 'Integrated Development Environment', here, we choose to include the 'M' in the abbreviation.]) is dynamics-based spatio-temporal aiming to model diffusion and convection by making the value of a process a weighted average of it's previous time, plus noise.
 
-<span style="color: red;">[NOTE: I intend to create a more thorough background for the introduction here.]</span>
-
-# Integro-difference Based Dynamics
-
-As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty. Inherently, Spatio-Temporal datasets are almost always high-dimensional, and repeated observations are usually not possible.
+As common and widespread as the problem is, spatio-temporal modelling still presents a great deal of difficulty. Inherently, spatio-temporal datasets are almost always high-dimensional, especially when considering image data (where each pixel might be considered an observation). 
+Additionally, repeated observations are usually not possible due to their time dependence. 
 
 Traditionally, the problem has been tackled by the moments (usually the means and covariances) of the process in order to make inference (@wikle2019spatio, for example, call this 'descriptive' modelling).
 While this method can be sufficient for many problems, there are many cases where we are underutilizing some knowledge of the underlying dynamic systems involved.
 For instance, in temperature models, we know that temperature has movement (convection) and spread (diffusion), and that the state at any given time will depend on its state at previous times ^[at least, in a discrete-time scenario. Integro-difference based mechanics can be derived from continuous-time convection-diffusion processes, see @liu2022statistical].
 We call models which make use of this 'dynamic' models. 
 
-A general way of writing such hierarchical dynamical models might be
+# Integro-difference Based Dynamics
+
+A general way of writing a hierarchical (discrete-time) dynamical model might be
 
 $$\begin{split}
 Y_{t+1}(\cdot) &= \mathcal M_t(Y_0(\cdot), \dots, Y_t(\cdot)) + \omega_t(\cdot), \quad t=0, \dots, T-1,\\
@@ -102,6 +100,8 @@ import jax.numpy as jnp
 
 import jaxidem.utils as utils
 import jaxidem.idem as idem
+import jaxidem.plotters as plotters
+import plotly.graph_objects as go
 
 
 key = jax.random.PRNGKey(2)
@@ -134,6 +134,7 @@ plt.scatter(grid[:,0],
             cmap="viridis",
             marker='s'
             )
+Ts-mode? really?
 plt.scatter(0.5, 0.5, color='red', marker='x', s=100)
 plt.xticks([])
 plt.yticks([])
@@ -157,8 +158,20 @@ k = (
     0.1 * jax.random.normal(keys[1], shape=(K_basis[3].nbasis,)),
 )
 kernel = idem.param_exp_kernel(K_basis, k)
-kernel.save_plot("figure/kernel_example_direction_var.png", height=5, width=5,title=None) 
-plt.close()
+
+
+kernel_fig = plotters.kernel_plot(kernel)
+
+plotters.apply_catppuccin_mocha(kernel_fig, fontsize=20)
+kernel_fig.update_layout(
+    xaxis=dict(showticklabels=False, range=[0,1]),
+    yaxis=dict(showticklabels=False, range=[0,1], scaleanchor="x")
+)
+
+kernel_fig.write_image("figure/kernel_example_direction_var.png", format="png", scale=2)
+
+#kernel.save_plot("figure/kernel_example_direction_var.png", height=5, width=5,title=None) 
+#plt.close()
 
 grid = utils.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([50, 50])).coords
 
@@ -166,16 +179,14 @@ centre = jnp.array([0.5,0.5])
 
 z = jax.vmap(lambda s: kernel.function(centre, s))(grid)
 
-plt.figure(figsize=(5, 5))
-plt.scatter(grid[:,0],
-            grid[:,1],
-            c=z,
-            cmap="viridis",
-            marker='s'
-            )
-plt.scatter(0.5, 0.5, color='red', marker='x', s=100)
-plt.xticks([])
-plt.yticks([])
+
+strength_fig = go.Figure(data=go.Heatmap(z=z))
+
+strength_fig.update_layout(
+    xaxis=dict(range=[0, 1], autorange=False),
+    yaxis=dict(range=[0, 1], autorange=False, scaleanchor="x"))
+
+strength_fig.write_image("figure/kernel_example_strength_var.png", format="png", scale=2)
 
 def offset(s):
     return -jnp.array(
@@ -195,7 +206,7 @@ plt.annotate(
     '', xy=end_point, xytext=start_point,
     arrowprops=dict(arrowstyle="->", color='black', lw=2))
 
-plt.savefig("figure/kernel_example_strength_var.png", dpi=300)
+#plt.savefig("figure/kernel_example_strength_var.png", dpi=300)
 ```
 
 ::: {#fig-examplekernelvar layout-ncol=2}
@@ -350,7 +361,7 @@ This can allow for a wide range of interestingly shaped kernel functions, but se
 
 A much simpler approach would be to simply parametrise the kernel function, to $\kappa(\bv s, \bv r, \bv \theta_\kappa)$. 
 We then establish a simple shape for the kernel (e.g. Gaussian) and rely on very few parameters (for example, scale, shape, offsets). 
-The example kernel used in the ```jaxidem``` is a Gaussian-shape kernel;
+The example kernel used in the `jaxidem` is a Gaussian-shape kernel;
 
 $$\kappa(\bv s, \bv r; \bv m, a, b) = a \exp \left( -\frac{1}{b} \vert \bv s- \bv r +\bv m\vert^2 \right). 
 $$
@@ -454,12 +465,45 @@ process_data, obs_data = model.simulate(keys[2], x, y, times)
 ```
 
 The resulting objects are of class ```st_data```, containing a couple of niceties for handling spatio-temporal data, while still storing all data as JAX arrays.
-For example, the ```show_plot```, ```save_plot``` and ```save_gif``` methods provide easy plotting;
+
+The optional ```plotters``` module contains some functions to produce plotly plots of data in this format;
 
 ```{python}
 #| eval: true
-process_data.save_plot('figure/process_data_example.png')
-obs_data.save_plot('figure/obs_data_example.png')
+#process_data.save_plot('figure/process_data_example.png')
+#obs_data.save_plot('figure/obs_data_example.png')
+
+import jaxidem.plotters as plotters
+
+obs_frames = plotters.plotly_st_scatter(obs_data, title="Simple IDEM process")
+obs_fig = plotters.make_st_fig(obs_frames, spacing=[0.05, 0.08])
+
+plotters.apply_catppuccin_mocha(obs_fig, fontsize = 20)
+
+obs_fig.update_xaxes(title_text=None, showticklabels=False)
+obs_fig.update_yaxes(title_text=None, showticklabels=False)
+
+obs_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
+
+proc_frames = plotters.plotly_st_grid(process_data)
+proc_fig = plotters.make_st_fig(proc_frames, spacing=[0.05, 0.08])
+
+plotters.apply_catppuccin_mocha(proc_fig, fontsize = 20)
+
+proc_fig.update_xaxes(title_text=None, showticklabels=False)
+proc_fig.update_yaxes(title_text=None, showticklabels=False)
+
+proc_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
+
+obs_fig.write_image("figure/process_data_example.png", format="png", scale=2)
+proc_fig.write_image("figure/obs_data_example.png", format="png", scale=2)
+
 ```
 
 ::: {#fig-examplesim layout-ncol=1}
@@ -474,7 +518,7 @@ Note that some artefacts from the decomposition are visible, such as a faint che
 
 :::
 
-
+ 
 # The Kalman filter, and its many flavours
 
 The Kalman filter gives us linear estimates for the distribution of $\bv\alpha_r\mid \{\bv Z_t=\bv z_t\}_{t=0,...,r}$ in any dynamical system like @eq-ldstm.
@@ -701,7 +745,7 @@ $$
 ## The Square-Root filters
 
 In certain high-dimensional cases, the Kalman filter (and, indeed, the information filter) can encounter numerical stability issues.
-For example, in the predict step of the standard Kalman filter, note the update step for the variance matrix
+Note the update step in the Kalman filter;
 
 $$\begin{split}
 P_{t+1\mid t+1} &= [I- K_{t+1}\Phi_{t+1}]P_{t+1\mid t}.
@@ -779,20 +823,49 @@ $$\begin{split}
 \end{split}
 $$
 
-However, for the update we use the so-called Joseph stabilised form (sometimes used in the derivation of the Kalman filter)
+The update step for the variance is a bit more involved, since it is not clear how to get a square root from (@eq-kalman-update).
+To do this, we re-write the variance in _Joseph Stabilised Form_ as follows;
+
+
+::: {#lem-stable_form}
+
+The update step of the Kalman filter can be written
 
 $$\begin{split}
-  P_{t+1\mid t+1} &= \mathbb C\mathrm{ov}[\bv \alpha_t - \bv m_{t+1\mid t+1}]\\
-             &= \mathbb C\mathrm{ov}[\bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\tilde{\bv z}_{t+1} - \Phi_{t+1} \bv m_{t+1\mid t})]\\
-             &= \mathbb C\mathrm{ov}[\bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\Phi_{t+1} \bv m_{t+1} + \bv \epsilon_{t+1} - \Phi_{t+1}\bv m_{t+1\mid t})]\\
-             &= \mathbb C\mathrm{ov}[(I - K_{t+1} \Phi_{t+1})(\bv \alpha_t - \bv m_{t+1 \mid t}) - \bv \epsilon_{t+1}]\\
-             &= (I - K_{t+1} \Phi_{t+1}) \mathbb C\mathrm{ov}[\bv \alpha_t - \bv m_{t+1 \mid t}](I - K_{t+1} \Phi_{t+1})^\intercal + \mathbb C\mathrm{ov}[\bv \epsilon_{t+1}]\\
-             &= (I - K_{t+1} \Phi_{t+1}) P_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^\intercal + \Sigma_{\epsilon}
+  P_{t+1\mid t+1}= (I - K_{t+1} \Phi_{t+1}) P_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^\intercal + \Sigma_{\epsilon},
 \end{split}
 $$
 
-which is often simplified further to [@eq-kalman-update], but as discussed that involves negation of two square root matrices; this form is more complicated and involves more matrix computation, but guarentees that the result will be positive (semi-)definite.
-Furthermore, this is also in a form that allows us to easily find the square root with the QR trick;
+often called the _Joseph Stabilised Form_.
+
+:::
+
+::: {.proof}
+As in [@chin2023], write
+
+$$\begin{split}
+  \bv \alpha_t - \bv m_{t+1\mid t+1} & = \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\tilde{\bv z}_{t+1} - \Phi_{t+1} \bv m_{t+1\mid t})\\
+  &= \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\Phi_{t+1} \bv m_{t+1} + \bv \epsilon_{t+1} - \Phi_{t+1}\bv m_{t+1\mid t})\\
+  &= (I - K_{t+1} \Phi_{t+1})(\bv \alpha_t - \bv m_{t+1 \mid t}) - \bv \epsilon_{t+1}.
+\end{split}
+$$
+
+Now,
+
+$$\begin{split}
+  P_{t+1\mid t+1} &= \mathbb C\mathrm{ov}[\bv \alpha_t]\\
+  &= \mathbb E[(\bv \alpha_t - \bv m_{t+1\mid t+1})^\intercal(\bv \alpha_t - \bv m_{t+1\mid t+1})]\\
+\end{split}
+$$
+
+Which, noting that $\bv \epsilon_{t+1}$ are independant of $\bv \alpha_t$ and $\mathbb E[(\bv \alpha_t - \bv m_{t+1 \mid t})^\intercal (\bv \alpha_t - \bv m_{t+1 \mid t})]=P_{t+1\mid t}$, gets us the result.
+
+\qed
+
+:::
+
+
+Now this is in a form that allows us to easily find the square root with the QR trick;
 
 $$\begin{split}
 U_{t+1\mid t+1} = \sqrt{P_{t+1\mid t+1}} = \mathrm{qr}_R(U_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^{\intercal}, U_\epsilon).
@@ -835,7 +908,7 @@ $$ {#eq-sqrtinfopred2}
 
 which can be done, as in the square-root Kalman filter's Kalman gain computation, using forward-solves.
 
-Now the update step is
+Now the update step is simply
  
 $$\begin{split}
   \bv\nu_{t+1\mid t+1} &= \bv\nu_{t+1\mid t} + i_{t+1}\\
@@ -879,13 +952,14 @@ $$
 we can compute the lag-one covariances
 
 $$\begin{split}
-P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal
+P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal.
 \end{split}
 $$ {#eq-lag1smooth}
 
-These values can be used to implement the expectation-maximisation (EM) algorithm which will be introduced later.
+Very similar formulas can be found for square-root and information variations.
 
 
+<!--
 # EM Algorithm (NEEDS A LOT OF WORK, PROBABLY IGNORE FOR NOW)
 
 Instead of the marginal data likelihood, we may instead want to work with the 'full' likelihood, including the unobserved process, $l(\bv z(1),\dots, \bv z(T), \bv Y(1), \dots, \bv Y(T)\mid \bv\theta)$, or, equivalently, $l(\bv z(1),\dots, \bv z(t), \bv \alpha(1), \dots, \bv\alpha(T)\mid \bv\theta)$.
@@ -938,6 +1012,7 @@ Overall, our algorithm for Maximum Likelihood estimation is:
 5. Use the above values to construct $\mathcal Q(\bv\theta;\bv \theta')$ in @eq-Q,
 6. Maximise the function $\mathcal Q(\bv\theta;\bv \theta')$ to get a new guess $\bv \theta_{i+1}$, then return to step 2,
 8. Stop once a certain criteria is met.
+-->
 
 \newpage
 \appendix

@@ -243,8 +243,6 @@
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
 \theoremstyle{plain}
-\newtheorem{proposition}{Proposition}[section]
-\theoremstyle{plain}
 \newtheorem{lemma}{Lemma}[section]
 \theoremstyle{remark}
 \AtBeginDocument{\renewcommand*{\proofname}{Proof}}
@@ -297,16 +295,12 @@ is dynamics-based spatio-temporal aiming to model diffusion and
 convection by making the value of a process a weighted average of it's
 previous time, plus noise.
 
-{{[}NOTE: I intend to create a more thorough background for the
-introduction here.{]}}
-
-\chapter{Integro-difference Based
-Dynamics}\label{integro-difference-based-dynamics}
-
 As common and widespread as the problem is, spatio-temporal modelling
-still presents a great deal of difficulty. Inherently, Spatio-Temporal
-datasets are almost always high-dimensional, and repeated observations
-are usually not possible.
+still presents a great deal of difficulty. Inherently, spatio-temporal
+datasets are almost always high-dimensional, especially when considering
+image data (where each pixel might be considered an observation).
+Additionally, repeated observations are usually not possible due to
+their time dependence.
 
 Traditionally, the problem has been tackled by the moments (usually the
 means and covariances) of the process in order to make inference (Wikle,
@@ -321,7 +315,11 @@ state at previous times \footnote{at least, in a discrete-time scenario.
   convection-diffusion processes, see Liu, Yeo, and Lu (2022)}. We call
 models which make use of this `dynamic' models.
 
-A general way of writing such hierarchical dynamical models might be
+\chapter{Integro-difference Based
+Dynamics}\label{integro-difference-based-dynamics}
+
+A general way of writing a hierarchical (discrete-time) dynamical model
+might be
 
 \[\begin{split}
 Y_{t+1}(\cdot) &= \mathcal M_t(Y_0(\cdot), \dots, Y_t(\cdot)) + \omega_t(\cdot), \quad t=0, \dots, T-1,\\
@@ -745,14 +743,46 @@ without many required parameters;
 
 The resulting objects are of class \texttt{st\_data}, containing a
 couple of niceties for handling spatio-temporal data, while still
-storing all data as JAX arrays. For example, the \texttt{show\_plot},
-\texttt{save\_plot} and \texttt{save\_gif} methods provide easy
-plotting;
+storing all data as JAX arrays.
+
+The optional \texttt{plotters} module contains some functions to produce
+plotly plots of data in this format;
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{process\_data.save\_plot(}\StringTok{\textquotesingle{}figure/process\_data\_example.png\textquotesingle{}}\NormalTok{)}
-\NormalTok{obs\_data.save\_plot(}\StringTok{\textquotesingle{}figure/obs\_data\_example.png\textquotesingle{}}\NormalTok{)}
+\CommentTok{\#process\_data.save\_plot(\textquotesingle{}figure/process\_data\_example.png\textquotesingle{})}
+\CommentTok{\#obs\_data.save\_plot(\textquotesingle{}figure/obs\_data\_example.png\textquotesingle{})}
+
+\ImportTok{import}\NormalTok{ jaxidem.plotters }\ImportTok{as}\NormalTok{ plotters}
+
+\NormalTok{obs\_frames }\OperatorTok{=}\NormalTok{ plotters.plotly\_st\_scatter(obs\_data, title}\OperatorTok{=}\StringTok{"Simple IDEM process"}\NormalTok{)}
+\NormalTok{obs\_fig }\OperatorTok{=}\NormalTok{ plotters.make\_st\_fig(obs\_frames, spacing}\OperatorTok{=}\NormalTok{[}\FloatTok{0.05}\NormalTok{, }\FloatTok{0.08}\NormalTok{])}
+
+\NormalTok{plotters.apply\_catppuccin\_mocha(obs\_fig, fontsize }\OperatorTok{=} \DecValTok{20}\NormalTok{)}
+
+\NormalTok{obs\_fig.update\_xaxes(title\_text}\OperatorTok{=}\VariableTok{None}\NormalTok{, showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{)}
+\NormalTok{obs\_fig.update\_yaxes(title\_text}\OperatorTok{=}\VariableTok{None}\NormalTok{, showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{)}
+
+\NormalTok{obs\_fig.update\_layout(}
+\NormalTok{    xaxis}\OperatorTok{=}\BuiltInTok{dict}\NormalTok{(showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{),}
+\NormalTok{    yaxis}\OperatorTok{=}\BuiltInTok{dict}\NormalTok{(showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{, scaleanchor}\OperatorTok{=}\StringTok{"x"}\NormalTok{)}
+\NormalTok{)}
+
+\NormalTok{proc\_frames }\OperatorTok{=}\NormalTok{ plotters.plotly\_st\_grid(process\_data)}
+\NormalTok{proc\_fig }\OperatorTok{=}\NormalTok{ plotters.make\_st\_fig(proc\_frames, spacing}\OperatorTok{=}\NormalTok{[}\FloatTok{0.05}\NormalTok{, }\FloatTok{0.08}\NormalTok{])}
+
+\NormalTok{plotters.apply\_catppuccin\_mocha(proc\_fig, fontsize }\OperatorTok{=} \DecValTok{20}\NormalTok{)}
+
+\NormalTok{proc\_fig.update\_xaxes(title\_text}\OperatorTok{=}\VariableTok{None}\NormalTok{, showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{)}
+\NormalTok{proc\_fig.update\_yaxes(title\_text}\OperatorTok{=}\VariableTok{None}\NormalTok{, showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{)}
+
+\NormalTok{proc\_fig.update\_layout(}
+\NormalTok{    xaxis}\OperatorTok{=}\BuiltInTok{dict}\NormalTok{(showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{),}
+\NormalTok{    yaxis}\OperatorTok{=}\BuiltInTok{dict}\NormalTok{(showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{, scaleanchor}\OperatorTok{=}\StringTok{"x"}\NormalTok{)}
+\NormalTok{)}
+
+\NormalTok{obs\_fig.write\_image(}\StringTok{"figure/process\_data\_example.png"}\NormalTok{, }\BuiltInTok{format}\OperatorTok{=}\StringTok{"png"}\NormalTok{, scale}\OperatorTok{=}\DecValTok{2}\NormalTok{)}
+\NormalTok{proc\_fig.write\_image(}\StringTok{"figure/obs\_data\_example.png"}\NormalTok{, }\BuiltInTok{format}\OperatorTok{=}\StringTok{"png"}\NormalTok{, scale}\OperatorTok{=}\DecValTok{2}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -1065,9 +1095,8 @@ once again to compute the log likelihood, this time through \(\bv\iota\)
 \section{The Square-Root filters}\label{the-square-root-filters}
 
 In certain high-dimensional cases, the Kalman filter (and, indeed, the
-information filter) can encounter numerical stability issues. For
-example, in the predict step of the standard Kalman filter, note the
-update step for the variance matrix
+information filter) can encounter numerical stability issues. Note the
+update step in the Kalman filter;
 
 \[\begin{split}
 P_{t+1\mid t+1} &= [I- K_{t+1}\Phi_{t+1}]P_{t+1\mid t}.
@@ -1180,25 +1209,52 @@ Finally, the update step for the mean is simply
 \end{split}
 \]
 
-However, for the update we use the so-called Joseph stabilised form
-(sometimes used in the derivation of the Kalman filter)
+The update step for the variance is a bit more involved, since it is not
+clear how to get a square root from (Equation~\ref{eq-kalman-update}).
+To do this, we re-write the variance in \emph{Joseph Stabilised Form} as
+follows;
+
+\begin{lemma}[]\protect\hypertarget{lem-stable_form}{}\label{lem-stable_form}
+
+The update step of the Kalman filter can be written
 
 \[\begin{split}
-  P_{t+1\mid t+1} &= \mathbb C\mathrm{ov}[\bv \alpha_t - \bv m_{t+1\mid t+1}]\\
-             &= \mathbb C\mathrm{ov}[\bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\tilde{\bv z}_{t+1} - \Phi_{t+1} \bv m_{t+1\mid t})]\\
-             &= \mathbb C\mathrm{ov}[\bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\Phi_{t+1} \bv m_{t+1} + \bv \epsilon_{t+1} - \Phi_{t+1}\bv m_{t+1\mid t})]\\
-             &= \mathbb C\mathrm{ov}[(I - K_{t+1} \Phi_{t+1})(\bv \alpha_t - \bv m_{t+1 \mid t}) - \bv \epsilon_{t+1}]\\
-             &= (I - K_{t+1} \Phi_{t+1}) \mathbb C\mathrm{ov}[\bv \alpha_t - \bv m_{t+1 \mid t}](I - K_{t+1} \Phi_{t+1})^\intercal + \mathbb C\mathrm{ov}[\bv \epsilon_{t+1}]\\
-             &= (I - K_{t+1} \Phi_{t+1}) P_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^\intercal + \Sigma_{\epsilon}
+  P_{t+1\mid t+1}= (I - K_{t+1} \Phi_{t+1}) P_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^\intercal + \Sigma_{\epsilon},
 \end{split}
 \]
 
-which is often simplified further to Equation~\ref{eq-kalman-update},
-but as discussed that involves negation of two square root matrices;
-this form is more complicated and involves more matrix computation, but
-guarentees that the result will be positive (semi-)definite.
-Furthermore, this is also in a form that allows us to easily find the
-square root with the QR trick;
+often called the \emph{Joseph Stabilised Form}.
+
+\end{lemma}
+
+\begin{proof}
+As in (Chin 2023), write
+
+\[\begin{split}
+  \bv \alpha_t - \bv m_{t+1\mid t+1} & = \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\tilde{\bv z}_{t+1} - \Phi_{t+1} \bv m_{t+1\mid t})\\
+  &= \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\Phi_{t+1} \bv m_{t+1} + \bv \epsilon_{t+1} - \Phi_{t+1}\bv m_{t+1\mid t})\\
+  &= (I - K_{t+1} \Phi_{t+1})(\bv \alpha_t - \bv m_{t+1 \mid t}) - \bv \epsilon_{t+1}.
+\end{split}
+\]
+
+Now,
+
+\[\begin{split}
+  P_{t+1\mid t+1} &= \mathbb C\mathrm{ov}[\bv \alpha_t]\\
+  &= \mathbb E[(\bv \alpha_t - \bv m_{t+1\mid t+1})^\intercal(\bv \alpha_t - \bv m_{t+1\mid t+1})]\\
+\end{split}
+\]
+
+Which, noting that \(\bv \epsilon_{t+1}\) are independant of
+\(\bv \alpha_t\) and
+\(\mathbb E[(\bv \alpha_t - \bv m_{t+1 \mid t})^\intercal (\bv \alpha_t - \bv m_{t+1 \mid t})]=P_{t+1\mid t}\),
+gets us the result.
+
+\qed
+\end{proof}
+
+Now this is in a form that allows us to easily find the square root with
+the QR trick;
 
 \[\begin{split}
 U_{t+1\mid t+1} = \sqrt{P_{t+1\mid t+1}} = \mathrm{qr}_R(U_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^{\intercal}, U_\epsilon).
@@ -1262,7 +1318,7 @@ The update on the information vector is now
 which can be done, as in the square-root Kalman filter's Kalman gain
 computation, using forward-solves.
 
-Now the update step is
+Now the update step is simply
 
 \begin{equation}\phantomsection\label{eq-sqrtinfup}{\begin{split}
   \bv\nu_{t+1\mid t+1} &= \bv\nu_{t+1\mid t} + i_{t+1}\\
@@ -1312,99 +1368,12 @@ P_{T,T-1\mid T} = (I - K_T\Phi_{T}) MP_{T-1\mid T-1},
 we can compute the lag-one covariances
 
 \begin{equation}\phantomsection\label{eq-lag1smooth}{\begin{split}
-P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal
+P_{t, t-1\mid T} = P_{t\mid t}J_{t-1}^\intercal + J_{t}[P_{t+1,t\mid T} - MP_{t-1\mid t-1}]J_{t-1}^\intercal.
 \end{split}
 }\end{equation}
 
-These values can be used to implement the expectation-maximisation (EM)
-algorithm which will be introduced later.
-
-\chapter{EM Algorithm (NEEDS A LOT OF WORK, PROBABLY IGNORE FOR
-NOW)}\label{em-algorithm-needs-a-lot-of-work-probably-ignore-for-now}
-
-Instead of the marginal data likelihood, we may instead want to work
-with the `full' likelihood, including the unobserved process,
-\(l(\bv z(1),\dots, \bv z(T), \bv Y(1), \dots, \bv Y(T)\mid \bv\theta)\),
-or, equivalently,
-\(l(\bv z(1),\dots, \bv z(t), \bv \alpha(1), \dots, \bv\alpha(T)\mid \bv\theta)\).
-This is difficult to maximise directly, but can be done with the EM
-algorithm, consisting of two steps, which can be shown to always
-increase the full likelihood.
-
-Firstly, the E step is to find the function
-
-\begin{equation}\phantomsection\label{eq-Qdef}{\begin{split}
-\mathcal Q(\bv \theta; \bv \theta') = \mathbb E_{\bv Z(t)\sim p(Z \mid \bv\alpha(t),\bv\theta)}[\log p_{\bv\theta}(Z^{(T)}, A^{(T)})\mid Z^{(T)}],
-\end{split}
-}\end{equation}
-
-where \(Z^{(T)} = \{\bv z_t\}_{t=0,\dots,T}\),
-\(A^{(T)} = \{\bv \alpha_t\}_{t=0,\dots,T}\) and
-\(A^{(T-1)} = \{\bv \alpha_t\}_{t=0,\dots,T-1}\). This approximates
-\(\log p_\theta(Z^{(T)}, A^{(T)})\).
-
-\begin{proposition}[]\protect\hypertarget{prp-EMQ}{}\label{prp-EMQ}
-
-We have {{[}NOTE: This may well be wrong in places\ldots{]}}
-
-\begin{equation}\phantomsection\label{eq-Q}{\begin{split}
--2\mathcal Q(\bv\theta;\bv\theta') &= \mathbb E_{Z^{(T)}\sim p(Z \mid A^{(T)},\bv\theta')}[\log p_{\bv\theta}(Z^{(T)}, A^{(T)}\mid Z^{(T)} = z^{(T)})]\\
-&\eqc \sigma_\epsilon^2 [\sum_{t=0}^{T}\bv z_t^{\intercal}z_t - 2\Phi_t(\sum_{t=1}^{T} \bv z_t^\intercal \bv m_{t\mid T}) - 2(\sum_{t=0}^{T} \bv z_t^T)X_t\bv\beta\\
-&\quad\quad\quad +\Phi_t^\intercal(\sum_{t=0}^{T}\mathrm{tr}\{P_{t\mid T} - \bv m_{t\mid T}\bv m_{t\mid T}^{\intercal}\})\Phi_t + 2X_t\bv\beta\Phi_t(\sum_{t=0}^{T}\bv m_{t\mid T}) + (\sum_{t=1}^{T}X_t^\intercal \bv\beta^{\intercal}\bv\beta X_t)]\\
-&\quad + \mathrm{tr}\{\Sigma_\eta^{-1}[(\sum_{t=1}^{T}P_{t\mid T} - m_{t\mid T}) - 2M(\sum_{t=1}^{T}P_{t,t-1\mid T} - \bv m_{t-1,T}\bv m_{t\mid T}^{\intercal})\\
-&\quad\quad\quad\quad\quad + M(\sum_{t=1}^{T}P_{t-1\mid T} - \bv m_{t-1\mid T}\bv m_{t-1\mid T}^{\intercal})M^\intercal]\}\\
-&\quad + \mathrm{tr}\{\Sigma_0^{-1}[P_{0\mid T} - m_{0\mid T}m_{0\mid T}^{\intercal} - 2\bv m_{0\mid T}\bv m_0 + \bv m_0\bv m_0^\intercal]\}\\
-&\quad + \log(\det(\sigma_\epsilon^{2T}\Sigma_\eta^{T+1}\Sigma_0))
-\end{split}
-}\end{equation}
-
-\end{proposition}
-
-\begin{proof}
-See appendix.
-\end{proof}
-
-In the EM algorithm, we maximise the full likelihood by changing
-\(\bv \theta\) in order to increase (Equation~\ref{eq-Q}), which can be
-shown to guarantee that the Likelihood \(L(\bv \theta)\) also increases.
-The idea is then that repeatedly alternating between adjusting
-\(\bv \theta\) to increase Equation~\ref{eq-Q}, and then doing the
-filters and smoothers to obtain new values for \(\bv m_{t\mid T}\),
-\(P_{t\mid T}\), and \(P_{t,t-1\mid T}\).
-
-\chapter{Algorithm for Maximum Complete-data Likelihood
-estimation}\label{algorithm-for-maximum-complete-data-likelihood-estimation}
-
-Overall, our algorithm for Maximum Likelihood estimation is:
-
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\tightlist
-\item
-  Set \(i=0\) and take an initial guess for the parameters we are
-  considering, \(\bv\theta_0=\bv\theta_i\)
-\item
-  Starting from \(\bv m_{0\mid 0}=\bv m_0, P_{0\mid0}=\Sigma_0\), run
-  the \textbf{Kalman Filter} to get \(\bv m_{t\mid t}\),
-  \(P_{t\mid t}\), and \(K_t\) for all \(t\)
-  Equation~\ref{eq-kalman-update},
-\item
-  Starting from \(\bv m_{T\mid T}, P_{T\mid T}\), run the \textbf{Kalman
-  Smoother} to get \(\bv m_{t\mid T}\), \(P_{t\mid T}\), and \(J_t\) for
-  all \(t\) (Equation~\ref{eq-kalmansmooth}),
-\item
-  Starting from \(P_{T,T-1\mid T} = (I - K_nA_n) MP_{T-1\mid T-1}\), run
-  the \textbf{Lag-One Smoother} to get \(\bv m_{t,t-1\mid T}\) and
-  \(P_{t,t-1\mid T}\) for all \(t\) Equation~\ref{eq-lag1smooth},
-\item
-  Use the above values to construct
-  \(\mathcal Q(\bv\theta;\bv \theta')\) in Equation~\ref{eq-Q},
-\item
-  Maximise the function \(\mathcal Q(\bv\theta;\bv \theta')\) to get a
-  new guess \(\bv \theta_{i+1}\), then return to step 2,
-\item
-  Stop once a certain criteria is met.
-\end{enumerate}
+Very similar formulas can be found for square-root and information
+variations.
 
 \newpage
 \appendix
@@ -1600,6 +1569,11 @@ like a correlated least squares-type estimator like this.
 Assimakis, Nicholas, Maria Adam, and Anargyros Douladiris. 2012.
 {``Information Filter and Kalman Filter Comparison: Selection of the
 Faster Filter.''} In \emph{Information Engineering}, 2:1--5. 1.
+
+\bibitem[\citeproctext]{ref-chin2023}
+Chin, Toshio Michael. 2023. {``Square-Root Formulas for Kalman Filter,
+Information Filter, and RTS Smoother: Links via Boomerang Prediction
+Residual.''} \emph{IPN Progress Report} 42: 233.
 
 \bibitem[\citeproctext]{ref-cressie2015statistics}
 Cressie, Noel, and Christopher K Wikle. 2015. \emph{Statistics for
