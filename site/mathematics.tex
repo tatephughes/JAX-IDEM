@@ -241,9 +241,9 @@
 \newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
 \usepackage{amsthm}
 \theoremstyle{plain}
-\newtheorem{theorem}{Theorem}[section]
-\theoremstyle{plain}
 \newtheorem{lemma}{Lemma}[section]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
 \theoremstyle{remark}
 \AtBeginDocument{\renewcommand*{\proofname}{Proof}}
 \newtheorem*{remark}{Remark}
@@ -291,7 +291,7 @@ The Integro-Difference equation model (here abbreviated as IDEM
 \footnote{Historically, this has been abbreviated as IDE. However, with
   that abbreviation almost universally meaning `Integrated Development
   Environment', here, we choose to include the `M' in the abbreviation.})
-is dynamics-based spatio-temporal aiming to model diffusion and
+is a dynamics-based spatio-temporal aiming to model diffusion and
 convection by making the value of a process a weighted average of it's
 previous time, plus noise.
 
@@ -339,10 +339,10 @@ time-independent) additive random fields,
 \(\omega_t(\cdot), \epsilon_t(\cdot)\), and we also include non-random
 measured linear covariate terms \(x(\cdot)^{\intercal}\bv \beta\).
 
-If we discretize the space into \(n\) \$spatial locations
-\(\{\bv s_i\}_{i=1,\dots, n}\), assume the operator are linear, assert a
-Markov condition, and assume the errors are all normal, we get a simple
-linear dynamic system;
+If we discretize the space into \(n\) spatial locations
+\(\{\bv s_i\}_{i=1,\dots, n}\), assume the operators are linear, assert
+a Markov condition, and assume the errors are all normal, we get a
+simple linear dynamic system;
 
 \begin{equation}\phantomsection\label{eq-ldstm}{\begin{split}
 \bv Y_{t+1} &= M_t\bv Y_t + \bv \omega_t, \quad t=0, \dots, T-1,\\
@@ -358,10 +358,10 @@ estimated either directly of with a Kalman filter/smoother and variants,
 which will be discussed later.
 
 However, this model is restrictive and high-dimensional; \(M_t\), the
-primary quantities which needs estimation, is of dimension
-\(n\times n\), of which there are \(T\) matrices to be estimated. Even
-if we allow the propagation matrix to be invariant in time, we can still
-only make predictions at the stations \(\{\bv s_i\}\).
+primary quantities which need estimation, is of dimension \(n\times n\),
+of which there are \(T\) matrices to be estimated. Even if we allow the
+propagation matrix to be invariant in time, we can still only make
+predictions at the stations \(\{\bv s_i\}\).
 
 This motivates a different approach; in particular, one which allows us
 to estimate the random field at arbitrary points \(Y_t(\bv s)\) using
@@ -401,7 +401,7 @@ choose a Gaussian-like shape,
 then the `flow' would be in the direction of \(-\bv m(\bv s)\), and the
 diffusion would be controlled by \(b\) and \(a\). This creates a
 `spatially variant kernel', where the direction of flow varies across
-the space, as in Figure~\ref{fig-examplekernelvar}.
+the space, as illustrated in Figure~\ref{fig-examplekernelvar}.
 
 \begin{figure}[h]
 
@@ -520,7 +520,7 @@ So, finally, pre-multipling by the inverse of the gram matrix,
 Noise}\label{spectral-form-of-the-process-noise}
 
 We still have to set out what the process noise, \(\omega_t(\bv s)\),
-and it's spectral counterpart, \(\bv \eta_t\), are. Dewar, Scerri, and
+and its spectral counterpart, \(\bv \eta_t\), are. Dewar, Scerri, and
 Kadirkamanathan (2008) fix the variance of \(\omega_t(\bv s)\) to be
 uniform and uncorrelated across space and time, with
 \(\omega_t(\bv s) \sim \mathcal N(0,\sigma^2)\) It is then easily shown
@@ -825,12 +825,11 @@ estimation (as well as any other likelihood-based method of
 optimization). We will not prove the Kalman filter here, (for that, see,
 for example, Shumway, Stoffer, and Stoffer 2000).
 
-Since it's initial formulation in the 50s by a variety of authors
-(Kálmán included) there have been many variations of the Kalman filter
-proposed, even as recently as this decade with the temporally
-paralellised Kalman filter, more technically a variant of the
-information form of the Kalman filter, by Särkkä and Garcı́a-Fernández
-(2020).
+Since its initial formulation in the 50s by a variety of authors (Kálmán
+included) there have been many variations of the Kalman filter proposed,
+even as recently as this decade with the temporally paralellised Kalman
+filter, more technically a variant of the information form of the Kalman
+filter, by Särkkä and Garcı́a-Fernández (2020).
 
 \section{The Kalman Filter}\label{sec-kalmanfilter}
 
@@ -1122,11 +1121,11 @@ The Square-root filter and the SVD filter are such algorithms.
 \subsection{The Square-root Kalman
 filter}\label{the-square-root-kalman-filter}
 
-The square-root Kalman filter has it's origins soon after the standard
+The square-root Kalman filter has its origins soon after the standard
 Kalman filter gained popularity (Kaminski, Bryson, and Schmidt 1971). Of
 course, computational and memory constraints necessitated stable and
 memory-efficient approaches, while today the standard Kalman filter
-(and, more recently, it's parallel counterpart, to be covered in section
+(and, more recently, its parallel counterpart, to be covered in section
 {[}TBD{]}) usually suffice.
 
 As its name suggests, this variant involves carriyng through the square
