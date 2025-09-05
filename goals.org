@@ -244,3 +244,12 @@ Do simpler filter implementations
 *** Add github and others to final slide
 - qr code too
 *** change sqrt filters to just talk abou the update
+
+
+* 4th September
+
+** Implement PKF in JAX-IDEM
+
+** Think more psqrt
+
+** read the bayes linear paper

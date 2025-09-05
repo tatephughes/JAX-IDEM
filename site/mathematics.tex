@@ -750,6 +750,8 @@ plotly plots of data in this format;
 
 \begin{Shaded}
 \begin{Highlighting}[]
+\CommentTok{\# SAVING GIFS IS SLOW, so this doesn\textquotesingle{}t eval on every run.}
+
 \CommentTok{\#process\_data.save\_plot(\textquotesingle{}figure/process\_data\_example.png\textquotesingle{})}
 \CommentTok{\#obs\_data.save\_plot(\textquotesingle{}figure/obs\_data\_example.png\textquotesingle{})}
 
@@ -781,23 +783,35 @@ plotly plots of data in this format;
 \NormalTok{    yaxis}\OperatorTok{=}\BuiltInTok{dict}\NormalTok{(showticklabels}\OperatorTok{=}\VariableTok{False}\NormalTok{, scaleanchor}\OperatorTok{=}\StringTok{"x"}\NormalTok{)}
 \NormalTok{)}
 
-\NormalTok{obs\_fig.write\_image(}\StringTok{"figure/process\_data\_example.png"}\NormalTok{, }\BuiltInTok{format}\OperatorTok{=}\StringTok{"png"}\NormalTok{, scale}\OperatorTok{=}\DecValTok{2}\NormalTok{)}
-\NormalTok{proc\_fig.write\_image(}\StringTok{"figure/obs\_data\_example.png"}\NormalTok{, }\BuiltInTok{format}\OperatorTok{=}\StringTok{"png"}\NormalTok{, scale}\OperatorTok{=}\DecValTok{2}\NormalTok{)}
+\CommentTok{\#obs\_fig.write\_image("figure/process\_data\_example.png", format="png", scale=2)}
+\CommentTok{\#proc\_fig.write\_image("figure/obs\_data\_example.png", format="png", scale=2)}
+
+
+\CommentTok{\#plotters.save\_st\_gif(proc\_frames, "figure/process\_data\_example.gif", apply\_theme=plotters.apply\_catppuccin\_mocha)}
+\CommentTok{\#plotters.save\_st\_gif(obs\_frames, "figure/obs\_data\_example.gif", apply\_theme=plotters.apply\_catppuccin\_mocha)}
 \end{Highlighting}
 \end{Shaded}
+
+\begin{verbatim}
+Unable to display output for mime type(s): text/html
+\end{verbatim}
+
+\begin{verbatim}
+Unable to display output for mime type(s): text/html
+\end{verbatim}
 
 \begin{figure}[h]
 
 \begin{minipage}{\linewidth}
 
-\pandocbounded{\includegraphics[keepaspectratio]{figure/process_data_example.png}}
+\pandocbounded{\includegraphics[keepaspectratio]{figure/process_data_example.gif}}
 
 \subcaption{\label{}Process Simulation}
 \end{minipage}%
 \newline
 \begin{minipage}{\linewidth}
 
-\pandocbounded{\includegraphics[keepaspectratio]{figure/obs_data_example.png}}
+\pandocbounded{\includegraphics[keepaspectratio]{figure/obs_data_example.gif}}
 
 \subcaption{\label{}Observation Simulation}
 \end{minipage}%
@@ -1327,7 +1341,50 @@ Now the update step is simply
 \end{split}
 }\end{equation}
 
+\section{The Temporally Parallel
+Filters}\label{the-temporally-parallel-filters}
+
+As mentioned before, the Kalman filter, and all its variants, use a scan
+operation. This seems like not a trivially parallelisable operation; it
+seems very sequential in nature. However, if the operation being used
+within the scan is \emph{accociative}, then there is an algorithm that
+allows us to partially parallelise such an algorithm. The Kalman Filter,
+on it's own, is clearly not associative; for a start, its output type is
+not the same as its input type, so it can't be. But can we re-write it
+so that it is? This is what \cite{sarkka2020temporal} recently did.
+
+We would like our elements to of the same type as our outputs, and for
+these to be able to be computed in parallel. A good start might be to
+consider `partial posteriors' containing only some of the data;
+
+\begin{equation}\phantomsection\label{eq-ass-elt}{\begin{split}
+  p(\bv\alpha_t \mid \bv\alpha_{t-1}, \bv z_{t-l:t}),
+\end{split}
+}\end{equation}
+
+that is, posteriors containing possibly limited number of previous
+elements. The idea then would be that it is easy to compute
+
+\[\begin{split}
+  p(\bv\alpha_t \mid \bv\alpha_{t-1}, \bv z_t),
+\end{split}
+\]
+
+for each time \(t=1,\dots, t\). The, if we can combine two such
+densities on non-overlpping times, we `add the data together' to get the
+posterior at the latest time possible, with all the data available in
+the two elements, combined; writing this using a prospective operator
+\(\oplus\),
+
+\[\begin{split}
+  p(\bv\alpha_t \mid \bv\alpha_{t-1}, \bv z_{t-l:t}) \oplus p(\bv\alpha_{t+k} \mid \bv\alpha_{t+k-1}, \bv z_{t:t+k}) = p(\bv\alpha_{t+k} \mid \bv\alpha_{t+k-1}, \bv z_{t-l:t+k}).
+\end{split}
+\]
+
 \section{Smoothing}\label{smoothing}
+
+(Largely unfinished. Focus has been on filtering, as that is what gives
+the likelihood as an output.)
 
 Beyond the filtering, another task is \emph{smoothing}. That is, filters
 estimate \(\bv m_{T\mid T}\) and \(P_{T\mid T}\), but there is use for

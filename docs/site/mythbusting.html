@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.33">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Evan Tate Paterson Hughes">
+
+<title>mythbusting – Integro-Difference Equation Models in Python-JAX</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-bc185b5c5bdbcb35c2eb49d8a876ef70.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-8efe912791747f478df3a2454da72ac3.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script type="text/javascript">
+MathJax = {
+  tex: {
+    macros: {
+      var: "{\\mathbb{V}\\mathrm{ar}}",
+      cov: "{\\mathbb{C}\\mathrm{ov}}",
+      eqc: ["{\\stackrel{c}{=}}", 0],
+      bv: ["{\\boldsymbol{\\mathbf{#1}}}", 1]
+    }
+  }
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../reference/_styles-quartodoc.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Integro-Difference Equation Models in Python-JAX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../site/mathematics.html"> 
+<span class="menu-text">The Maths</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../reference/index.html"> 
+<span class="menu-text">Docs</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../site/examples.html"> 
+<span class="menu-text">Examples</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+    <div class="dropdown">
+      <a href="" title="" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label=""><i class="bi bi-github"></i></a>
+      <ul class="dropdown-menu" aria-labelledby="quarto-navigation-tool-dropdown-0">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://github.com/tatephughes/JAX-IDEM">
+            Source
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://github.com/tatephughes/JAX-IDEM/issues">
+            Issues
+            </a>
+          </li>
+      </ul>
+    </div>
+  <a href="" class="quarto-reader-toggle quarto-navigation-tool px-1" onclick="window.quartoToggleReader(); return false;" title="Toggle reader mode">
+  <div class="quarto-reader-toggle-btn">
+  <i class="bi"></i>
+  </div>
+</a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-information-filter" id="toc-the-information-filter" class="nav-link active" data-scroll-target="#the-information-filter"><span class="header-section-number">1</span> The Information Filter</a>
+  <ul class="collapse">
+  <li><a href="#myth-1-you-can-use-a-truly-vague-prior-distribution-using-the-information-filter." id="toc-myth-1-you-can-use-a-truly-vague-prior-distribution-using-the-information-filter." class="nav-link" data-scroll-target="#myth-1-you-can-use-a-truly-vague-prior-distribution-using-the-information-filter."><span class="header-section-number">1.1</span> Myth 1: You can use a truly vague prior distribution using the information filter.</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Evan Tate Paterson Hughes </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>There are quite a few things being said about the kalman filter, and its variants, that don’t seem to hold up.</p>
+<p>This page is to cover a few of those things which, in particular, should provide some intuition as to how the variants of the filter gain their advantages (and disadvantages).</p>
+<p>We will only cover topics relating to the standard DLM case, written as</p>
+<p><span class="math display">\[\begin{align*}
+  \bv Z_t &amp;= \Phi_t \bv Y_t + \bv \epsilon_t, &amp;\quad t = 1,\dots, T,\\
+  \bv Y_{t+1} &amp;= M_t \bv Y_t + \bv \eta_t, &amp;\quad t = 0,\dots, T-1,
+\end{align*}\]</span></p>
+<p>initialised at <span class="math inline">\(\bv Y_0 \sim \mathcal N(\bv m_0, P_0)\)</span>, with <span class="math inline">\(\bv \epsilon_t \sim \mathcal N(\bv 0, \Sigma_t^{(\epsilon)})\)</span>, independant of eachother and of <span class="math inline">\(\bv \eta_t \sim \mathcal N(\bv 0, \Sigma_t^{(\eta)})\)</span>.</p>
+<p>Make sure to read up on the filters on <a href="site/mathematics.html">this page, under the Kalman Filter heading.</a></p>
+<section id="the-information-filter" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="the-information-filter"><span class="header-section-number">1</span> The Information Filter</h2>
+<section id="myth-1-you-can-use-a-truly-vague-prior-distribution-using-the-information-filter." class="level3" data-number="1.1">
+<h3 data-number="1.1" class="anchored" data-anchor-id="myth-1-you-can-use-a-truly-vague-prior-distribution-using-the-information-filter."><span class="header-section-number">1.1</span> Myth 1: You can use a truly vague prior distribution using the information filter.</h3>
+<p>Likely one of the most common things said about information filter is that it allows for initialisation whith zero information.</p>
+<p>This covers one of the more initially confusing aspects of the Kalman Filter; specification of the distribution <span class="math inline">\(\bv Y_0\)</span>. This corresponds to the Kalman filter being a kind of Bayesian filter; that is, it requires prior knowledge on the state. Generally, this prior is simply put to be reasonably vague; put <span class="math inline">\(\bv m_0\)</span> to be whatever and <span class="math inline">\(P_0\)</span> to be some large multiple of the identity matrix, unless we do actually have prior knowledge, in which case we use that.</p>
+<p>But is it possible to filter using no information at all? In Bayesian statistics, this would be what is know as a ‘flat prior’, where the prior is improper as it uses infinite initial variance (the density function is now 0 everywhere, making it not a ‘proper’ density since it no longer intergrates to 1).</p>
+<p>The information filter does, indeed, give an easy way to do this: set the initial information matrix to the zero matrix; which is intuitive.</p>
+<p>Spinning up a quick tracking example,</p>
+<div id="32cd6b4f" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.lax <span class="im">as</span> jl</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.random <span class="im">as</span> jr</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.scipy <span class="im">as</span> jsc</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jax.scipy.linalg <span class="im">import</span> solve_triangular <span class="im">as</span> st</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jaxidem.plotters <span class="im">as</span> plotters</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jaxidem.plotters <span class="im">import</span> cat</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">"jax_enable_x64"</span>, <span class="va">True</span>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>dt <span class="op">=</span> <span class="fl">0.1</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> jnp.eye(<span class="dv">4</span>) <span class="op">+</span> dt <span class="op">*</span> jnp.eye(<span class="dv">4</span>, k<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>PHI <span class="op">=</span> jnp.eye(<span class="dv">2</span>, <span class="dv">4</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>S2_eta <span class="op">=</span> <span class="dv">5</span>  <span class="op">*</span> jnp.kron(jnp.array([[dt<span class="op">**</span><span class="dv">3</span><span class="op">/</span><span class="dv">3</span>, dt<span class="op">**</span><span class="dv">2</span><span class="op">/</span><span class="dv">2</span>],</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>                                [dt<span class="op">**</span><span class="dv">2</span><span class="op">/</span><span class="dv">2</span>, dt]]), </span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>                     jnp.eye(<span class="dv">2</span>))</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>S2_eps <span class="op">=</span> <span class="fl">0.2</span> <span class="op">**</span> <span class="dv">2</span> <span class="op">*</span> jnp.eye(<span class="dv">2</span>)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>S_eta <span class="op">=</span> jnp.linalg.cholesky(S2_eta)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>S_eps <span class="op">=</span> jnp.linalg.cholesky(S2_eps)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>alphas <span class="op">=</span> [jnp.array([<span class="fl">0.</span>, <span class="fl">0.</span>, <span class="fl">1.</span>, <span class="op">-</span><span class="fl">1.</span>])]</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>zs <span class="op">=</span> []</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>T <span class="op">=</span> <span class="dv">50</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jr.PRNGKey(seed<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(T):</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    inn_key <span class="op">=</span> jr.fold_in(key, i)</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    proc_key, obs_key <span class="op">=</span> jr.split(inn_key, <span class="dv">2</span>)</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    alphas.append(M <span class="op">@</span> alphas[<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> S_eta <span class="op">@</span> jr.normal(proc_key, shape <span class="op">=</span> (<span class="dv">4</span>,)))</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    zs.append(PHI <span class="op">@</span> alphas[<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> S_eps <span class="op">@</span> jr.normal(obs_key, shape <span class="op">=</span> (<span class="dv">2</span>,)))</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>alphas <span class="op">=</span> jnp.array(alphas)</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>zs <span class="op">=</span> jnp.array(zs)</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="at">@jax.jit</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> information_filter(</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>        nu_0,</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>        Q_0,</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>        M,</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>        PHI,</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>        S2_eta,</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>        S2_eps,</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>        zs</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>):</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>    r <span class="op">=</span> nu_0.shape[<span class="dv">0</span>]</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>    nobs <span class="op">=</span> zs.shape[<span class="dv">1</span>]</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>    i_s <span class="op">=</span> jax.vmap(<span class="kw">lambda</span> z: PHI.T <span class="op">@</span> jsc.linalg.solve(S2_eps, z, assume_a <span class="op">=</span> <span class="st">"pos"</span>), in_axes<span class="op">=</span><span class="dv">0</span>)(zs)</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>    I <span class="op">=</span> PHI.T <span class="op">@</span> jsc.linalg.solve(S2_eps, PHI, assume_a <span class="op">=</span> <span class="st">"pos"</span>)</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>    Minv <span class="op">=</span> jnp.linalg.inv(M)</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>    S2_eta_inv <span class="op">=</span> jnp.linalg.inv(S2_eta)</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jax.jit</span></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> step(carry, i):</span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>        nu_tt, Q_tt, _, _ <span class="op">=</span> carry</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>        S_t <span class="op">=</span> Minv.T <span class="op">@</span> Q_tt <span class="op">@</span> Minv</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>        J_t <span class="op">=</span> jsc.linalg.solve((S_t <span class="op">+</span> S2_eta_inv).T, S_t.T).T</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>        nu_pred <span class="op">=</span> (jnp.eye(r) <span class="op">-</span> J_t) <span class="op">@</span> Minv.T <span class="op">@</span> nu_tt</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>        Q_pred <span class="op">=</span> (jnp.eye(r) <span class="op">-</span> J_t) <span class="op">@</span> S_t</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>        nu_up <span class="op">=</span> nu_pred <span class="op">+</span> i</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>        Q_up <span class="op">=</span> Q_pred <span class="op">+</span> I</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>        new_carry <span class="op">=</span> (nu_up, Q_up, nu_pred, Q_pred)</span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> new_carry, new_carry</span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>    carry, seq <span class="op">=</span> jl.scan(</span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>        step,</span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),</span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>        i_s,</span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>    nus, Qs, nupreds, Qpreds <span class="op">=</span> (seq[<span class="dv">0</span>], seq[<span class="dv">1</span>], seq[<span class="dv">2</span>], seq[<span class="dv">3</span>])</span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jax.jit</span></span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> likelihood_func(z, nu_pred, Q_pred):</span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a>        e <span class="op">=</span> z <span class="op">-</span> PHI <span class="op">@</span> jnp.linalg.solve(Q_pred, nu_pred)</span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a>        chol_Sigma_t <span class="op">=</span> jnp.linalg.cholesky(</span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>            PHI <span class="op">@</span> jnp.linalg.solve(Q_pred, PHI.T) <span class="op">+</span> S2_eps</span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a>        z <span class="op">=</span> st(chol_Sigma_t, e, lower<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a>        ll <span class="op">=</span> (</span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span>jnp.<span class="bu">sum</span>(jnp.log(jnp.diag(chol_Sigma_t)))</span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span> <span class="fl">0.5</span> <span class="op">*</span> jnp.dot(z, z)</span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span> <span class="fl">0.5</span> <span class="op">*</span> nobs <span class="op">*</span> jnp.log(<span class="dv">2</span> <span class="op">*</span> jnp.pi)</span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> ll</span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>    lls <span class="op">=</span> jax.vmap(likelihood_func)(zs, nupreds, Qpreds)</span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>    ll <span class="op">=</span> jnp.<span class="bu">sum</span>(lls)</span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>    filt_results <span class="op">=</span> {<span class="st">"ll"</span>: ll,</span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"nus"</span>: nus,</span>
+<span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Qs"</span>: Qs,</span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"nupreds"</span>: nupreds,</span>
+<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Qpreds"</span>: Qpreds}</span>
+<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> filt_results</span>
+<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a>nu_0 <span class="op">=</span> jnp.zeros(<span class="dv">4</span>)</span>
+<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>Q_0 <span class="op">=</span> jnp.zeros((<span class="dv">4</span>,<span class="dv">4</span>))</span>
+<span id="cb1-112"><a href="#cb1-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a>filt_results_inf <span class="op">=</span> information_filter(nu_0, Q_0, M, PHI, S2_eta, S2_eps, zs)</span>
+<span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a><span class="co"># exclude the first point; its nan since Q_0 is 0</span></span>
+<span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a>ms <span class="op">=</span> jnp.linalg.solve(filt_results_inf[<span class="st">'Qs'</span>], filt_results_inf[<span class="st">'nus'</span>][..., <span class="va">None</span>]).squeeze(<span class="op">-</span><span class="dv">1</span>)[<span class="dv">1</span>:]</span>
+<span id="cb1-117"><a href="#cb1-117" aria-hidden="true" tabindex="-1"></a>Ps <span class="op">=</span> jnp.linalg.inv(filt_results_inf[<span class="st">'Qs'</span>])[<span class="dv">1</span>:]</span>
+<span id="cb1-118"><a href="#cb1-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-119"><a href="#cb1-119" aria-hidden="true" tabindex="-1"></a>m_x, m_y <span class="op">=</span> ms[<span class="dv">1</span>:<span class="dv">50</span>, <span class="dv">0</span>], ms[<span class="dv">1</span>:<span class="dv">50</span>, <span class="dv">1</span>] </span>
+<span id="cb1-120"><a href="#cb1-120" aria-hidden="true" tabindex="-1"></a>s2_x, s2_y <span class="op">=</span> Ps[<span class="dv">1</span>:<span class="dv">50</span>, <span class="dv">0</span>,<span class="dv">0</span>], Ps[<span class="dv">1</span>:<span class="dv">50</span>, <span class="dv">1</span>,<span class="dv">1</span>]</span>
+<span id="cb1-121"><a href="#cb1-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-122"><a href="#cb1-122" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> go.Figure()</span>
+<span id="cb1-123"><a href="#cb1-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-124"><a href="#cb1-124" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(</span>
+<span id="cb1-125"><a href="#cb1-125" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>alphas[:<span class="dv">50</span>, <span class="dv">0</span>],</span>
+<span id="cb1-126"><a href="#cb1-126" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>alphas[:<span class="dv">50</span>, <span class="dv">1</span>],</span>
+<span id="cb1-127"><a href="#cb1-127" aria-hidden="true" tabindex="-1"></a>    mode<span class="op">=</span><span class="st">'lines+markers'</span>,</span>
+<span id="cb1-128"><a href="#cb1-128" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'Process'</span>,</span>
+<span id="cb1-129"><a href="#cb1-129" aria-hidden="true" tabindex="-1"></a>    line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span>cat[<span class="st">"blue"</span>]),</span>
+<span id="cb1-130"><a href="#cb1-130" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">6</span>)</span>
+<span id="cb1-131"><a href="#cb1-131" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb1-132"><a href="#cb1-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-133"><a href="#cb1-133" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(</span>
+<span id="cb1-134"><a href="#cb1-134" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>zs[:<span class="dv">50</span>, <span class="dv">0</span>],</span>
+<span id="cb1-135"><a href="#cb1-135" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>zs[:<span class="dv">50</span>, <span class="dv">1</span>],</span>
+<span id="cb1-136"><a href="#cb1-136" aria-hidden="true" tabindex="-1"></a>    mode<span class="op">=</span><span class="st">'lines+markers'</span>,</span>
+<span id="cb1-137"><a href="#cb1-137" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'Observations'</span>,</span>
+<span id="cb1-138"><a href="#cb1-138" aria-hidden="true" tabindex="-1"></a>    line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span>cat[<span class="st">"red"</span>], dash<span class="op">=</span><span class="st">'dot'</span>, width<span class="op">=</span><span class="dv">1</span>),</span>
+<span id="cb1-139"><a href="#cb1-139" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="bu">dict</span>(symbol<span class="op">=</span><span class="st">'cross'</span>, color<span class="op">=</span>cat[<span class="st">"red"</span>], size<span class="op">=</span><span class="dv">8</span>, line<span class="op">=</span><span class="bu">dict</span>(width<span class="op">=</span><span class="dv">1</span>))</span>
+<span id="cb1-140"><a href="#cb1-140" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb1-141"><a href="#cb1-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-142"><a href="#cb1-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-143"><a href="#cb1-143" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(</span>
+<span id="cb1-144"><a href="#cb1-144" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>m_x,</span>
+<span id="cb1-145"><a href="#cb1-145" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>m_y,</span>
+<span id="cb1-146"><a href="#cb1-146" aria-hidden="true" tabindex="-1"></a>    mode<span class="op">=</span><span class="st">'lines'</span>,</span>
+<span id="cb1-147"><a href="#cb1-147" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'Filtered mean'</span>,</span>
+<span id="cb1-148"><a href="#cb1-148" aria-hidden="true" tabindex="-1"></a>    line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span>cat[<span class="st">"yellow"</span>], width<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb1-149"><a href="#cb1-149" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb1-150"><a href="#cb1-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-151"><a href="#cb1-151" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncertainty band (±1 std) for filtered position</span></span>
+<span id="cb1-152"><a href="#cb1-152" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(</span>
+<span id="cb1-153"><a href="#cb1-153" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>jnp.concatenate([m_x <span class="op">-</span> jnp.sqrt(s2_x), m_x[::<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> jnp.sqrt(s2_x[::<span class="op">-</span><span class="dv">1</span>])]),</span>
+<span id="cb1-154"><a href="#cb1-154" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>jnp.concatenate([m_y <span class="op">-</span> jnp.sqrt(s2_y), m_y[::<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> jnp.sqrt(s2_y[::<span class="op">-</span><span class="dv">1</span>])]),</span>
+<span id="cb1-155"><a href="#cb1-155" aria-hidden="true" tabindex="-1"></a>    fill<span class="op">=</span><span class="st">'toself'</span>,</span>
+<span id="cb1-156"><a href="#cb1-156" aria-hidden="true" tabindex="-1"></a>    fillcolor<span class="op">=</span><span class="st">'rgba(250, 179, 135, 0.2)'</span>,</span>
+<span id="cb1-157"><a href="#cb1-157" aria-hidden="true" tabindex="-1"></a>    line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span><span class="st">'rgba(0,0,0,0)'</span>),</span>
+<span id="cb1-158"><a href="#cb1-158" aria-hidden="true" tabindex="-1"></a>    showlegend<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb1-159"><a href="#cb1-159" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'±1 std deviation'</span></span>
+<span id="cb1-160"><a href="#cb1-160" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb1-161"><a href="#cb1-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-162"><a href="#cb1-162" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-163"><a href="#cb1-163" aria-hidden="true" tabindex="-1"></a>fig.update_layout(</span>
+<span id="cb1-164"><a href="#cb1-164" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">'Tracking Model'</span>,</span>
+<span id="cb1-165"><a href="#cb1-165" aria-hidden="true" tabindex="-1"></a>    xaxis_title<span class="op">=</span><span class="st">'X'</span>,</span>
+<span id="cb1-166"><a href="#cb1-166" aria-hidden="true" tabindex="-1"></a>    yaxis_title<span class="op">=</span><span class="st">'Y'</span>,</span>
+<span id="cb1-167"><a href="#cb1-167" aria-hidden="true" tabindex="-1"></a>    legend<span class="op">=</span><span class="bu">dict</span>(x<span class="op">=</span><span class="fl">0.02</span>, y<span class="op">=</span><span class="fl">0.98</span>),</span>
+<span id="cb1-168"><a href="#cb1-168" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">700</span>,</span>
+<span id="cb1-169"><a href="#cb1-169" aria-hidden="true" tabindex="-1"></a>    height<span class="op">=</span><span class="dv">500</span>,</span>
+<span id="cb1-170"><a href="#cb1-170" aria-hidden="true" tabindex="-1"></a>    paper_bgcolor<span class="op">=</span>cat[<span class="st">"base"</span>],</span>
+<span id="cb1-171"><a href="#cb1-171" aria-hidden="true" tabindex="-1"></a>    plot_bgcolor<span class="op">=</span>cat[<span class="st">"base"</span>],</span>
+<span id="cb1-172"><a href="#cb1-172" aria-hidden="true" tabindex="-1"></a>    font<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span>cat[<span class="st">"text"</span>], size<span class="op">=</span><span class="dv">16</span>),</span>
+<span id="cb1-173"><a href="#cb1-173" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-174"><a href="#cb1-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-175"><a href="#cb1-175" aria-hidden="true" tabindex="-1"></a>plotters.apply_catppuccin_mocha(fig)</span>
+<span id="cb1-176"><a href="#cb1-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-177"><a href="#cb1-177" aria-hidden="true" tabindex="-1"></a>fig.show()</span>
+<span id="cb1-178"><a href="#cb1-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-179"><a href="#cb1-179" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Log-Likelihood = </span><span class="sc">{</span>filt_results_inf[<span class="st">'ll'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display">
+        <script type="text/javascript">
+        window.PlotlyConfig = {MathJaxConfig: 'local'};
+        if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}
+        </script>
+        <script type="module">import "https://cdn.plot.ly/plotly-3.0.1.min"</script>
+        
+</div>
+<div class="cell-output cell-output-display">
+<div>            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script type="text/javascript">if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js" integrity="sha256-oy6Be7Eh6eiQFs5M7oXuPxxm9qbJXEtTpfSI93dW16Q=" crossorigin="anonymous"></script>                <div id="59ede26d-85d8-42aa-ad7c-08933018d69d" class="plotly-graph-div" style="height:500px; width:700px;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("59ede26d-85d8-42aa-ad7c-08933018d69d")) {                    Plotly.newPlot(                        "59ede26d-85d8-42aa-ad7c-08933018d69d",                        [{"line":{"color":"#89b4fa"},"marker":{"size":6},"mode":"lines+markers","name":"Process","x":{"dtype":"f8","bdata":"AAAAAAAAAABAOp7s\u002fu\u002fCPz7QSHkZnMc\u002fGEER\u002fLhuwj\u002f4DvjQVUOVP\u002ftS9RWGwMC\u002f4J4Ijb0k0b8qDGVAafPZv9kvM6eQmeC\u002fyiR19G+d4b8DDpJYohLiv3fZV8BW3eK\u002fE9G4y5vE5b8gJrwTbjXov8LEWg55zOy\u002fIzpVhTeg8L8s6VNfombzv5ml5hNsKPe\u002f5RRmn82l+78mZ8uZ4AABwB6kyO4V5APAnqiaLYZIBsDkPTPecDEJwPCSrhWAugzAAqemPgz3D8C6GrLDq3wRwMkEFeTQ1RLAZt844VXbE8DQpc\u002fxCtEUwLn9SkCmCBbA3EJjY2RnF8BDj9\u002fmlc8YwJ2VQCCaehrAcTO3DCBGHMCs1X87jQ0ewHUokCpl4R\u002fAQ9AVNu7TIMBtVe1t3ZohwPiRrZtOZSLAUr2bp0BpI8Ao\u002f9oJxmkkwAyBJR9NkyXA89xYzADNJsA8LeUEtCoowMNNSm+8synADEYHzOIrK8C6z2Uj7qIswNR\u002fcYjUHy7Am7E912XKL8CTG285Xb8wwA=="},"y":{"dtype":"f8","bdata":"AAAAAAAAAABoVKExvbi8v\u002flZLW28h8S\u002f50bFz5YHzL8upAFRAEDKv5mnUHU1FbC\u002fMhVhmJntuD8cyjU13aDQP7XsmzSMXNs\u002fGwKynR4u4j\u002f2hvVE9XPiPzDltySAP+M\u002fwK3p1vPE5D9cAABxaCfpPwaeLv9jrew\u002fX29y8i6M8D+mIYybrpLzP2\u002f0bsgxA\u002fY\u002faDbWu\u002ffu9z\u002fAT0lnSmb5PxU3B8cOwfk\u002fQtR40L5R+T+EBEn3CGr6PxJZ3xVjMPs\u002fB+NtlMZz\u002fD\u002fk4iVnJz\u002f8P8tUzsZ4UPw\u002fOv07Q+Sw\u002fD+KC9I3spb8P8dg4uvxCfw\u002fZdzaalnw+z8hs6lGkbn7P5\u002fGBjrUCvo\u002fsXs2y3FK+T9mX3BcNWb3P8kUScywXPc\u002fxWs1aTOu+D+OvQfJn5v6P96FF3\u002fn8vs\u002fdjxc7olj\u002fD\u002fsgP9TTrX7P\u002fGkQACPpPk\u002fsirBbIDk9T\u002fiZv2ytfXwP7SQ9l0rwOY\u002fWF9qbEV21T8CgDKJpjiqP7LeXaM+2cy\u002f+uKLAh0L3b\u002fNpkp3Ptflvw=="},"type":"scatter"},{"line":{"color":"#f38ba8","dash":"dot","width":1},"marker":{"color":"#f38ba8","line":{"width":1},"size":8,"symbol":"cross"},"mode":"lines+markers","name":"Observations","x":{"dtype":"f8","bdata":"+v7ljYmwoz+sU1LBZnDPv0aoc+UBxcs\u002fXyd7e8hdur+iEn0hrH6rvxxICxBjptK\u002fAm440PcZ279yRU8jGnHsv0vaag8roea\u002fvNzjCQ3A2b9c67K8rzbdvwU459eGj+m\u002fL9d761KW6L9KExU0C2Lgv7YEYqOKT\u002fG\u002fdszqNaxd9b\u002fVRn+QofT9v4Ic0dvzrfi\u002f2M8J7Ol2AMAMT3mEKaEDwMxRDhALMgXAtU8uCU+wCMCvBoc7xlYPwKz0SsLDig\u002fAxgaJQKrMEsCbV5D83nYTwKttqR9sSxTArj9v9AHvFMA9mw56fFIVwJwlOXTiWRfASK+ekeK6GMA256LmehYawDfJacXgLxzAuqnNrklpHsAJgd6UPJQgwL3mq1HEUiDAFefv9YieIcDnDzpqioQjwLY1++bUPCPAbSFAAOp3JMAMKKXsmFcmwF7w5c1EVSfAH98etuIlKMBhAKqZ\u002ftYpwFn5g4dNYCvAGCelT17bK8D3oxY0yu4twDYAMV4XHS\u002fAUaI4rp4hMcDOgKuMuKsxwA=="},"y":{"dtype":"f8","bdata":"wtbE3kOFwr++HxnAqY+vv9rcJxhjd9O\u002fUJHgj8Ytyr9ISaXm59nFvxjx8DyaBrE\u002fXN3Fkjo5xj8jiRh3BsPYP8nGPoSQ2\u002fA\u002fKmNeabSZ3D995X4XiuXoPxVmGcPXYug\u002faezMuB5X3z8r\u002fTQeEnjsP+QocFWP2vA\u002fgMJPYeIN9D\u002fECVbQI0n1Px1LpMmI8fQ\u002f2rm\u002fmZOg9j+AkB8pOdf7P8sXP8j\u002fvfU\u002fpOstEGda+D+f+j\u002fSwgv4P4T5K4jVjPw\u002funrw2T3a9T+6HfKJGsgAQCxFLUnBpgBAUphHrMoR\u002fj8F7i0f+9D\u002fP62\u002famRFefk\u002fklcz+u2bAUDCBj3u4VP3PxAJjGG\u002favc\u002fokF7+MS\u002f8j\u002f6ViOAJX71P1+\u002f\u002fdNH9PM\u002fwXJSiRQN\u002fD8AIRs+t6n5PxEe1yQYxQBAIBEpAshc\u002fj9Kk8fTCWH7P\u002f3wt0WbEPA\u002fQ96GFczO6j+0tv2lAMzvP21t9kG0v8I\u002fMHstZs9Gh79odR4AfuWXPzIupVw5f+K\u002fhuefVkas47\u002fsaTPI6KLjvw=="},"type":"scatter"},{"line":{"color":"#f9e2af","width":2},"mode":"lines","name":"Filtered mean","x":{"dtype":"f8","bdata":"vsmJp2oeuD9mU7EmXu6Sv4WGTUlgDqW\u002f0PbbdnXLyL8bBbQZma7Wv+0Qk1nuh+a\u002fthNh2rFn6b+jaemcGnPkv45q4Qi2ieG\u002fdF4\u002ftB\u002fV5b\u002fh6Y\u002fCFf\u002fnv6r\u002fjrC6ZuS\u002fr9rj2glK7L9IBvphEOPyv5DbCcOLZPq\u002fbJTp5BF1+7\u002fExQ2Qb\u002fb\u002fv6mIT0Nx3QLAB60opEctBcDhuTquMyoIwG3T\u002fxVoWw3AASYQwg8WEMDhL5D4olcSwOq98k27zBPAuEpiVZjSFMARFqwyL4EVwINB+mke4xXAPK\u002f4gCMTF8DkLBprcG8YwG8Xhmvb3BnAlpLBBnS5G8Cc9XG\u002fU+YdwD4nsednQiDA3h9h4cfAIMBeGfK2aJohwPfOf1ScDSPACVdCEpCgI8CCMgFN93skwM4+6mVw6iXAKaJS9hwyJ8De\u002f1NVPz4owLAvOwiKoinAMrnHnA8oK8Bl4m2SHiMswCYhP7zyrC3AcQLKggQSL8BGBawBhLwwwHF3RzUqpzHA"},"y":{"dtype":"f8","bdata":"6hToT4wK0L9epd\u002fzKu7Ov2H2W\u002fWcCcu\u002fOzv7diUDqr+e256xAFW6P0NjJvevmNM\u002f+PiZzd5V6T8FNltD1e7mP4PFxJxI6+k\u002fOAM1GcWt6j8DivgAZYTlP3w7s5JKNuk\u002fx\u002fJS4nmK7j\u002fEFSU1e5vyP+NYF007FfU\u002fAZXYP9QA9j9pRd6tkhz3P0HwQGshcfo\u002fUPac3je8+D99FrbP78n4P1VWg0Y8ifg\u002fqfsqweXf+j83QFqltHb4P3B\u002fqpcWev0\u002fPj16rlI4AEDsQXUSOAoAQI8REhe7OQBAaiffGmLb\u002fD+xaYSq\u002fAcAQFVURO2Iavs\u002f+9IZDHOD+D9UtO0nNlr0PxEKY8fWvvM\u002f4oaq4rUD8z9fyqdkkoX3P67+\u002fWTcKPk\u002fcg+\u002f2lJ2\u002fj+2kDqYPqj\u002fPx5OtMPsLP4\u002f16pN+\u002f5z9j8c+DubJiDwP4UkkKKcXew\u002f0V3tG\u002fkj2D+bmQhlLRuNP4oCE1\u002fCdMC\u002ftZEvSmHM379LOaaOKUHmvwthriYoYOi\u002f"},"type":"scatter"},{"fill":"toself","fillcolor":"rgba(250, 179, 135, 0.2)","line":{"color":"rgba(0,0,0,0)"},"name":"±1 std deviation","showlegend":true,"x":{"dtype":"f8","bdata":"qEdICSWvtr+Mtr5qZfrHv0YgSbNsq8m\u002fO+r9ustC1r915IJ5lzLgv4pq8NQGXeu\u002f7jYZ7JI77r+VsgnQ60bpv47WPjR\u002fXea\u002fQX9uts6o6r8joKSmrNLsv41l\u002fgNEOum\u002fE\u002fz+8saO8L8JCBK50Uz1v\u002f5HxARNzvy\u002f7eSdJtPe\u002fb9VSIFmGDABwG8DjN5REgTA22YpPShiBsCmfTNGFF8JwE6IpK1IkA7AmY7aDYCwEMBLQVpEE\u002fISwCmLvJkrZxTA+1UroQhtFcCqdHR+nxsWwA9BwrWOfRbAgorAzJOtF8AQ\u002f+G24AkZwJHoTbdLdxrAtmOJUuRTHMBzxjkLxIAewHoPlQ2gjyDA+wdFBwAOIcBtAdbcoOchwAG3Y3rUWiPAEj8mOMjtI8CLGuVyL8kkwNcmzouoNybAMoo2HFV\u002fJ8Dn5zd7d4sowLkXHy7C7ynAO6Grwkd1K8BuylG4VnAswC8JI+Iq+i3AeuqtqDxfL8BL+Z0UIOMwwHZrOUjGzTHAbINVIo6AMcBBEbru55UwwGga5lzMxC7AHTlblrpfLcBc+ols5tUrwCnR43bX2irAp0dX4lFVKcDVF3AvB\u002fEnwCC6btDk5CbAxVYGQDidJcB5Sh0nvy4kwABvXuxXUyPA7eabLmTAIsBPMQ6RME0hwME3fbuPcyDAA36ag1\u002fqH8DFJKpz40sdwHbB+boDHxvATUa+H2tCGcC4WlIfANUXwPbTMDWzeBbA90EyHq5IFcB4t+PmvuYUwHU\u002fmQkoOBTAq\u002fAoAksyE8B3HsasMr0RwNJ6i+w+9w7AjB5bfocmDMAc9kEWU\u002fUGwDPzJwtn+APA4w0TqJCoAcDf+hhTroz9v+tDNaNQC\u002fm\u002fIm9Pgcr697+HBOIKT3nwvzi9yc+Fdue\u002fjjM\u002fumIm37+fM3vefivjv6c9ELJwAeG\u002fHf0Hu9lr2b9iQZLTkj7fv37wqMjQk+S\u002fULc13tWy4b+ZgsSABvDJv6hk8N5NRaS\u002fCLpEHXlIvj+yYRLhzT7DP8n2Fpb+utE\u002f"},"y":{"dtype":"f8","bdata":"RJkcPPC927++GORMYkXav4PaKMu4uNe\u002fdazeXOs6yr84Z1BnrQqpvxBg1wD+3MM\u002fwNXhu\u002f2B5D8T7ToQBBviP4RZZ3F\u002fF+U\u002fa+IFFxba5T\u002fB0+MczrDgP5nVQz\u002fBYuQ\u002fUNU41\u002fW26T8DFA3euTHwP3bsXAt6q\u002fI\u002fgEQk\u002fhKX8z+Eeulw0bL0P7T6xzRgB\u002fg\u002fqYKbrHZS9j\u002fzjsSfLmD2P5LsORd7H\u002fY\u002fSFkBkiR2+D+O+jF28wz2P3JKg2hVEPs\u002fcE3QLeQG\u002fj92Ccn1rqr9P+0kBP+0Cf4\u002fUrq\u002f66Bx+j+yiuklOKb9P84PJb7HAPk\u002feo763LEZ9j\u002f3cM74dPDxPy3IQ5gVVfE\u002f+0WLs\u002fSZ8D\u002fqiYg10Rv1P12+3jUbv\u002fY\u002fJ8+fq5EM\u002fD9sUBtpfT79P9QNlZQrw\u002fs\u002fjmouzD0K9D+mbznYymzrP\u002fSjUUQaiuc\u002fX7ngvuj5zD+peKmiVnzBv2aCBuxl4dG\u002fbElWA7O55L\u002fcueTsqxTrv5zh7ISqM+2\u002feuBvyKWM47+6uGcwp23hv5OQso1cJda\u002fyP03zzjKlj\u002fdi0pPvB\u002fFP3kvNex+5eA\u002fi1JngI+Y8D9lOFvK54nyPyDrbCrA3fg\u002fNMdp+VZLAECA6Kzj\u002fwgBQN4n7wQKcABA\u002fz4dlJ2S+z\u002fUCseTU+\u002f5P8nHyRF3bfU\u002f9UuC9pco9j+x9wxX98P2P3wXOTs07fo\u002f3JhjHErU\u002fT8JDhRC3TwBQIKU\u002fkkjRf8\u002fqBCirptuAUAd\u002fwWqGD8BQMRTDEYzbQFAbrTRxtfj\u002fz\u002fghYLUdeD6PwqeVPCmSf0\u002fGMDMdf3y+j8Hnqf\u002fsDP7P\u002fdpnhD5Jfs\u002fzuW5oeLa\u002fD9OENPqU4b5P4LljIGVavg\u002fUMXRjvx+9z+FFz2MPAX1Px+Itvb+rvE\u002fX6Ei5tMJ7j9FQA3l+1fqPwUkZBt0ge8\u002fgjEiyBG\u002f7j\u002f3fnt2psLrPzAcUt+\u002fKe4\u002ffhbh7eBC3T+2erkF1kvQP64dwkKxcro\u002f8N6YUSGHqr9+Mu6bIqOyv0JCzo6hXLG\u002f"},"type":"scatter"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30}}},"legend":{"x":0.02,"y":0.98},"font":{"color":"#cdd6f4","size":20},"title":{"text":"Tracking Model","font":{"color":"#cdd6f4"}},"xaxis":{"title":{"text":"X"},"tickfont":{"color":"#bac2de"},"showgrid":true,"gridcolor":"#313244","zeroline":false,"linecolor":"#6c7086","ticks":"outside"},"yaxis":{"title":{"text":"Y"},"tickfont":{"color":"#bac2de"},"showgrid":true,"gridcolor":"#313244","zeroline":false,"linecolor":"#6c7086","ticks":"outside"},"width":700,"height":500,"paper_bgcolor":"#181825","plot_bgcolor":"#181825"},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('59ede26d-85d8-42aa-ad7c-08933018d69d');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Log-Likelihood = nan</code></pre>
+</div>
+</div>
+<p>As we can see, the filtering was fine. Note, however that the likelihood failed; this is as expected. When you consider the first likelihood term, <span class="math inline">\(p(\bv z_1)\)</span>, it is clear that the likelihood is zero (therefore the log likelihood is undefined); if our prior on <span class="math inline">\(\bv Y_0\)</span> is flat, the corresponding prior predictive distribution of <span class="math inline">\(\bv Z_1\)</span> is also! You can still recover a ‘partial likeihood’ <span class="math inline">\(p(\bv z_t, \dots, \bv z_2 \mid \bv z_1)\)</span>, however, by simply excluding the first element of the sum of the log likelihoods at the last step of the information filter.</p>
+<p>So, myth confirmed right? Well, yes, but what I really want to talk about is the way in which people tend to say it; the wikipedia page, as of September 2025, reads</p>
+<div class="callout callout-style-default callout-note no-icon callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<a href="en.wikipedia.org/wiki/Kalman_filter#Information_filter">‘Information Filter’ from Wikipedia</a>
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Additionally, the information filter allows for system information initialization according to <span class="math inline">\(I_{1\mid0} = P_{1\mid0}^{-1}=0\)</span>, which would not be possible for the regular Kalman filter.</p>
+</div>
+</div>
+<p>That last statement, ‘which would not be possible for the regular Kalman filter’, is not true at all. The standard Kalman filter can absolutely handle this case.</p>
+<p>Plugging an infinite matrix into standard implementations likely won’t work; instead, you need to do the first step ‘by hand’. The is covered in the appendix of ‘The Maths’ page <a href="site/mathematics.html">here.</a> In short, the first step becomes</p>
+<p><span id="eq-kalmanvague"><span class="math display">\[\begin{split}
+  \bv m_{1\mid1} &amp;= (\Phi_1^\intercal \Sigma_\epsilon^{-1} \Phi_1)^{\dagger} \Phi_1.T \Sigma_\epsilon^{-1} \tilde{\bv z}_1,\\
+  P_{1\mid1} &amp;= (\Phi_1^\intercal \Sigma_\epsilon^{\dagger} \Phi_1)^{\dagger},
+\end{split}
+\tag{1}\]</span></span></p>
+<p>where <span class="math inline">\(\dagger\)</span> is the generallised pseudo-inverse. This can be easily recognised as the correlated least-squares estimate for <span class="math inline">\(Y\)</span>, so again, this makes complete sense.</p>
+<div id="7f074c58" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@jax.jit</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kalman_filter_vague(M, PHI, S2_eta, S2_eps, zs):</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    r <span class="op">=</span> M.shape[<span class="dv">0</span>]</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    nobs <span class="op">=</span> zs.shape[<span class="dv">1</span>]</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    P1 <span class="op">=</span> jnp.linalg.pinv(PHI.T<span class="op">@</span> jnp.linalg.solve(S2_eps, PHI))    </span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    m1 <span class="op">=</span> P1 <span class="op">@</span> PHI.T <span class="op">@</span> jnp.linalg.solve(S2_eps, zs[<span class="dv">0</span>])</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">#m1 = PHI.T @ jnp.linalg.solve(S2_eps, zs[0])</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">#P1 = PHI.T @ jnp.linalg.solve(S2_eps, PHI)</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jax.jit</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> step(carry, z_t):</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>        m_tt, P_tt, _, _, ll <span class="op">=</span> carry</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>        <span class="co"># predict</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>        m_pred <span class="op">=</span> M <span class="op">@</span> m_tt</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>        P_pred <span class="op">=</span> M <span class="op">@</span> P_tt <span class="op">@</span> M.T <span class="op">+</span> S2_eta</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Update</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>        e_t <span class="op">=</span> z_t <span class="op">-</span> PHI <span class="op">@</span> m_pred</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>        Sigma_t <span class="op">=</span> PHI <span class="op">@</span> P_pred <span class="op">@</span> PHI.T <span class="op">+</span> S2_eps</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>        K_t <span class="op">=</span> (jsc.linalg.solve(Sigma_t, PHI, assume_a <span class="op">=</span> <span class="st">"pos"</span>) <span class="op">@</span> P_pred.T).T </span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>        m_up <span class="op">=</span> m_pred <span class="op">+</span> K_t <span class="op">@</span> e_t</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>        P_up <span class="op">=</span> (jnp.eye(r) <span class="op">-</span> K_t <span class="op">@</span> PHI) <span class="op">@</span> P_pred</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Stabilised form</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>        <span class="co"># P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred @ (jnp.eye(r) - K_t @ PHI).T + K_t@S2_eps@K_t.T</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>        <span class="co"># likelihood of epsilon, using cholesky decomposition</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>        chol_Sigma_t <span class="op">=</span> jnp.linalg.cholesky(Sigma_t)</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>        z <span class="op">=</span> st(chol_Sigma_t, e_t, lower<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>        ll_new <span class="op">=</span> (</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>            ll</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span> jnp.<span class="bu">sum</span>(jnp.log(jnp.diag(chol_Sigma_t)))</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span> <span class="fl">0.5</span> <span class="op">*</span> jnp.dot(z, z)</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span> <span class="fl">0.5</span> <span class="op">*</span> nobs <span class="op">*</span> jnp.log(<span class="dv">2</span> <span class="op">*</span> jnp.pi)</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>        new_carry <span class="op">=</span> (m_up, P_up, m_pred, P_pred, ll_new)</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> new_carry, new_carry</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    carry, seq <span class="op">=</span> jl.scan(</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>        step,</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>        (m1, P1, m1, P1, <span class="dv">0</span>),</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>        zs[<span class="dv">1</span>:],</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>    ll, ms, Ps, mpreds, Ppreds <span class="op">=</span> (carry[<span class="dv">4</span>], seq[<span class="dv">0</span>], seq[<span class="dv">1</span>], seq[<span class="dv">2</span>], seq[<span class="dv">3</span>])</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>    filt_results <span class="op">=</span> {<span class="st">"ll"</span>: ll,</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"ms"</span>: ms,</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Ps"</span>: Ps,</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"mpreds"</span>: mpreds,</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Ppreds"</span>: Ppreds}</span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> filt_results</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>filt_results_kal <span class="op">=</span> kalman_filter_vague(M, PHI, S2_eta, S2_eps, zs)</span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>ms2 <span class="op">=</span> filt_results_kal[<span class="st">'ms'</span>]</span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>Ps2 <span class="op">=</span> filt_results_kal[<span class="st">'Ps'</span>]</span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(m_x[:])</span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>m_x, m_y <span class="op">=</span> ms2[:, <span class="dv">0</span>], ms2[:, <span class="dv">1</span>]</span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(m_x[:<span class="dv">3</span>])</span>
+<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>s2_x, s2_y <span class="op">=</span> Ps2[:, <span class="dv">0</span>,<span class="dv">0</span>], Ps2[:, <span class="dv">1</span>,<span class="dv">1</span>]</span>
+<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> go.Figure()</span>
+<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(</span>
+<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>alphas[:<span class="dv">50</span>, <span class="dv">0</span>],</span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>alphas[:<span class="dv">50</span>, <span class="dv">1</span>],</span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>    mode<span class="op">=</span><span class="st">'lines+markers'</span>,</span>
+<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'Process'</span>,</span>
+<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>    line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span>cat[<span class="st">"blue"</span>]),</span>
+<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">6</span>)</span>
+<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(</span>
+<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>zs[:<span class="dv">50</span>, <span class="dv">0</span>],</span>
+<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>zs[:<span class="dv">50</span>, <span class="dv">1</span>],</span>
+<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>    mode<span class="op">=</span><span class="st">'lines+markers'</span>,</span>
+<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'Observations'</span>,</span>
+<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>    line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span>cat[<span class="st">"red"</span>], dash<span class="op">=</span><span class="st">'dot'</span>, width<span class="op">=</span><span class="dv">1</span>),</span>
+<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="bu">dict</span>(symbol<span class="op">=</span><span class="st">'cross'</span>, color<span class="op">=</span>cat[<span class="st">"red"</span>], size<span class="op">=</span><span class="dv">8</span>, line<span class="op">=</span><span class="bu">dict</span>(width<span class="op">=</span><span class="dv">1</span>))</span>
+<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(</span>
+<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>m_x,</span>
+<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>m_y,</span>
+<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>    mode<span class="op">=</span><span class="st">'lines'</span>,</span>
+<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'Filtered mean'</span>,</span>
+<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>    line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span>cat[<span class="st">"yellow"</span>], width<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncertainty band (±1 std) for filtered position</span></span>
+<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a>fig.add_trace(go.Scatter(</span>
+<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>jnp.concatenate([m_x <span class="op">-</span> jnp.sqrt(s2_x), m_x[::<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> jnp.sqrt(s2_x[::<span class="op">-</span><span class="dv">1</span>])]),</span>
+<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span>jnp.concatenate([m_y <span class="op">-</span> jnp.sqrt(s2_y), m_y[::<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> jnp.sqrt(s2_y[::<span class="op">-</span><span class="dv">1</span>])]),</span>
+<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a>    fill<span class="op">=</span><span class="st">'toself'</span>,</span>
+<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a>    fillcolor<span class="op">=</span><span class="st">'rgba(250, 179, 135, 0.2)'</span>,</span>
+<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a>    line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span><span class="st">'rgba(0,0,0,0)'</span>),</span>
+<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a>    showlegend<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'±1 std deviation'</span></span>
+<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-112"><a href="#cb3-112" aria-hidden="true" tabindex="-1"></a>fig.update_layout(</span>
+<span id="cb3-113"><a href="#cb3-113" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">'Tracking Model'</span>,</span>
+<span id="cb3-114"><a href="#cb3-114" aria-hidden="true" tabindex="-1"></a>    xaxis_title<span class="op">=</span><span class="st">'X'</span>,</span>
+<span id="cb3-115"><a href="#cb3-115" aria-hidden="true" tabindex="-1"></a>    yaxis_title<span class="op">=</span><span class="st">'Y'</span>,</span>
+<span id="cb3-116"><a href="#cb3-116" aria-hidden="true" tabindex="-1"></a>    legend<span class="op">=</span><span class="bu">dict</span>(x<span class="op">=</span><span class="fl">0.02</span>, y<span class="op">=</span><span class="fl">0.98</span>),</span>
+<span id="cb3-117"><a href="#cb3-117" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">700</span>,</span>
+<span id="cb3-118"><a href="#cb3-118" aria-hidden="true" tabindex="-1"></a>    height<span class="op">=</span><span class="dv">500</span>,</span>
+<span id="cb3-119"><a href="#cb3-119" aria-hidden="true" tabindex="-1"></a>    paper_bgcolor<span class="op">=</span>cat[<span class="st">"base"</span>],</span>
+<span id="cb3-120"><a href="#cb3-120" aria-hidden="true" tabindex="-1"></a>    plot_bgcolor<span class="op">=</span>cat[<span class="st">"base"</span>],</span>
+<span id="cb3-121"><a href="#cb3-121" aria-hidden="true" tabindex="-1"></a>    font<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span>cat[<span class="st">"text"</span>], size<span class="op">=</span><span class="dv">16</span>),</span>
+<span id="cb3-122"><a href="#cb3-122" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-123"><a href="#cb3-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-124"><a href="#cb3-124" aria-hidden="true" tabindex="-1"></a>plotters.apply_catppuccin_mocha(fig)</span>
+<span id="cb3-125"><a href="#cb3-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-126"><a href="#cb3-126" aria-hidden="true" tabindex="-1"></a>fig.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[  0.09421412  -0.01848743  -0.04112531  -0.19370907  -0.35440662
+  -0.70409315  -0.79390805  -0.63905078  -0.54806043  -0.68226609
+  -0.74988831  -0.63754019  -0.8840379   -1.18043555  -1.64954735
+  -1.71608152  -1.99766499  -2.35812619  -2.6471093   -3.02060639
+  -3.66963212  -4.02154449  -4.58558262  -4.94993326  -5.20565923
+  -5.37615661  -5.47179571  -5.76869012  -6.10882728  -6.46568077
+  -6.93110667  -7.47492885  -8.12969898  -8.37652497  -8.80158016
+  -9.52658333  -9.81359918 -10.24212113 -10.95788878 -11.59787721
+ -12.12157694 -12.81745935 -13.57824411 -14.06859262 -14.83778942
+ -15.53519067 -16.73638926 -17.65298779]
+[-0.10647945  0.02565334 -0.0196688 ]</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script type="text/javascript">if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js" integrity="sha256-oy6Be7Eh6eiQFs5M7oXuPxxm9qbJXEtTpfSI93dW16Q=" crossorigin="anonymous"></script>                <div id="5fe1f7b4-007b-40a5-bba8-32b37a1a0e2f" class="plotly-graph-div" style="height:500px; width:700px;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("5fe1f7b4-007b-40a5-bba8-32b37a1a0e2f")) {                    Plotly.newPlot(                        "5fe1f7b4-007b-40a5-bba8-32b37a1a0e2f",                        [{"line":{"color":"#89b4fa"},"marker":{"size":6},"mode":"lines+markers","name":"Process","x":{"dtype":"f8","bdata":"AAAAAAAAAABAOp7s\u002fu\u002fCPz7QSHkZnMc\u002fGEER\u002fLhuwj\u002f4DvjQVUOVP\u002ftS9RWGwMC\u002f4J4Ijb0k0b8qDGVAafPZv9kvM6eQmeC\u002fyiR19G+d4b8DDpJYohLiv3fZV8BW3eK\u002fE9G4y5vE5b8gJrwTbjXov8LEWg55zOy\u002fIzpVhTeg8L8s6VNfombzv5ml5hNsKPe\u002f5RRmn82l+78mZ8uZ4AABwB6kyO4V5APAnqiaLYZIBsDkPTPecDEJwPCSrhWAugzAAqemPgz3D8C6GrLDq3wRwMkEFeTQ1RLAZt844VXbE8DQpc\u002fxCtEUwLn9SkCmCBbA3EJjY2RnF8BDj9\u002fmlc8YwJ2VQCCaehrAcTO3DCBGHMCs1X87jQ0ewHUokCpl4R\u002fAQ9AVNu7TIMBtVe1t3ZohwPiRrZtOZSLAUr2bp0BpI8Ao\u002f9oJxmkkwAyBJR9NkyXA89xYzADNJsA8LeUEtCoowMNNSm+8synADEYHzOIrK8C6z2Uj7qIswNR\u002fcYjUHy7Am7E912XKL8CTG285Xb8wwA=="},"y":{"dtype":"f8","bdata":"AAAAAAAAAABoVKExvbi8v\u002flZLW28h8S\u002f50bFz5YHzL8upAFRAEDKv5mnUHU1FbC\u002fMhVhmJntuD8cyjU13aDQP7XsmzSMXNs\u002fGwKynR4u4j\u002f2hvVE9XPiPzDltySAP+M\u002fwK3p1vPE5D9cAABxaCfpPwaeLv9jrew\u002fX29y8i6M8D+mIYybrpLzP2\u002f0bsgxA\u002fY\u002faDbWu\u002ffu9z\u002fAT0lnSmb5PxU3B8cOwfk\u002fQtR40L5R+T+EBEn3CGr6PxJZ3xVjMPs\u002fB+NtlMZz\u002fD\u002fk4iVnJz\u002f8P8tUzsZ4UPw\u002fOv07Q+Sw\u002fD+KC9I3spb8P8dg4uvxCfw\u002fZdzaalnw+z8hs6lGkbn7P5\u002fGBjrUCvo\u002fsXs2y3FK+T9mX3BcNWb3P8kUScywXPc\u002fxWs1aTOu+D+OvQfJn5v6P96FF3\u002fn8vs\u002fdjxc7olj\u002fD\u002fsgP9TTrX7P\u002fGkQACPpPk\u002fsirBbIDk9T\u002fiZv2ytfXwP7SQ9l0rwOY\u002fWF9qbEV21T8CgDKJpjiqP7LeXaM+2cy\u002f+uKLAh0L3b\u002fNpkp3Ptflvw=="},"type":"scatter"},{"line":{"color":"#f38ba8","dash":"dot","width":1},"marker":{"color":"#f38ba8","line":{"width":1},"size":8,"symbol":"cross"},"mode":"lines+markers","name":"Observations","x":{"dtype":"f8","bdata":"+v7ljYmwoz+sU1LBZnDPv0aoc+UBxcs\u002fXyd7e8hdur+iEn0hrH6rvxxICxBjptK\u002fAm440PcZ279yRU8jGnHsv0vaag8roea\u002fvNzjCQ3A2b9c67K8rzbdvwU459eGj+m\u002fL9d761KW6L9KExU0C2Lgv7YEYqOKT\u002fG\u002fdszqNaxd9b\u002fVRn+QofT9v4Ic0dvzrfi\u002f2M8J7Ol2AMAMT3mEKaEDwMxRDhALMgXAtU8uCU+wCMCvBoc7xlYPwKz0SsLDig\u002fAxgaJQKrMEsCbV5D83nYTwKttqR9sSxTArj9v9AHvFMA9mw56fFIVwJwlOXTiWRfASK+ekeK6GMA256LmehYawDfJacXgLxzAuqnNrklpHsAJgd6UPJQgwL3mq1HEUiDAFefv9YieIcDnDzpqioQjwLY1++bUPCPAbSFAAOp3JMAMKKXsmFcmwF7w5c1EVSfAH98etuIlKMBhAKqZ\u002ftYpwFn5g4dNYCvAGCelT17bK8D3oxY0yu4twDYAMV4XHS\u002fAUaI4rp4hMcDOgKuMuKsxwA=="},"y":{"dtype":"f8","bdata":"wtbE3kOFwr++HxnAqY+vv9rcJxhjd9O\u002fUJHgj8Ytyr9ISaXm59nFvxjx8DyaBrE\u002fXN3Fkjo5xj8jiRh3BsPYP8nGPoSQ2\u002fA\u002fKmNeabSZ3D995X4XiuXoPxVmGcPXYug\u002faezMuB5X3z8r\u002fTQeEnjsP+QocFWP2vA\u002fgMJPYeIN9D\u002fECVbQI0n1Px1LpMmI8fQ\u002f2rm\u002fmZOg9j+AkB8pOdf7P8sXP8j\u002fvfU\u002fpOstEGda+D+f+j\u002fSwgv4P4T5K4jVjPw\u002funrw2T3a9T+6HfKJGsgAQCxFLUnBpgBAUphHrMoR\u002fj8F7i0f+9D\u002fP62\u002famRFefk\u002fklcz+u2bAUDCBj3u4VP3PxAJjGG\u002favc\u002fokF7+MS\u002f8j\u002f6ViOAJX71P1+\u002f\u002fdNH9PM\u002fwXJSiRQN\u002fD8AIRs+t6n5PxEe1yQYxQBAIBEpAshc\u002fj9Kk8fTCWH7P\u002f3wt0WbEPA\u002fQ96GFczO6j+0tv2lAMzvP21t9kG0v8I\u002fMHstZs9Gh79odR4AfuWXPzIupVw5f+K\u002fhuefVkas47\u002fsaTPI6KLjvw=="},"type":"scatter"},{"line":{"color":"#f9e2af","width":2},"mode":"lines","name":"Filtered mean","x":{"dtype":"f8","bdata":"fQxqtzxCu7\u002f0EuA43kSaP8q0RgMPJJS\u002fMOSeA6npo784Waox5OzHvzr21xBlfNa\u002fj7RqsayG5r8TC7Ji\u002fnHpv6zT3Xk9g+S\u002fBP42ZG6Y4b+yWh+bzd7lv2nckdCnBOi\u002fsQX6+Utp5L\u002fOIHXjq0rsv+0eI4zk4vK\u002fsUeFfTNk+r+Q1oiZu3T7v67pL9Yt9v+\u002fPkendlzdAsDSzojlPC0FwMJ3b8QvKgjAhINmB2hbDcAi4GOREBYQwI5ESPSjVxLAHXpnIrzME8DssJPnmNIUwC8UVYYvgRXAsz88jx7jFcD5vY+JIxMXwJMJVWVwbxjABz7mYNvcGcBuOoH8c7kbwBQvvLdT5h3APLtH5WdCIMAGcCbgx8AgwGgQg7ZomiHAOmaCVJwNI8A6V3USkKAjwJw8PU33eyTABj4cZnDqJcBzsHT2HDInwH5FZ1U\u002fPijAO5tDCIqiKcDrgcmcDygrwE1kbJIeIyzA9pE8vPKsLcCTlceCBBIvwFQeqwGEvDDAaehGNSqnMcA="},"y":{"dtype":"f8","bdata":"RIRZpaQxur+\u002fMtNwT93Hv9pYpZ9\u002ff8q\u002flLnab\u002fc5yb9ECYyeHKOpv+IeQxOYQ7o\u002f3DVgTXOY0z86+UdRilTpPx8VfCbK8OY\u002f06kCHkbt6T8FqqGUfq\u002fqP4gwreKuheU\u002f1J2Sp9c26T+UZTtfnIruP6QKmNVxm\u002fI\u002fBvvrhygV9T8OCRH8wQD2PzlpDdeEHPc\u002fs2VrnRhx+j+0HedaM7z4PwYTCyvuyfg\u002fHQNiQDyJ+D+Ggihv5t\u002f6P8w94ni1dvg\u002fcZvnSRd6\u002fT+fwMfrUjgAQGYSjDU4CgBAupSyJrs5AEBy9BMiYtv8PwbOGKj8BwBAXMBa5Ihq+z8BbIADc4P4Pz4SdiE2WvQ\u002f+DhXw9a+8z\u002fQlprgtQPzP5uC7WOShfc\u002falcCZdwo+T9knxTbUnb+P6hKn5g+qP8\u002fBS8IxOws\u002fj9XzYb7\u002fnP2PydNXJsmIPA\u002fJGWsopxd7D\u002fBVvkb+SPYP1wUyGMtG40\u002fKVw1X8J0wL8R2D9KYczfvw1HrI4pQea\u002f3CCyJihg6L8="},"type":"scatter"},{"fill":"toself","fillcolor":"rgba(250, 179, 135, 0.2)","line":{"color":"rgba(0,0,0,0)"},"name":"±1 std deviation","showlegend":true,"x":{"dtype":"f8","bdata":"0ir+7ULqz7+rvsBUz8W6v5MznE8+UcS\u002fR40KGOLox78AP+bQZaHVv+QCrq7+FeC\u002fNCyMBcNb678np4HJYkXuv6cCIM1JVum\u002f+LncYKdr5r9ChJb4NrLqvyMbQmYn2Oy\u002fiOE0gtA86b\u002fkzITRF4\u002fwv6olPNilTPW\u002fpPtUk\u002fTN\u002fL8Lt8awfN79v0MNS333LwHAP338DD0SBMCskTp9HWIGwIPRO1wQXwnA+zULn0iQDsD4eirdgLAQwBS6DEAU8hLAskgtbixnFMAS2FozCW0VwETUHNKfGxbAzx8E2459FsCTl1fVk60XwP7aHLHgCRnAmgyurEt3GsAtCUlI5FMcwJL+gwPEgB7ANaMrC6CPIMARWAoGAA4hwHT4Ztyg5yHARE5metRaI8BDP1k4yO0jwKUkIXMvySTADyYAjKg3JsB8mFgcVX8nwIctS3t3iyjARIMnLsLvKcD0aa3CR3UrwFZMULhWcCzA\u002f3kg4ir6LcCcfauoPF8vwFkSnRQg4zDAbtw4SMbNMcBk9FQijoAxwE8que7nlTDAiq3jXMzELsDtqViWul8twER8iGzm1SvA4pnldtfaKsAys1\u002fiUVUpwHVdgy8H8SfAasiQ0OTkJsD9VThAOJ0lwJNUWSe\u002fLiTAMW+R7FdTI8Awfp4uZMAiwFwon5AwTSHA+4dCuo9zIMCGpsd+X+ofwJZf9GvjSx3Ar2u5sAMfG8B0bx4Va0IZwCg4jRkA1RfAX+THPbN4FsCXX3RDrkgVwBpUjTq\u002f5hTAxonMmyg4FMCIq6HWSzITwAjPg6gzvRHAmIo6i0D3DsAN0cFvhyYMwAEeoyxP9QbA+AvXTVz4A8A9EVLge6gBwNa4ybFsjP2\u002fFfZKgvoK+b++k7Vncvr3vzAYCkAjefC\u002f1KfgIyh357+zU37jjivfv6+d4TooMeO\u002fIjGoPWQL4b8hhCLPaorZv2JJN01iYN+\u002f\u002f27i+5me5L\u002fqPEldlrHhv1fNp4iZmcm\u002fxNEgBvNbor9eNnYsG+i7P8IMlR11kL4\u002fEmSYOB\u002f0wz9SeVDaGKCiPw=="},"y":{"dtype":"f8","bdata":"teb15PZhz786yidxaUTUv+pabAceJta\u002f6MZ+ozcU1r8YJ8WXrr7Jv7A+mj2S9ai\u002fI406So3cwz8mXXjqJYHkPyTmOdO9HeI\u002f4O1cIQ0a5T91gCo3FdzlP87x\u002fEwvsuA\u002f\u002fMFXH1Nj5D+a7KafGLfpP+cDf4mwMfA\u002fE0cccmer8j+TKNPkAJfzP2E4p7LDsvQ\u002fsvnAcFcH+D8AmIMrclL2P4RfcvssYPY\u002fLp4YEXsf9j8tFw5AJXb4P7Zn0En0DPY\u002fH2HQGlYQ+z+o5HKo5Ab+P3kk+Tuvqv0\u002fAqlFHrUJ\u002fj8JjvTyoHH6P2BWEiE4pv0\u002fD4Y7tccA+T8GMWHUsRn2P0TUVvJ08PE\u002fL\u002fk3lBVV8T91Vnux9JnwPzhCzjTRG\u002fU\u002fGRfjNRu\u002f9j8dX\u002fWrkQz8P2MKgGl9Pv0\u002fvu7olCvD+z8PjWfMPQr0P70ZetjKbOs\u002fk+RtRBqK5z9Aq\u002fi+6PnMP\u002fuAvaJWfMG\u002fNq8X7GXh0b+ZbF4Ds7nkv57H6uyrFOu\u002fbKHwhKoz7b9MoHPIpYzjv3zGbTCnbeG\u002f8NbCjVwl1r\u002fIMCXOOMqWP4eDNk+8H8U\u002f8Ss77H7l4D\u002facnWAj5jwP2+Ne8rnifI\u002fnw2mKsDd+D+mt5P5VksAQHdF3+P\u002fCAFA1u8ZBQpwAEC7lyGUnZL7P\u002f7CDJNT7\u002fk\u002fK9e5D3dt9T\u002fBeHbylyj2PzhQlVD3w\u002fY\u002f\u002fKafMjTt+j+p+nkTStT9P9xwqD\u002fdPAFA21ozUSNF\u002fz\u002fzVEK+m24BQJCSG80YPwFA6g5WgzNtAUDD1f542OP\u002fP+IT9Kd24Po\u002f3+1CnqdJ\u002fT8MaKtv\u002ffL6P4jGo1qvM\u002fs\u002faKNKivQl+z+00RXK2dr8PxGac\u002ftFhvk\u002fielOE4Nq+D\u002f5rrud6X73P2ERsSEzBfU\u002fR+9nDxCv8T+sec0vXAruP0JvXXguWeo\u002fldMY8ueC7z\u002fGZagaf8DuPxpEvnnWw+s\u002fTpUXuO4n7j8mJaP1n0LdP0fXVFF+QNA\u002f7ET+kEDauT9kld9i\u002fi2pv8D342CGZbG\u002fLERb\u002fS\u002fHrL\u002fEiXH+SMGkPw=="},"type":"scatter"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30}}},"legend":{"x":0.02,"y":0.98},"font":{"color":"#cdd6f4","size":20},"title":{"text":"Tracking Model","font":{"color":"#cdd6f4"}},"xaxis":{"title":{"text":"X"},"tickfont":{"color":"#bac2de"},"showgrid":true,"gridcolor":"#313244","zeroline":false,"linecolor":"#6c7086","ticks":"outside"},"yaxis":{"title":{"text":"Y"},"tickfont":{"color":"#bac2de"},"showgrid":true,"gridcolor":"#313244","zeroline":false,"linecolor":"#6c7086","ticks":"outside"},"width":700,"height":500,"paper_bgcolor":"#181825","plot_bgcolor":"#181825"},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('5fe1f7b4-007b-40a5-bba8-32b37a1a0e2f');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+<p>To check that the results are the same as with the information filter,</p>
+<div id="4ff41648" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(jnp.allclose(ms, ms2))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ms[:<span class="dv">3</span>])</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ms2[:<span class="dv">3</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>False
+[[-0.24561772 -0.06164294 -2.84073966  0.83048991]
+ [ 0.09421412 -0.2506438   0.96917694 -0.83079816]
+ [-0.01848743 -0.2416433  -0.00726153 -0.40187397]]
+[[-0.10647945 -0.10231999 -0.08696142  0.02542316]
+ [ 0.02565334 -0.18644135  0.32661935 -0.22908726]
+ [-0.0196688  -0.20701595 -0.01350378 -0.21890707]]</code></pre>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

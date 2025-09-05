@@ -8,20 +8,6 @@ format:
     include-in-header: header.html
     mathjax: 
       extensions: ["breqn", "bm", "ams"]
-  pdf:
-    toc: true
-    number-sections: true
-    colorlinks: true
-    keep-tex: true
-    include-in-header: header.tex
-    documentclass: report
-    geometry:
-      - left=20.0mm
-      - right=20.0mm
-      - marginparsep=7.7mm
-      - marginparwidth=70.3mm
-      - top=20mm
-    fig-pos: 'h'
 bibliography: Bibliography.bib
 ---
 
@@ -134,7 +120,7 @@ plt.scatter(grid[:,0],
             cmap="viridis",
             marker='s'
             )
-Ts-mode? really?
+
 plt.scatter(0.5, 0.5, color='red', marker='x', s=100)
 plt.xticks([])
 plt.yticks([])
@@ -143,6 +129,7 @@ plt.savefig("figure/kernel_example_strength.png", dpi=300)
 
 ```{python}
 #|echo: false
+#|eval: false
 #|output: false
 
 K_basis = (
@@ -177,16 +164,44 @@ grid = utils.create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([50, 50])).coord
 
 centre = jnp.array([0.5,0.5])
 
+x = grid[:,0]
+y = grid[:,1]
+ux = jnp.unique(x)
+uy = jnp.unique(y)
+
+
+idx = jnp.searchsorted(ux, x, side="left")
+idx_clipped = jnp.clip(idx, 0, ux.size - 1)
+matches = ux[idx_clipped] == x
+xi = jnp.where(matches, idx_clipped, -1)
+
+idy = jnp.searchsorted(uy, y, side="left")
+idy_clipped = jnp.clip(idy, 0, uy.size - 1)
+matches = uy[idy_clipped] == y
+yi = jnp.where(matches, idy_clipped, -1)
+
+nx, ny = len(ux), len(uy)
+
 z = jax.vmap(lambda s: kernel.function(centre, s))(grid)
 
+z_grid = jnp.full((ny, nx), jnp.nan, dtype=float)
+z_grid = z_grid.at[yi, xi].set(z)
 
-strength_fig = go.Figure(data=go.Heatmap(z=z))
+
+strength_fig = go.Figure(data=go.Heatmap(z=z_grid,
+                                         x=ux,
+                                         y=uy,
+                                         colorscale="Viridis",
+                                         showscale = True)
+                         )
+plotters.apply_catppuccin_mocha(strength_fig, 20)
 
 strength_fig.update_layout(
-    xaxis=dict(range=[0, 1], autorange=False),
-    yaxis=dict(range=[0, 1], autorange=False, scaleanchor="x"))
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
 
-strength_fig.write_image("figure/kernel_example_strength_var.png", format="png", scale=2)
+
 
 def offset(s):
     return -jnp.array(
@@ -196,16 +211,31 @@ def offset(s):
         ]
     )
 
+offset_at_centre = offset(centre)
 
+arrow = go.layout.Annotation(dict(
+                    x=centre[0]-offset_at_centre[0],
+                    y=centre[1]-offset_at_centre[1],
+                    xref="x", yref="y",
+                    text="",
+                    showarrow=True,
+                    axref="x", ayref='y',
+                    ax=centre[0],
+                    ay=centre[1],
+                    arrowhead=3,
+                    arrowwidth=5,
+                    arrowcolor=plotters.cat['blue'],)
+                )
 
-start_point = centre - offset(centre)
-end_point = centre
+strength_fig.add_trace(go.Scatter(x=[0.5],
+                                  y=[0.5],
+                                  mode = 'markers',
+                                  marker_symbol = 'cross',
+                                  marker_size = 30))
 
-# Add an arrow between the points
-plt.annotate(
-    '', xy=end_point, xytext=start_point,
-    arrowprops=dict(arrowstyle="->", color='black', lw=2))
+strength_fig.update_layout(annotations=[arrow])
 
+strength_fig.write_image("figure/kernel_example_strength_var.png", format="png", scale=2)
 #plt.savefig("figure/kernel_example_strength_var.png", dpi=300)
 ```
 
@@ -308,7 +338,7 @@ Then $\omega_t(\bv s)$ has covariance
 
 $$\cov [\omega_t(\bv s), \omega_{t+\tau}(\bv r)] = \begin{cases}
 \bv\phi(\bv s)^\intercal \Sigma_\eta \bv\phi(\bv r) & \text{if }\tau=0\\
-0 & \text{else}\\
+0 & \text{else.}\\
 \end{cases}
 $$
 :::
@@ -469,7 +499,11 @@ The resulting objects are of class ```st_data```, containing a couple of nicetie
 The optional ```plotters``` module contains some functions to produce plotly plots of data in this format;
 
 ```{python}
-#| eval: true
+#| eval: false
+#| output: false
+
+# SAVING GIFS IS SLOW, so this doesn't eval on every run.
+
 #process_data.save_plot('figure/process_data_example.png')
 #obs_data.save_plot('figure/obs_data_example.png')
 
@@ -501,16 +535,21 @@ proc_fig.update_layout(
     yaxis=dict(showticklabels=False, scaleanchor="x")
 )
 
-obs_fig.write_image("figure/process_data_example.png", format="png", scale=2)
-proc_fig.write_image("figure/obs_data_example.png", format="png", scale=2)
+#obs_fig.write_image("figure/process_data_example.png", format="png", scale=2)
+#proc_fig.write_image("figure/obs_data_example.png", format="png", scale=2)
+
+
+#plotters.save_st_gif(proc_frames, "figure/process_data_example.gif", apply_theme=plotters.apply_catppuccin_mocha)
+#plotters.save_st_gif(obs_frames, "figure/obs_data_example.gif", apply_theme=plotters.apply_catppuccin_mocha)
+
 
 ```
 
 ::: {#fig-examplesim layout-ncol=1}
 
-![Process Simulation](figure/process_data_example.png)
+![Process Simulation](figure/process_data_example.gif)
 
-![Observation Simulation](figure/obs_data_example.png)
+![Observation Simulation](figure/obs_data_example.gif)
 
 Example simulations from an Integro-difference Equation Model. 
 Kernel is generated with spatially varying flow terms, generated by bisquare basis functions with randomly generated coefficient.
@@ -845,7 +884,7 @@ As in [@chin2023], write
 
 $$\begin{split}
   \bv \alpha_t - \bv m_{t+1\mid t+1} & = \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\tilde{\bv z}_{t+1} - \Phi_{t+1} \bv m_{t+1\mid t})\\
-  &= \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\Phi_{t+1} \bv m_{t+1} + \bv \epsilon_{t+1} - \Phi_{t+1}\bv m_{t+1\mid t})\\
+  &= \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\Phi_{t+1} \bv \alpha_{t} + \bv \epsilon_{t+1} - \Phi_{t+1}\bv m_{t+1\mid t})\\
   &= (I - K_{t+1} \Phi_{t+1})(\bv \alpha_t - \bv m_{t+1 \mid t}) - \bv \epsilon_{t+1}.
 \end{split}
 $$
@@ -909,7 +948,7 @@ $$ {#eq-sqrtinfopred2}
 which can be done, as in the square-root Kalman filter's Kalman gain computation, using forward-solves.
 
 Now the update step is simply
- 
+
 $$\begin{split}
   \bv\nu_{t+1\mid t+1} &= \bv\nu_{t+1\mid t} + i_{t+1}\\
   Q_{t+1\mid t+1} &= Q_{t+1\mid t} + I_{t+1}\\
@@ -918,8 +957,90 @@ $$\begin{split}
 \end{split}
 $$ {#eq-sqrtinfup}
 
+## The Temporally Parallel Filters
+
+As mentioned before, the Kalman filter, and all its variants, use a scan operation.
+This seems like not a trivially parallelisable operation; it seems very sequential in nature.
+However, if the operation being used within the scan is _accociative_, then there is an algorithm that allows us to partially parallelise such an algorithm.
+The Kalman Filter, on it's own, is clearly not associative; for a start, its output type is not the same as its input type, so it can't be.
+But can we re-write it so that it is?
+This is what \cite{sarkka2020temporal} did.
+
+We would like our elements to of the same type as our outputs, and for these to be able to be computed in parallel.
+A good start might be to consider 'partial posteriors' containing only some of the data;
+
+$$\begin{split}
+  p(\bv\alpha_k \mid \bv\alpha_{k-i-l}, \bv z_{k-i:k}),
+\end{split}
+$$ {#eq-ass-elt}
+
+that is, posteriors containing possibly limited number of previous elements.
+The idea then would be that it is easy to compute
+
+$$\begin{split}
+  p(\bv\alpha_k \mid \bv\alpha_{k-1}, \bv z_k),
+\end{split}
+$$
+
+for each time $k=1,\dots, T$. 
+Then, if we can combine two such densities on non-overlapping times, we 'add the data together' to get the posterior at the latest time possible, with all the data available in the two elements, combined; writing this using a prospective operator $\oplus$,
+
+$$\begin{split}
+  p(\bv\alpha_k \mid \bv\alpha_{k-i-1}, \bv z_{k-i:k}) &\oplus p(\bv\alpha_{k+j} \mid \bv\alpha_{k}, \bv z_{k+1:k+j}) \\
+  &= p(\bv\alpha_{k+j} \mid \bv\alpha_{k-i-1}, \bv z_{k-i:k+j}).
+\end{split}
+$$
+
+However, considering the equation needed to get from the RHS to the LHS; 
+
+$$\begin{split}
+  &p(\bv\alpha_{k+j} \mid \bv\alpha_{k-i-1}, \bv z_{k-i:k+j}) \\
+  &= \frac{
+    p(\bv z_{k+1:k}, \bv\alpha_{k+j}\mid \bv\alpha_{k-i-1}, \bv z_{k-i:k})
+  }{
+    p(\bv z_{k+1:k+j}\mid \bv \alpha_{k-i-1}, \bv z_{k-i:k})
+  }\\
+  &= \frac{
+    \int p(\bv \alpha_k, \bv \alpha_{k+j} ,\bv z_{k+1:k+j} \mid \bv \alpha_{k-i-1}, \bv z_{k-i:k}) d \bv \alpha_{k-i-1}
+  }{
+    \int p(\bv \alpha_k, \bv z_{k+1:k+j} \mid \bv \alpha_{k-i-1}\bv z_{k+1:k+j}) d \bv \alpha_{k-i-1}
+  }\\
+  &= \frac{
+    \int p(\bv \alpha_k \mid \bv \alpha_{k-i-1}, \bv z_{k-i}) p(\bv \alpha_{k+j}, \bv z_{k+1:k+j} \mid \bv \alpha_{k}) d \bv \alpha_{k-i-1}
+  }{
+    \int p(\bv z_{k+1:k+j} \mid \bv \alpha_k)p(\bv \alpha_k \mid \bv \alpha_{k}, \bv z_{k+1:k+j}) d \bv \alpha_{k-i-1}
+  }\\
+  &= \frac{
+    \int p(\bv z_{k+1:k+j} \mid \bv \alpha_{k}) p(\bv \alpha_k \mid \bv \alpha_{k-i-1}, \bv z_{k-i:k}) p(\bv \alpha_{k+j} \mid \bv\alpha_{k}, \bv z_{k+1:k+j}) d \bv \alpha_{k}
+  }{
+    \int p(\bv z_{k+1:k+j} \mid \bv \alpha_{k}) p(\bv \alpha_k \mid \bv \alpha_{k-i-1}, \bv z_{k-i:k}) d \bv \alpha_{k-i-1}.
+  }
+\end{split} 
+$$ {#eq-tppost}
+
+We see that we need the 'likelihood' term $p(\bv z_{k+1:k+j} \mid \bv \alpha_{k})$ to perform the 'update'. 
+We can simply consider this as a part of our associative alements, leading to the elements
+
+$$\begin{split}
+  a_{k+1:k+j} := \left(\begin{matrix}
+      p(\bv \alpha_{k+j} \mid \bv \alpha_{k}, \bv z_{k+1:k+j})\\
+      p(\bv z_{k+1:k+j} \mid \bv \alpha_{k})
+    \end{matrix}\right).
+\end{split}
+$$
+
+Now, if we can find the operation that gives $a_{k-i:k}\oplus a_{k+1:k+j} = a_{k-i:k+j}$, and prove that that operation is associative, then we can use an associative scan to compute the filtered distributions in a temporally parallel way.
+We defer the proof of associativity of this operation to \cite{sarkka2020temporal}.
+They also then find a similar relation to @eq-tppost for the likelihood, then use some convenient Normal-density identities to derive the update formulas.
+
+However, here, it is informative to write it using other more natural tools, in order to find a stabilised form of the filter, akin to the Joseph form referenced previously.
+
+
+ 
 ## Smoothing
 
+(Largely unfinished. Focus has been on filtering, as that is what gives the likelihood as an output.)
+ 
 Beyond the filtering, another task is _smoothing_.
 That is, filters estimate $\bv m_{T\mid T}$ and $P_{T\mid T}$, but there is use for estimating $\bv m_{t\mid T}$ and $P_{t\mid T}$ for all $t=0,\dots, T$.
 

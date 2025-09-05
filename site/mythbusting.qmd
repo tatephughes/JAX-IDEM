@@ -1,0 +1,401 @@
+---
+Title: Mythbusting the Kalman Filters
+author: "Evan Tate Paterson Hughes"
+format:
+  html:
+    code-fold: true
+    toc: true
+    include-in-header: header.html
+    mathjax: 
+      extensions: ["breqn", "bm", "ams"]
+bibliography: Bibliography.bib
+---
+
+There are quite a few things being said about the kalman filter, and its variants, that don't seem to hold up.
+
+This page is to cover a few of those things which, in particular, should provide some intuition as to how the variants of the filter gain their advantages (and disadvantages).
+
+We will only cover topics relating to the standard DLM case, written as 
+
+\begin{align*}
+  \bv Z_t &= \Phi_t \bv Y_t + \bv \epsilon_t, &\quad t = 1,\dots, T,\\
+  \bv Y_{t+1} &= M_t \bv Y_t + \bv \eta_t, &\quad t = 0,\dots, T-1,
+\end{align*}
+
+initialised at $\bv Y_0 \sim \mathcal N(\bv m_0, P_0)$, with $\bv \epsilon_t \sim \mathcal N(\bv 0, \Sigma_t^{(\epsilon)})$, independant of eachother and of $\bv \eta_t \sim \mathcal N(\bv 0, \Sigma_t^{(\eta)})$.
+
+Make sure to read up on the filters on [this page, under the Kalman Filter heading.](site/mathematics.html)
+
+
+## The Information Filter
+
+### Myth 1: You can use a truly vague prior distribution using the information filter.
+
+Likely one of the most common things said about information filter is that it allows for initialisation whith zero information.
+
+This covers one of the more initially confusing aspects of the Kalman Filter; specification of the distribution $\bv Y_0$. 
+This corresponds to the Kalman filter being a kind of Bayesian filter; that is, it requires prior knowledge on the state.
+Generally, this prior is simply put to be reasonably vague; put $\bv m_0$ to be whatever and $P_0$ to be some large multiple of the identity matrix, unless we do actually have prior knowledge, in which case we use that.
+
+But is it possible to filter using no information at all?
+In Bayesian statistics, this would be what is know as a 'flat prior', where the prior is improper as it uses infinite initial variance (the density function is now 0 everywhere, making it not a 'proper' density since it no longer intergrates to 1).
+
+The information filter does, indeed, give an easy way to do this: set the initial information matrix to the zero matrix; which is intuitive.
+
+Spinning up a quick tracking example, 
+
+```{python}
+#| code-fold: true
+import jax
+import jax.numpy as jnp
+import jax.lax as jl
+import jax.random as jr
+import jax.scipy as jsc
+from jax.scipy.linalg import solve_triangular as st
+
+import plotly.graph_objects as go
+import jaxidem.plotters as plotters
+from jaxidem.plotters import cat
+
+
+
+jax.config.update("jax_enable_x64", True)
+
+dt = 0.1
+M = jnp.eye(4) + dt * jnp.eye(4, k=2)
+PHI = jnp.eye(2, 4)
+S2_eta = 5  * jnp.kron(jnp.array([[dt**3/3, dt**2/2],
+                                [dt**2/2, dt]]), 
+                     jnp.eye(2))
+S2_eps = 0.2 ** 2 * jnp.eye(2)
+S_eta = jnp.linalg.cholesky(S2_eta)
+S_eps = jnp.linalg.cholesky(S2_eps)
+alphas = [jnp.array([0., 0., 1., -1.])]
+zs = []
+T = 50
+
+key = jr.PRNGKey(seed=1)
+
+for i in range(T):
+    inn_key = jr.fold_in(key, i)
+    proc_key, obs_key = jr.split(inn_key, 2)
+    alphas.append(M @ alphas[-1] + S_eta @ jr.normal(proc_key, shape = (4,)))
+    zs.append(PHI @ alphas[-1] + S_eps @ jr.normal(obs_key, shape = (2,)))
+alphas = jnp.array(alphas)
+zs = jnp.array(zs)
+
+@jax.jit
+def information_filter(
+        nu_0,
+        Q_0,
+        M,
+        PHI,
+        S2_eta,
+        S2_eps,
+        zs
+):
+
+    r = nu_0.shape[0]
+    nobs = zs.shape[1]
+
+    i_s = jax.vmap(lambda z: PHI.T @ jsc.linalg.solve(S2_eps, z, assume_a = "pos"), in_axes=0)(zs)
+    I = PHI.T @ jsc.linalg.solve(S2_eps, PHI, assume_a = "pos")
+    
+    Minv = jnp.linalg.inv(M)
+    S2_eta_inv = jnp.linalg.inv(S2_eta)
+
+    @jax.jit
+    def step(carry, i):
+        nu_tt, Q_tt, _, _ = carry
+
+        S_t = Minv.T @ Q_tt @ Minv
+        J_t = jsc.linalg.solve((S_t + S2_eta_inv).T, S_t.T).T
+        
+        nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu_tt
+        Q_pred = (jnp.eye(r) - J_t) @ S_t
+
+        nu_up = nu_pred + i
+        Q_up = Q_pred + I
+
+        new_carry = (nu_up, Q_up, nu_pred, Q_pred)
+        
+        return new_carry, new_carry
+    
+    carry, seq = jl.scan(
+        step,
+        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
+        i_s,
+    )
+    
+    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
+
+    @jax.jit
+    def likelihood_func(z, nu_pred, Q_pred):
+        e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
+        chol_Sigma_t = jnp.linalg.cholesky(
+            PHI @ jnp.linalg.solve(Q_pred, PHI.T) + S2_eps
+        )
+        z = st(chol_Sigma_t, e, lower=True)
+
+        ll = (
+            -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+            - 0.5 * jnp.dot(z, z)
+            - 0.5 * nobs * jnp.log(2 * jnp.pi)
+        )
+        return ll
+
+    lls = jax.vmap(likelihood_func)(zs, nupreds, Qpreds)
+    ll = jnp.sum(lls)
+    
+    filt_results = {"ll": ll,
+                    "nus": nus,
+                    "Qs": Qs,
+                    "nupreds": nupreds,
+                    "Qpreds": Qpreds}
+
+    return filt_results
+
+nu_0 = jnp.zeros(4)
+Q_0 = jnp.zeros((4,4))
+
+filt_results_inf = information_filter(nu_0, Q_0, M, PHI, S2_eta, S2_eps, zs)
+
+# exclude the first point; its nan since Q_0 is 0
+ms = jnp.linalg.solve(filt_results_inf['Qs'], filt_results_inf['nus'][..., None]).squeeze(-1)[1:]
+Ps = jnp.linalg.inv(filt_results_inf['Qs'])[1:]
+
+m_x, m_y = ms[1:50, 0], ms[1:50, 1] 
+s2_x, s2_y = Ps[1:50, 0,0], Ps[1:50, 1,1]
+
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(
+    x=alphas[:50, 0],
+    y=alphas[:50, 1],
+    mode='lines+markers',
+    name='Process',
+    line=dict(color=cat["blue"]),
+    marker=dict(size=6)
+))
+
+fig.add_trace(go.Scatter(
+    x=zs[:50, 0],
+    y=zs[:50, 1],
+    mode='lines+markers',
+    name='Observations',
+    line=dict(color=cat["red"], dash='dot', width=1),
+    marker=dict(symbol='cross', color=cat["red"], size=8, line=dict(width=1))
+))
+
+
+fig.add_trace(go.Scatter(
+    x=m_x,
+    y=m_y,
+    mode='lines',
+    name='Filtered mean',
+    line=dict(color=cat["yellow"], width=2)
+))
+
+# Uncertainty band (±1 std) for filtered position
+fig.add_trace(go.Scatter(
+    x=jnp.concatenate([m_x - jnp.sqrt(s2_x), m_x[::-1] + jnp.sqrt(s2_x[::-1])]),
+    y=jnp.concatenate([m_y - jnp.sqrt(s2_y), m_y[::-1] + jnp.sqrt(s2_y[::-1])]),
+    fill='toself',
+    fillcolor='rgba(250, 179, 135, 0.2)',
+    line=dict(color='rgba(0,0,0,0)'),
+    showlegend=True,
+    name='±1 std deviation'
+))
+
+
+fig.update_layout(
+    title='Tracking Model',
+    xaxis_title='X',
+    yaxis_title='Y',
+    legend=dict(x=0.02, y=0.98),
+    width=700,
+    height=500,
+    paper_bgcolor=cat["base"],
+    plot_bgcolor=cat["base"],
+    font=dict(color=cat["text"], size=16),
+)
+
+plotters.apply_catppuccin_mocha(fig)
+
+fig.show()
+
+print(f"Log-Likelihood = {filt_results_inf['ll']}")
+
+```
+
+As we can see, the filtering was fine.
+Note, however that the likelihood failed; this is as expected. 
+When you consider the first likelihood term, $p(\bv z_1)$, it is clear that the likelihood is zero (therefore the log likelihood is undefined); if our prior on $\bv Y_0$ is flat, the corresponding prior predictive distribution of $\bv Z_1$ is also!
+You can still recover a 'partial likeihood' $p(\bv z_t, \dots, \bv z_2 \mid \bv z_1)$, however, by simply excluding the first element of the sum of the log likelihoods at the last step of the information filter.
+
+So, myth confirmed right? 
+Well, yes, but what I really want to talk about is the way in which people tend to say it; the wikipedia page, as of September 2025, reads 
+
+::: {.callout-note icon=false}
+
+## ['Information Filter' from Wikipedia](en.wikipedia.org/wiki/Kalman_filter#Information_filter)
+
+Additionally, the information filter allows for system information initialization according to $I_{1\mid0} = P_{1\mid0}^{-1}=0$, which would not be possible for the regular Kalman filter.
+:::
+
+That last statement, 'which would not be possible for the regular Kalman filter', is not true at all.
+The standard Kalman filter can absolutely handle this case.
+
+Plugging an infinite matrix into standard implementations likely won't work; instead, you need to do the first step 'by hand'. 
+The is covered in the appendix of 'The Maths' page [here.](site/mathematics.html)
+In short, the first step becomes
+
+$$\begin{split}
+  \bv m_{1\mid1} &= (\Phi_1^\intercal \Sigma_\epsilon^{-1} \Phi_1)^{\dagger} \Phi_1.T \Sigma_\epsilon^{-1} \tilde{\bv z}_1,\\
+  P_{1\mid1} &= (\Phi_1^\intercal \Sigma_\epsilon^{\dagger} \Phi_1)^{\dagger},
+\end{split}
+$$ {#eq-kalmanvague}
+
+where $\dagger$ is the generallised pseudo-inverse. 
+This can be easily recognised as the correlated least-squares estimate for $Y$, so again, this makes complete sense.
+
+```{python}
+#| code-fold: true
+
+@jax.jit
+def kalman_filter_vague(M, PHI, S2_eta, S2_eps, zs):
+
+    r = M.shape[0]
+    nobs = zs.shape[1]
+
+    P1 = jnp.linalg.pinv(PHI.T@ jnp.linalg.solve(S2_eps, PHI))    
+    m1 = P1 @ PHI.T @ jnp.linalg.solve(S2_eps, zs[0])
+
+    #m1 = PHI.T @ jnp.linalg.solve(S2_eps, zs[0])
+    #P1 = PHI.T @ jnp.linalg.solve(S2_eps, PHI)
+    
+    @jax.jit
+    def step(carry, z_t):
+        m_tt, P_tt, _, _, ll = carry
+
+        # predict
+        m_pred = M @ m_tt
+        P_pred = M @ P_tt @ M.T + S2_eta
+        # Update
+        e_t = z_t - PHI @ m_pred
+        Sigma_t = PHI @ P_pred @ PHI.T + S2_eps
+        K_t = (jsc.linalg.solve(Sigma_t, PHI, assume_a = "pos") @ P_pred.T).T 
+        
+        m_up = m_pred + K_t @ e_t
+        P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred
+        
+        # Stabilised form
+        # P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred @ (jnp.eye(r) - K_t @ PHI).T + K_t@S2_eps@K_t.T
+
+        # likelihood of epsilon, using cholesky decomposition
+        chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
+        z = st(chol_Sigma_t, e_t, lower=True)
+        ll_new = (
+            ll
+            - jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
+            - 0.5 * jnp.dot(z, z)
+            - 0.5 * nobs * jnp.log(2 * jnp.pi)
+        )
+
+        new_carry = (m_up, P_up, m_pred, P_pred, ll_new)
+        return new_carry, new_carry
+
+
+    carry, seq = jl.scan(
+        step,
+        (m1, P1, m1, P1, 0),
+        zs[1:],
+    )
+
+    ll, ms, Ps, mpreds, Ppreds = (carry[4], seq[0], seq[1], seq[2], seq[3])
+    
+    filt_results = {"ll": ll,
+                    "ms": ms,
+                    "Ps": Ps,
+                    "mpreds": mpreds,
+                    "Ppreds": Ppreds}
+
+    return filt_results
+
+filt_results_kal = kalman_filter_vague(M, PHI, S2_eta, S2_eps, zs)
+
+ms2 = filt_results_kal['ms']
+Ps2 = filt_results_kal['Ps']
+
+print(m_x[:])
+m_x, m_y = ms2[:, 0], ms2[:, 1]
+print(m_x[:3])
+s2_x, s2_y = Ps2[:, 0,0], Ps2[:, 1,1]
+
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(
+    x=alphas[:50, 0],
+    y=alphas[:50, 1],
+    mode='lines+markers',
+    name='Process',
+    line=dict(color=cat["blue"]),
+    marker=dict(size=6)
+))
+
+fig.add_trace(go.Scatter(
+    x=zs[:50, 0],
+    y=zs[:50, 1],
+    mode='lines+markers',
+    name='Observations',
+    line=dict(color=cat["red"], dash='dot', width=1),
+    marker=dict(symbol='cross', color=cat["red"], size=8, line=dict(width=1))
+))
+
+
+fig.add_trace(go.Scatter(
+    x=m_x,
+    y=m_y,
+    mode='lines',
+    name='Filtered mean',
+    line=dict(color=cat["yellow"], width=2)
+))
+
+# Uncertainty band (±1 std) for filtered position
+fig.add_trace(go.Scatter(
+    x=jnp.concatenate([m_x - jnp.sqrt(s2_x), m_x[::-1] + jnp.sqrt(s2_x[::-1])]),
+    y=jnp.concatenate([m_y - jnp.sqrt(s2_y), m_y[::-1] + jnp.sqrt(s2_y[::-1])]),
+    fill='toself',
+    fillcolor='rgba(250, 179, 135, 0.2)',
+    line=dict(color='rgba(0,0,0,0)'),
+    showlegend=True,
+    name='±1 std deviation'
+))
+
+
+fig.update_layout(
+    title='Tracking Model',
+    xaxis_title='X',
+    yaxis_title='Y',
+    legend=dict(x=0.02, y=0.98),
+    width=700,
+    height=500,
+    paper_bgcolor=cat["base"],
+    plot_bgcolor=cat["base"],
+    font=dict(color=cat["text"], size=16),
+)
+
+plotters.apply_catppuccin_mocha(fig)
+
+fig.show()
+
+```
+
+To check that the results are the same as with the information filter,
+
+```{python}
+print(jnp.allclose(ms, ms2))
+print(ms[:3])
+print(ms2[:3])
+
+```

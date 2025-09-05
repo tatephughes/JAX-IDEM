@@ -5,7 +5,7 @@ Title: Filtering Algorithms
 This contains simplified versions of the filters compared to the main package. This is to not deal with PyTrees, varying data shapes, kinds of correlation etc. 
 For testing and data collection.
 
-For the details of each algorithm, see [this page, under the Kalman Filter heading.](site/mathematicsass.html)
+For the details of each algorithm, see [this page, under the Kalman Filter heading.](site/mathematics.html)
 
 # Examples
 
