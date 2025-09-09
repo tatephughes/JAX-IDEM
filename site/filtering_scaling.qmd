@@ -21,6 +21,7 @@ import jax.lax as jl
 import jax.scipy as jsc
 import jax.random as jr
 from jax.random import multivariate_normal as smvn
+from functools import partial
 
 import jaxidem.plotters as plotters
 from jaxidem.plotters import cat
@@ -39,7 +40,6 @@ keys = jr.split(key, 6)
 inn = jr.normal(keys[0], shape = (highest_T, highest_d + highest_n))
 
 inn_sum = jnp.sum(inn).block_until_ready()
-
 
 master_M = jr.normal(keys[1], shape=(highest_d,highest_d)).block_until_ready()
 master_PHI = jr.normal(keys[2], shape=(highest_n, highest_d)).block_until_ready()
@@ -652,7 +652,7 @@ def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
         ipcq = I + C_i @ Q_j
         ipqc = I + Q_j @ C_i
 
-        # lots of cho solves, can be simplifies. 
+        # lots of cho solves, can be simplified. 
         A_ij = A_j @ jsc.linalg.solve(ipcq, A_i)
         b_ij = A_j @ jsc.linalg.solve(ipcq, (b_i + C_i @ nu_j)) + b_j
         C_ij = A_j @ jsc.linalg.solve(ipcq, C_i @ A_j.T) + C_j
@@ -666,7 +666,7 @@ def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
     ms = final_elts[1]
     Ps = final_elts[2]
 
-    nu, Q = final_elts[3][-1], final_elts[4][-1]
+    #nu, Q = final_elts[3][-1], final_elts[4][-1]
 
     @jax.jit
     def get_ll(z, m, P):
@@ -871,6 +871,248 @@ filt_results_psqrt = psqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, zs)
 ```
 -->
 
+## Parallel filter (trees)
+
+```{python}
+@partial(jax.jit, static_argnames=["sigma2_eta_dim", "sigma2_eps_dim", "likelihood"])
+def pkalman_filter_tree(
+        m_0, 
+        P_0, 
+        M,
+        PHI_tree,
+        sigma2_eta,
+        sigma2_eps_tree,
+        zs_tree,
+        sigma2_eta_dim,
+        sigma2_eps_dim,
+        likelihood = "partial",
+) -> tuple:
+
+    r = m_0.shape[0]
+
+    # Get first filtering elements
+    m1pred = M @ m_0
+    
+    match sigma2_eta_dim:
+        case 0:
+            P1pred = M @ P_0 @ M.T + sigma2_eta*jnp.eye(r)
+        case 1:
+            P1pred = M @ P_0 @ M.T + jnp.diag(sigma2_eta)
+        case 2:
+            P1pred = M @ P_0 @ M.T + sigma2_eta
+
+    match sigma2_eps_dim:
+        case 0|1:
+            P_oprop = PHI_tree[0]@P1pred@PHI_tree[0].T
+            S_1 =  jnp.fill_diagonal(P_oprop, sigma2_eps_tree[0] + jnp.diag(P_oprop), inplace=False)
+            #S1 = PHI_tree[0]@P1pred@PHI_tree[0].T + sigma2_eps_tree[0]*jnp.eye()
+        case 2:
+            S_1 =  PHI_tree[0]@P1pred@PHI_tree[0].T + sigma2_eps_tree[0]
+
+
+    # Possibly better to use cholesky since S is pdef
+    # cholS = jsc.linalg.cho_factor(S_1)
+    #D_1 = (jsc.linalg.cho_solve(cholS, PHI_tree[0])@P1pred.T).T
+    D_1 = (jnp.linalg.solve(S_1, PHI_tree[0] @ P1pred)).T
+
+    
+    A_1  = jnp.zeros((r,r))
+    b_1  = m1pred + D_1 @ (zs_tree[0] - PHI_tree[0] @ m1pred)
+    C_1  = P1pred - D_1 @ S_1 @ D_1.T
+    
+    nu_1 = M.T @ PHI_tree[0].T @ jsc.linalg.solve(S_1, zs_tree[0])
+    Q_1  = M.T @ PHI_tree[0].T @ jsc.linalg.solve(S_1, PHI_tree[0] @ M)
+
+    first_elt = (A_1, b_1, C_1, nu_1, Q_1)
+    
+    mapping_elts = jax.tree.map(
+        lambda t: (
+            zs_tree[t],
+            PHI_tree[t],
+            sigma2_eps_tree[t]
+        ),
+        tuple(range(len(zs_tree))),
+    )
+    
+    def get_element(mapping_elt: tuple):
+        
+        z_k = mapping_elt[0]
+        PHI_k = mapping_elt[1]
+        sigma2_eps_k = mapping_elt[2]
+
+        match sigma2_eta_dim:
+            case 0:
+                s2p = sigma2_eta*jnp.eye(PHI_k.shape[1]) @ PHI_k.T
+            case 1:
+                # probably wrong
+                s2p = PHI_k.T @ jnp.diag(sigma2_eta)
+            case 2:
+                # probably wrong
+                s2p = sigma2_eta @ PHI_k.T
+                
+        ps2p = PHI_k@s2p
+        
+        match sigma2_eps_dim:
+            case 0:
+                S_k = jnp.fill_diagonal(ps2p, sigma2_eps_k + jnp.diag(ps2p), inplace=False)
+            case 1:
+                S_k = ps2p + jnp.diag(sigma2_eps_k)
+            case 2:
+                S_k = ps2p + sigma2_eps_k
+
+        cholS = jsc.linalg.cho_factor(S_k)
+                
+        D_k = (jsc.linalg.cho_solve(cholS, s2p.T)).T
+
+        imdp = (jnp.eye(r) - D_k@PHI_k)
+        
+        A_k = imdp @ M
+        b_k = D_k @ z_k
+        
+        match sigma2_eta_dim:
+            case 0:
+                #C_k = jnp.fill_diagonal(imdp, sigma2_eps_k * jnp.diag(imdp), inplace=False)
+                C_k = imdp @ (jnp.eye(r)*sigma2_eps_k)
+            case 1:
+                C_k = imdp @ jnp.diag(sigma2_eta)
+            case 2:
+                C_k = imdp @ sigma2_eta
+
+        nu_k = M.T @ PHI_k.T @ jsc.linalg.cho_solve(cholS, z_k)
+        Q_k = M.T @ PHI_k.T @ jsc.linalg.cho_solve(cholS, PHI_k @ M)
+    
+        return (A_k, b_k, C_k, nu_k, Q_k)
+
+    def is_leaf(node):
+        return jax.tree.structure(node).num_leaves == 3
+
+    elts = jax.tree.map(get_element, mapping_elts[1:], is_leaf=is_leaf)
+
+    # this might lead to biig compile times. not 100% sure
+    all_elts = jax.tree.map(lambda *xs: jnp.stack(xs, axis=0), *((first_elt,) + elts))
+    
+    @jax.vmap
+    def compose(elt_i, elt_j):
+        
+        A_i, b_i, C_i, nu_i, Q_i = elt_i
+        A_j, b_j, C_j, nu_j, Q_j = elt_j
+
+        I = jnp.eye(r)
+        
+        ipcq = I + C_i @ Q_j
+        ipqc = I + Q_j @ C_i
+
+        # lots of cho solves, can be simplified. 
+        A_ij = A_j @ jsc.linalg.solve(ipcq, A_i)
+        b_ij = A_j @ jsc.linalg.solve(ipcq, (b_i + C_i @ nu_j)) + b_j
+        C_ij = A_j @ jsc.linalg.solve(ipcq, C_i @ A_j.T) + C_j
+        nu_ij = A_i.T @ jsc.linalg.solve(ipqc, nu_j - Q_j@b_i) + nu_i
+        Q_ij = A_i.T @ jsc.linalg.solve(ipqc, Q_j @ A_i) + Q_i
+        
+        return (A_ij, b_ij, C_ij, nu_ij, Q_ij)
+
+    final_elts = jl.associative_scan(compose, all_elts)
+
+    ms = final_elts[1]
+    Ps = final_elts[2]
+
+    #nu, Q = final_elts[3][-1], final_elts[4][-1]
+
+    if likelihood in ("full", "partial"):
+        @jax.jit
+        def get_ll(tree):
+
+            z = tree[0]
+            nobs = z.shape[0]
+            PHI = tree[1]
+            sigma2_eps = tree[2]
+            m = tree[3]
+            P = tree[4]
+        
+            m_pred = M @ m
+            P_pred = M @ P @ M.T + sigma2_eta
+            
+            e = z - PHI @ m_pred
+            S = PHI @ P_pred @ PHI.T + sigma2_eps
+            
+            cholS = jnp.linalg.cholesky(S)
+            s = st(cholS, e, lower=True)
+
+            match likelihood:
+                case 'full':
+                    ll = (
+                        -jnp.sum(jnp.log(jnp.diag(cholS)))
+                        - 0.5 * jnp.dot(s, s)
+                        - 0.5 * nobs * jnp.log(2 * jnp.pi)
+                    )
+                case 'partial':
+                    ll = (
+                        -jnp.sum(jnp.log(jnp.diag(cholS)))
+                        - 0.5 * jnp.dot(s, s)
+                    )
+
+            
+            return ll
+
+        ms_min1 = jnp.concatenate([m_0[None, :], ms])[:-1]
+        Ps_min1 = jnp.concatenate([P_0[None, :, :], Ps])[:-1]
+        
+        mapping_elts = jax.tree.map(
+            lambda t: (
+                zs_tree[t],
+                PHI_tree[t],
+                sigma2_eps_tree[t],
+                ms_min1[t],
+                Ps_min1[t],
+            ),
+            tuple(range(len(zs_tree))),
+        )
+        
+        def is_leaf(node):
+            return jax.tree.structure(node).num_leaves == 5
+
+        lls = jnp.array(
+            jax.tree.map(get_ll, mapping_elts, is_leaf=is_leaf)
+        )
+        ll = jnp.sum(lls)
+    
+    elif likelihood == "none":
+        ll = jnp.nan
+    else:
+        raise ValueError(
+            "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
+        )
+    
+    filt_results = {"ll": ll,
+                    "ms": ms,
+                    "Ps": Ps}
+
+    return filt_results
+
+```
+
+```{python}
+zs_tree = [z for z in zs]
+PHI_tree = [PHI for _ in range(T)]
+sigma2_eta = S2_eta
+sigma2_eps_tree = [S2_eps for _ in range(T)]
+sigma2_eps_dim = 2
+sigma2_eta_dim = 2
+likelihood = 'full'
+
+filt_results_pkal2 = pkalman_filter_tree(
+        m_0, 
+        P_0, 
+        M,
+        PHI_tree,
+        S2_eta,
+        sigma2_eps_tree,
+        zs_tree,
+        sigma2_eta_dim,
+        sigma2_eps_dim,
+        likelihood,)
+```
+
 
 ```{python}
 print(filt_results_kal['ll'].dtype)
@@ -880,6 +1122,7 @@ print(f"Sqrt   Log-Likelihood = {filt_results_sqrt['ll']}")
 print(f"Info   Log-Likelihood = {filt_results_inf['ll']}")
 print(f"SqInfo Log-Likelihood = {filt_results_sqinf['ll']}")
 print(f"PKal   Log-Likelihood = {filt_results_pkal['ll']}")
+print(f"PKal2   Log-Likelihood = {filt_results_pkal2['ll']}")
 # COMING SOON...
 #print(f"PSqrt  Log-Likelihood = {filt_results_psqrt['ll']}")
 ```
@@ -899,7 +1142,7 @@ jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3],
 #T_vals = range(10, 1000, 10)
 #T_vals = jnp.logspace(2, log10T, num=10, base=10).astype(int)
 T_vals = jnp.arange(1,100, 10).astype(int)
-nreps = 3
+nreps = 50
 
 results = {
     "kal": [],
@@ -1071,6 +1314,7 @@ An example IDEM simulation, with the underlying process (left), noisy observatio
 
 ```{python}
 #| eval: true
+#| output: false
 
 m_0 = jnp.zeros(nbasis)
 P_0 = 100*jnp.eye(nbasis)
@@ -1080,18 +1324,61 @@ nu_0 = jnp.zeros(nbasis)
 Q_0 = 0.01*jnp.eye(nbasis)
 R_0 = jnp.linalg.cholesky(Q_0)
 
-jit_kal   = lambda tup: kalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
-jit_inf   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
-jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
-jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
-jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+zs_tree = [z for z in zs]
+PHI_tree = [PHI for _ in range(T)]
+sigma2_eta = S2_eta
+sigma2_eps = S2_eps
+sigma2_eps_tree = [S2_eps for _ in range(T)]
 
-inp_tree = (M, PHI, S2_eta, S2_eps, zs)
-time_kal_gpu   = time_jit(key, jit_kal, inp_tree, n=1)
-time_inf_gpu   = time_jit(key, jit_inf, inp_tree, n=1)
-time_sqrt_gpu  = time_jit(key, jit_sqrt, inp_tree, n=1)
-time_sqinf_gpu = time_jit(key, jit_sqinf, inp_tree, n=1)
-time_pkal_gpu  = time_jit(key, jit_pkal, inp_tree, n=1)
+from jaxidem.filters import information_filter as information_filter_tree
+
+#jit_kal   = lambda tup: kalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+#jit_inf   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+#jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+#jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+#jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+#jit_pkal2  = lambda tup: pkalman_filter_tree(m_0, P_0, tup[0], [tup[1] for _ in range(T)],
+#                                            tup[2],
+#                                            [tup[3] for _ in range(T)],
+#                                            tup[4],
+#                                            2, 2, 'full')['ll']
+#jit_inf2  = lambda tup: information_filter_tree(nu_0, Q_0, tup[0], [tup[1] for _ in range(T)],
+#                                            tup[2],
+#                                            [tup[3] for _ in range(T)],
+#                                            tup[4],
+#                                                2, 2, 0, 'full')['ll']
+
+
+jit_kal   = lambda tup: kalman_filter(m_0, P_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
+jit_inf   = lambda tup: information_filter(nu_0, Q_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
+jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
+jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
+jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
+jit_pkal2  = lambda tup: pkalman_filter_tree(m_0, P_0, M, [PHI for _ in range(T)],
+                                            sigma2_eta,
+                                            [sigma2_eps for _ in range(T)],
+                                            tup[0],
+                                            2, 2, 'full')['ll']
+jit_inf2  = lambda tup: information_filter_tree(nu_0, Q_0, M, [PHI for _ in range(T)],
+                                            sigma2_eta,
+                                            [sigma2_eps for _ in range(T)],
+                                            tup[0],
+                                                2, 2, 0, 'full')['ll']
+
+
+
+
+#inp_tree = (M, PHI, S2_eta, S2_eps, zs)
+inp_tree = (zs,)
+
+time_kal_gpu   = time_jit(key, jit_kal, inp_tree, n=nreps)
+time_inf_gpu   = time_jit(key, jit_inf, inp_tree, n=nreps)
+time_sqrt_gpu  = time_jit(key, jit_sqrt, inp_tree, n=nreps)
+time_sqinf_gpu = time_jit(key, jit_sqinf, inp_tree, n=nreps)
+time_pkal_gpu  = time_jit(key, jit_pkal, inp_tree, n=nreps)
+time_pkal2_gpu  = time_jit(key, jit_pkal2, inp_tree, n=nreps)
+time_inf2_gpu  = time_jit(key, jit_inf2, inp_tree, n=nreps)
+
 
 import pandas as pd
 
@@ -1101,13 +1388,15 @@ data = [
     ["sqrt", "GPU", time_sqrt_gpu.compile_time, time_sqrt_gpu.average_time * 1000, time_sqrt_gpu.value],
     ["sqinf", "GPU", time_sqinf_gpu.compile_time, time_sqinf_gpu.average_time * 1000, time_sqinf_gpu.value],
     ["pkal", "GPU", time_pkal_gpu.compile_time, time_pkal_gpu.average_time * 1000, time_pkal_gpu.value],
+    ["pkal2", "GPU", time_pkal2_gpu.compile_time, time_pkal2_gpu.average_time * 1000, time_pkal2_gpu.value],
+    ["inf2", "GPU", time_inf2_gpu.compile_time, time_inf2_gpu.average_time * 1000, time_inf2_gpu.value],
 ]
 
 df = pd.DataFrame(data, columns=["Method", "Device", "Compile Time (s)", "Average Time (ms)", "Log Likelihood"])
 ```
 
 ```{python}
-#| eval: false
+#| eval: true
 print(f"Results for IDEM with nbasis={nbasis} and nobs={nobs}")
 print(f"Precision: {M.dtype}")
 
@@ -1128,7 +1417,7 @@ jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3],
 
 n_vals = range(10, 100, 10)
 #n_vals = [10,20]
-nreps = 5
+#nreps = 5
 
 results = {
     "Kalman": [],

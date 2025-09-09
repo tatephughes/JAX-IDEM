@@ -1,0 +1,531 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Sydney Radar Data\"\n",
+        "author: \"Evan Tate Paterson Hughes\"\n",
+        "format:\n",
+        "  html:\n",
+        "    code-fold: false\n",
+        "    toc: true\n",
+        "    inclue-in-header: header.html\n",
+        "    mathjax: \n",
+        "      extensions: [\"breqn\", \"bm\", \"ams\"]\n",
+        "jupyter: python3\n",
+        "bibliography: Bibliography.bib\n",
+        "---\n",
+        "\n",
+        "::: {.content-visible unless-format=\"pdf\"}\n",
+        "\n",
+        "[Index](../index.html)\n",
+        "\n",
+        ":::\n",
+        "\n",
+        "# The Sydney Radar Data Set\n",
+        "\n",
+        "This is a data set... [more information here and plotting here]\n",
+        "\n",
+        "# Importing the relevant packages and Loading the data\n",
+        "\n",
+        "Firstly, we load the relevant libraries and import the data."
+      ],
+      "id": "d8c7fb32"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import jax\n",
+        "jax.config.update(\"jax_enable_x64\", True)\n",
+        "import os\n",
+        "import jax.numpy as jnp\n",
+        "import jax.random as rand\n",
+        "import pandas as pd\n",
+        "import jaxidem.idem as idem\n",
+        "import jaxidem.utils as utils\n",
+        "import matplotlib.pyplot as plt\n",
+        "import jaxidem.plotters as plotters\n",
+        "\n",
+        "radar_df = pd.read_csv('data/radar_df.csv')"
+      ],
+      "id": "dc1089c1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We should put this data into `jax-idem`s `st_data` type;"
+      ],
+      "id": "c1b679bb"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: false\n",
+        "radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z') "
+      ],
+      "id": "61bff433",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Plotting\n",
+        "\n",
+        "There is an optional module for jaxidem, jaxidem.plotters (install it with `pip install jaxidem[plotters]`) that includes some built-in functions to make plots of various objects relating to modelling. \n",
+        "Note that this module uses plotly to create interactive html-based plots, primarily for notebooks such as this.\n",
+        "For saving static images of plots, plotly requires kaleido, which itself requires chrome. \n",
+        "This is the reason that this module is optional, but if you need to install chrome, you can use `plotly_get_chrome` in bash, assuming you are on linux.\n",
+        "\n",
+        "The `plotters` module uses the functions `plotly_st_grid` or `plotly_st_scatter` (the former for gridded data, the latter for scattered data) to create a list of frames for each time point. \n",
+        "\n",
+        "The Sydney Radar data are 28x40 images, so we can use the grid version;"
+      ],
+      "id": "16b941d2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import jaxidem.plotters as plotters\n",
+        "\n",
+        "frames = plotters.plotly_st_grid(radar_data, title=\"Sydney Radar Data\")"
+      ],
+      "id": "5689e73c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "There are a few ways to then present this data; a static grid of each data points using `make_st_fig`, an interactive plot with a slider to see each time point using `make_interactive_fig`, and a gif using `save_st_gif`. \n",
+        "\n",
+        "To make an interactive plot,"
+      ],
+      "id": "03d46c80"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "sydney_fig = plotters.make_interactive_fig(frames)\n",
+        "\n",
+        "# Apply the catppuccin mocha theme to match these notebooks\n",
+        "plotters.apply_catppuccin_mocha(sydney_fig, fontsize = 20)\n",
+        "\n",
+        "sydney_fig.update_layout(\n",
+        "    xaxis=dict(showticklabels=False),\n",
+        "    yaxis=dict(showticklabels=False, scaleanchor=\"x\")\n",
+        ")\n",
+        "\n",
+        "sydney_fig.show()"
+      ],
+      "id": "f8ef8037",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "More options of plotting will be looked at when we do filtering, fitting, and inference on this model.\n",
+        "\n",
+        "\n",
+        "## Modelling\n",
+        "\n",
+        "We will firstly censor the data, so that we can assess the 'blanks' we filled in.\n",
+        "\n",
+        "For this example, we have 12 time points. \n",
+        "We will remove the first, last, and one middle point, to test backcasting, intracasting and forecasting respectively.\n",
+        "\n",
+        "Note that, in removing the middle time, our data now has 'varying' observation dimension (we have 28x40 observation points, one for each pixel, at every time point except the middle one, where we have 'dimension 0').\n",
+        "While there is no reason analytically that any Kalman filter variant cannot handle this kind of, case, this functionality is only implemented into the information filters (including the parallel filters) in `jax-idem`.\n",
+        "This is not a problem here however, as the observation dimension is generally much higher than the process dimensions we might choose, so the information filters are much more performant anyway."
+      ],
+      "id": "8ac40f32"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: true\n",
+        "# Censor the data!\n",
+        "radar_df_censored = radar_df\n",
+        "# remove the first time measurements (for backcast testing)\n",
+        "radar_df_censored = radar_df_censored[radar_df_censored['time'] != \"2000-11-03 08:45:00\"]\n",
+        "# remove the a specific time (for intracast testing)\n",
+        "radar_df_censored = radar_df_censored[radar_df_censored['time'] != \"2000-11-03 09:25:00\"]\n",
+        "# remove the a final two times (for forecast testing)\n",
+        "radar_df_censored = radar_df_censored[~radar_df_censored['time'].isin([\"2000-11-03 10:15:00\", \"2000-11-03 10:05:00\"])]\n",
+        "# three randomly chose indices ('dead pixels')\n",
+        "\n",
+        "# no covariates (besides intercept)\n",
+        "radar_data = utils.pd_to_st(radar_df_censored, 's2', 's1', 'time', 'z')\n",
+        "\n",
+        "# make a new plot to show the missing data\n",
+        "\n",
+        "frames = plotters.plotly_st_grid(radar_data, title=\"Sydney Radar Data\")\n",
+        "\n",
+        "sydney_fig = plotters.make_st_fig(frames, spacing = [0.01, 0.1])\n",
+        "\n",
+        "# Apply the catppuccin mocha theme to match these notebooks\n",
+        "plotters.apply_catppuccin_mocha(sydney_fig, fontsize = 20)\n",
+        "\n",
+        "sydney_fig.update_xaxes(title_text=None, showticklabels=False)\n",
+        "sydney_fig.update_yaxes(title_text=None, showticklabels=False)\n",
+        "\n",
+        "sydney_fig.update_layout(\n",
+        "    xaxis=dict(showticklabels=False),\n",
+        "    yaxis=dict(showticklabels=False, scaleanchor=\"x\")\n",
+        ")\n",
+        "\n",
+        "sydney_fig.show()"
+      ],
+      "id": "ee427a7b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We now create an initial model for this data "
+      ],
+      "id": "52a76303"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: false\n",
+        "#| eval: true\n",
+        "model = idem.init_model(data=radar_data)"
+      ],
+      "id": "a7a245a1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "This, by default, creates an invariant kernel model with no covariates beside an intercept, with cosine basis function for the process decomposition.\n",
+        "We can now get the marginal data likelihood function of this model with the `get_log_like` method;"
+      ],
+      "id": "d5942d8e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: true\n",
+        "log_marginal = model.get_log_like(radar_data, method=\"sqinf\", likelihood='partial')"
+      ],
+      "id": "93f3accc",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can then use this function to do various inference techniques, like direclty maximising it or Bayesian MCMC methods. It is auto-differentiation compatible, so can easily be dropped into packages like `optax` or `blackjax` for these purposes.\n",
+        "\n",
+        "The function takes, as an input, an object of type `IdemParams`, which is a `NamedTuple` containing the log variances, (transformed) kernel parameters, and the regression coefficients.\n",
+        "The `Model` class has a value of these paramters, `Model.params`, and a method is provided to print these parameters in a clear way;"
+      ],
+      "id": "5a52c86f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: true\n",
+        "#| eval: true\n",
+        "idem.print_params(model.params)"
+      ],
+      "id": "f31ca2c1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Maximum Likelihood Estimation\n",
+        "\n",
+        "Once we have this marginal likelihood, there are a few ways to progress.\n",
+        "A good start is with a maximum likelihood method.\n",
+        "Obviously, we can no just take this lgo marginal function and maximise it in any way we see fit, but `jaxidem.Model` has a built-in method for this, `Model.fit_mle`. Given data, this will use a method from 'optax' to create a new output model with the fitted parameters."
+      ],
+      "id": "03a0c59a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "\n",
+        "import optax\n",
+        "\n",
+        "fit_model_mle, mle_params = model.fit_mle(radar_data,\n",
+        "                                          optimizer = optax.adam(1e-2),\n",
+        "                                          max_its = 100,\n",
+        "                                          method = 'sqinf')"
+      ],
+      "id": "fe5b8e56",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: true\n",
+        "#| echo: false\n",
+        "#| output: false\n",
+        "\n",
+        "import pickle\n",
+        "with open('./pickles/Hamilton/24_4_25/mle_params.pkl', 'rb') as file: \n",
+        "    mle_params = pickle.load(file)\n",
+        "fit_model_mle = model.update(mle_params)"
+      ],
+      "id": "294a7008",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The resulting parameters are then"
+      ],
+      "id": "b1fa6bdf"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: true\n",
+        "idem.print_params(mle_params)"
+      ],
+      "id": "17ae6aa9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Of course, we can use any other method to maximise this, by using whatever method desired on the function returned from `Model.get_log_liklehood`.\n",
+        "We can update the model with new parameters using the method `Model.update`, and `utils.flatten_and_unflatten` (see documentation) allows working with flat arrays instead of PyTrees if needed.\n",
+        "\n",
+        "## Posterior Sampling\n",
+        "\n",
+        "It is obviously desirable to use MCMC methods in order to sample from the posterior distribution.\n",
+        "This can be done manually using the log likelihood, or by using the method `Model.sample_posterior`. \n",
+        "We need to provide it with a sampling kernel; that is, a method to get from one state to the next.\n",
+        "\n",
+        "\n",
+        "## Using Blackjax\n",
+        "\n",
+        "From there, it is easy to sample from the posterior"
+      ],
+      "id": "0a627e7e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "import blackjax\n",
+        "\n",
+        "key = jax.random.PRNGKey(1) # PRNG key\n",
+        "inverse_mass_matrix = jnp.ones(model.nparams)\n",
+        "num_integration_steps = 10\n",
+        "step_size = 1e-5\n",
+        "\n",
+        "samp = blackjax.hmc(log_marginal,\n",
+        "                    step_size,\n",
+        "                    inverse_mass_matrix,\n",
+        "                    num_integration_steps)\n",
+        "step=samp.step\n",
+        "init = samp.init(mle_params)\n",
+        "\n",
+        "def sampling_kernel(carry, i):\n",
+        "    nuts_key = jax.random.fold_in(key, i)\n",
+        "    new_state, info = step(nuts_key, carry)\n",
+        "    return new_state, (new_state, info)\n",
+        "\n",
+        "sample, _ = model.sample_posterior(key,\n",
+        "                                   obs_data=radar_data,\n",
+        "                                   n=10,\n",
+        "                                   burnin=0,\n",
+        "                                   init=init,\n",
+        "                                   sampling_kernel=sampling_kernel)\n",
+        "\n",
+        "sample_arr = jnp.column_stack(jax.tree.leaves(sample.position))"
+      ],
+      "id": "8d6d4b6f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: true\n",
+        "#| echo: false\n",
+        "#| output: false\n",
+        "\n",
+        "import numpy as np\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "csv_data = np.loadtxt('data/Chains/HMC_chain_32.csv', delimiter=',')\n",
+        "# Convert the NumPy array to a JAX array\n",
+        "sample_arr = jnp.array(csv_data)[10000:60000,1:]"
+      ],
+      "id": "629bf256",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import plotly.graph_objects as go\n",
+        "from plotly.subplots import make_subplots\n",
+        "\n",
+        "fig = make_subplots(rows=7, cols=1, shared_xaxes=True,\n",
+        "#                    subplot_titles=[f\"Parameter {i+1}\" for i in range(n_params)],\n",
+        "                    vertical_spacing=0.02)\n",
+        "\n",
+        "for i in range(7):\n",
+        "    fig.add_trace(\n",
+        "        go.Scatter(y=sample_arr[:, i], mode='lines'),\n",
+        "        row=i+1, col=1\n",
+        "    )\n",
+        "\n",
+        "plotters.apply_catppuccin_mocha(fig, fontsize=20)\n",
+        "fig.update_layout(height=200 * 7, width=800,\n",
+        "                  title_text=\"MCMC Trace Plots\", showlegend=False)\n",
+        "\n",
+        "fig.show()"
+      ],
+      "id": "391cea2c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Lets take the posterior mean for some filtering and predicting."
+      ],
+      "id": "e138d28b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: true\n",
+        "# gets the function used to go from a flat array to a parameter of the type used in the models\n",
+        "fparams, unflatten = utils.flatten_and_unflatten(model.params)\n",
+        "\n",
+        "post_mean = jnp.mean(sample_arr, axis=0)\n",
+        "new_params = unflatten(post_mean)\n",
+        "\n",
+        "new_model = model.update(new_params)\n",
+        "\n",
+        "filt_data, fore_data, filt_results = new_model.filter(radar_data, forecast = 3, method=\"sqinf\")"
+      ],
+      "id": "6e1c2866",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: true\n",
+        "#| eval: true\n",
+        "#filt_data.save_plot('figure/filtered_plot.png')\n",
+        "frames = plotters.plotly_st_grid(filt_data, title=\"Sydney Radar Datam filtered using the model\")\n",
+        "\n",
+        "filt_fig = plotters.make_st_fig(frames, spacing = [0.01, 0.1])\n",
+        "\n",
+        "# Apply the catppuccin mocha theme to match these notebooks\n",
+        "plotters.apply_catppuccin_mocha(filt_fig, fontsize = 20)\n",
+        "\n",
+        "filt_fig.update_xaxes(title_text=None, showticklabels=False)\n",
+        "filt_fig.update_yaxes(title_text=None, showticklabels=False)\n",
+        "\n",
+        "filt_fig.update_layout(\n",
+        "    xaxis=dict(showticklabels=False),\n",
+        "    yaxis=dict(showticklabels=False, scaleanchor=\"x\"),\n",
+        ")\n",
+        "\n",
+        "filt_fig.show()"
+      ],
+      "id": "57031427",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We've also forecasted the next 3 time points, and we can get them like this"
+      ],
+      "id": "0feeff52"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: true\n",
+        "#| output: true\n",
+        "#fore_data.save_plot('figure/fore_plot.png')\n",
+        "frames = plotters.plotly_st_grid(fore_data, title=\"Sydney Radar Data forecasted using the model\")\n",
+        "\n",
+        "fore_fig = plotters.make_st_fig(frames, spacing = [0.01, 0.1])\n",
+        "\n",
+        "# Apply the catppuccin mocha theme to match these notebooks\n",
+        "plotters.apply_catppuccin_mocha(fore_fig, fontsize = 20)\n",
+        "\n",
+        "fore_fig.update_xaxes(title_text=None, showticklabels=False)\n",
+        "fore_fig.update_yaxes(title_text=None, showticklabels=False)\n",
+        "\n",
+        "fore_fig.update_layout(\n",
+        "    xaxis=dict(showticklabels=False),\n",
+        "    yaxis=dict(showticklabels=False, scaleanchor=\"x\"),\n",
+        "    height = 200\n",
+        ")\n",
+        "\n",
+        "fore_fig.show()"
+      ],
+      "id": "47ca20dd",
+      "execution_count": null,
+      "outputs": []
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/home/tate/.virtualenvs/jax-cuda/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

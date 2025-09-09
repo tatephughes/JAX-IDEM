@@ -253,3 +253,7 @@ Do simpler filter implementations
 ** Think more psqrt
 
 ** read the bayes linear paper
+
+
+* TODO Tomorrow (8th Sept)
+Tomorrow, i want to have some comparisons between the filters in the sydney radar bayesian inference example page. Now that parallel filtering is fully implemented. I also want to much aboot with various little optimisations to get them all as good as can be.
