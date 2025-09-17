@@ -1,29 +1,27 @@
 # Function reference {.doc .doc-index}
 
-## Filtering and Smoothing Functions
+## Filtering Methods
 
-Functions to apply Kalman/information filters, smoothers and so on.
-
-| | |
-| --- | --- |
-| [ql_L](ql_L.qmd#jaxidem.filters.ql_L) | Wrapper for the stacked-QL decompositon |
-| [kalman_filter](kalman_filter.qmd#jaxidem.filters.kalman_filter) | The standard Kalman Filter. |
-
-## Integro-Difference Models in JAX
-
-Classes and functions to perform simulation, fitting, filtering and prediction on IDEMs.
+Various forms of the Kalman filter, each with its own stability and performance profile. For more information, see [Filtering Scaling](../site/filtering_scaling.qmd).
 
 | | |
 | --- | --- |
-| [Kernel](Kernel.qmd#jaxidem.idem.Kernel) | Generic class defining a kernel, or a basis expansion of a kernel with |
-| [param_exp_kernel](param_exp_kernel.qmd#jaxidem.idem.param_exp_kernel) | Creates a kernel in the style of AZM's R-IDE package. For details, see [here](../docs/site/mathematics.html) |
-| [IdemParams](IdemParams.qmd#jaxidem.idem.IdemParams) | The parameters of an integro-differnce |
+| [filters.kal_filter](filters.kal_filter.qmd#jaxidem.filters.kal_filter) |  |
+| [filters.inf_filter](filters.inf_filter.qmd#jaxidem.filters.inf_filter) |  |
+| [filters.sqrt_filter](filters.sqrt_filter.qmd#jaxidem.filters.sqrt_filter) |  |
+| [filters.sqinf_filter](filters.sqinf_filter.qmd#jaxidem.filters.sqinf_filter) |  |
+| [filters.pkal_filter](filters.pkal_filter.qmd#jaxidem.filters.pkal_filter) |  |
 
-## Utilties
+## Utilities
 
-General classes and functions used to supplement the main package
+Utility functions to supplement the package. Includes a simple basis expansion system, a spatio-temporal data type, tools for testing jit-functions and so on.
 
 | | |
 | --- | --- |
-| [Grid](Grid.qmd#jaxidem.utils.Grid) | A simple grid class to store (currently exclusively regular) grids, along |
-| [outer_op](outer_op.qmd#jaxidem.utils.outer_op) | Computes the outer operation of two vectors, a generalisation of the outer |
+| [utils.Grid](utils.Grid.qmd#jaxidem.utils.Grid) | A simple grid class to store (currently exclusively regular) grids, along |
+| [utils.create_grid](utils.create_grid.qmd#jaxidem.utils.create_grid) | Creates an n-dimensional grid based on the given bounds and deltas. |
+| [utils.place_basis](utils.place_basis.qmd#jaxidem.utils.place_basis) | Distributes knots (centroids) and scales for basis functions over a |
+| [utils.random_basis](utils.random_basis.qmd#jaxidem.utils.random_basis) | Randomly distributes knots (centroids) and scales for basis functions. |
+| [utils.place_cosine_basis](utils.place_cosine_basis.qmd#jaxidem.utils.place_cosine_basis) | Creates cosine (fourier) basis functions at N frequencies at each dimension. |
+| [utils.st_data](utils.st_data.qmd#jaxidem.utils.st_data) | For storing spatio-temporal data and appropriate methods for plotting such |
+| [utils.time_jit](utils.time_jit.qmd#jaxidem.utils.time_jit) | Timer function that uses random noise to properly time jit-compiled functions. |

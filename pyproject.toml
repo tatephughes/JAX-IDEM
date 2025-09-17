@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jaxidem"
-version = "0.1.18"
+version = "0.1.20"
 authors = [
   { name="Evan Tate Paterson Hughes", email="etatephughes@gmail.com" },
 ]
 description = "Integro-difference Equation Models for Python-JAX"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -38,6 +38,7 @@ plotting = [
     "kaleido>=1.0.0",
     "imageio>=2.37.0"
 ]
+test = ["pytest"]
 
 
 

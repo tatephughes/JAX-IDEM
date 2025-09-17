@@ -50,27 +50,26 @@ toc: true
 number-sections: true
 
 quartodoc:
-  package: jaxidem
+  style: pkgdown
   sidebar: reference/_sidebar.yml
+  package: jaxidem
   css: reference/_styles-quartodoc.css
   sections:
-    - title: Filtering and Smoothing Functions
-      package: jaxidem.filters
-      desc: Functions to apply Kalman/information filters, smoothers and so on.
+    - title: Filtering Methods
+      desc: Various forms of the Kalman filter, each with its own stability and performance profile. For more information, see [Filtering Scaling](../site/filtering_scaling.qmd).
       contents:
-        - ql_L
-        - kalman_filter
-    - title: Integro-Difference Models in JAX
-      package: jaxidem.idem
-      desc: Classes and functions to perform simulation, fitting, filtering and prediction on IDEMs.
+        - filters.kal_filter
+        - filters.inf_filter
+        - filters.sqrt_filter
+        - filters.sqinf_filter
+        - filters.pkal_filter
+    - title: Utilities
+      desc: Utility functions to supplement the package. Includes a simple basis expansion system, a spatio-temporal data type, tools for testing jit-functions and so on.
       contents:
-        - Kernel
-        - param_exp_kernel
-        - IdemParams
-    - title: Utilties
-      package: jaxidem.utils
-      desc: General classes and functions used to supplement the main package
-      contents:
-        - Grid
-        - outer_op
-
+        - utils.Grid
+        - utils.create_grid
+        - utils.place_basis
+        - utils.random_basis
+        - utils.place_cosine_basis
+        - utils.st_data
+        - utils.time_jit

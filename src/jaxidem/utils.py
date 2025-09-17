@@ -5,11 +5,12 @@ import jax
 import jax.numpy as jnp
 import jax.lax as jl
 import jax.random as rand
-# Typing imports
-from jaxtyping import ArrayLike, PyTree
-from typing import Callable, NamedTuple  # , Union
-from functools import partial
 
+# Typing imports
+from jaxtyping import ArrayLike, PyTree, Array, Float, Int
+from typing import Callable, NamedTuple, Union, List
+
+from functools import partial
 import warnings
 
 # Plotting imports
@@ -24,8 +25,10 @@ import io
 from tqdm.auto import tqdm
 import time
 
+# Panda (maybe should be made optional!)
 import pandas as pd
 from pandas.api.types import is_string_dtype, is_float_dtype, is_integer_dtype
+
 
 class Grid(NamedTuple):
     """
@@ -36,50 +39,32 @@ class Grid(NamedTuple):
     Ideally, in the future, this will support non-regular grids with any
     necessary quantities to do, for example, integration over the points on the
     grid.
+
+    Notes
+    -----
+    Symbolic dimensions:
+
+        - `dim` : the space dimension
+        - `n` : the number of points on the grid
     """
 
-    coords: ArrayLike
-    deltas: ArrayLike
-    ngrids: ArrayLike
+    coords: Float[Array, "n dim"]
+    deltas: Float[Array, "dim"]
+    ngrids: Int[Array, "dim"]
     ngrid: int
     dim: int
     area: float
 
 
-class Basis(NamedTuple):
-    """
-    A simple class for spatial basis expansions.
-
-    Attributes
-    ----------
-    vfun: ArrayLike (ndim,) -> ArrayLike (nbasis,)
-        Applying to a single spatial location, evaluates all the basis functions
-        on the single location and returns the result as a vector.
-    mfun: ArrayLike (ndim, n) -> ArrayLike (nbasis, n)
-        Applying to a array of spatial points, evaluates all the basis functions
-        on each point and returns the results in a matrix.
-    params: ArrayLike(nparams, nbasis)
-        The parameters defining each basis function. For example, for bisquare
-        basis functions, the parameters are the locations of the centers of each
-        function, and the function's scale.
-    nbasis: int
-        The number of basis functions in the expansion.
-    """
-
-    vfun: Callable
-    mfun: Callable
-    params: ArrayLike
-    nbasis: int
-
-def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
+def create_grid(bounds: Float[Array, "d 2"], ngrids: Float[Array, "d"]) -> Grid:
     """
     Creates an n-dimensional grid based on the given bounds and deltas.
 
     Parameters
     ----------
-    bounds: ArrayLike (2, n)
-        The bounds for each dimension
-    ngrids: ArrayLike (n, )
+    bounds: Float[Array, "d 2"]
+        The bounds for each dimension.
+    ngrids: Float[Array, "d"]
         The number of columns/rows/hyper-column in each dimension
 
     Returns
@@ -103,14 +88,14 @@ def create_grid(bounds: ArrayLike, ngrids: ArrayLike) -> Grid:
     grid = jnp.stack(jnp.meshgrid(*axis_linspaces, indexing="ij"), axis=-1).reshape(
         -1, dimension
     )
-    sort_grid = grid[jnp.argsort(grid[:,1]),:]
+    sort_grid = grid[jnp.argsort(grid[:, 1]), :]
 
     deltas = (bounds[:, 1] - bounds[:, 0]) / (ngrids - 1)
-    # for the purposes of testing against R-ide, we can purposefully get this a little wrong (since they do)
+    # for the purposes of testing against R-ide, we can purposefully get this a little wrong (since R-IDE does)
     # deltas = (bounds[:, 1] - bounds[:, 0]) / (ngrids)
 
     return Grid(
-        #coords=grid.at[:, [0, 1]].set(grid[:, [1, 0]]),
+        # coords=grid.at[:, [0, 1]].set(grid[:, [1, 0]]),
         coords=sort_grid,
         deltas=deltas,
         ngrids=ngrids,
@@ -124,6 +109,8 @@ def outer_op(
     a: ArrayLike, b: ArrayLike, op: Callable = lambda x, y: x * y
 ) -> ArrayLike:
     """
+    DEPRECIATED, not used any more, i think. leaving it here for now juuust in case.
+
     Computes the outer operation of two vectors, a generalisation of the outer
     product. Wowza
 
@@ -133,7 +120,7 @@ def outer_op(
         Array of the first vector.  Assumed shape (n,)
     b:
         Array of the second vector. Assumed shape (m,)
-    op: 
+    op:
         A jit-function acting on an element of vec1 and an element of vec2.
         By default, this is the outer product.
 
@@ -144,7 +131,7 @@ def outer_op(
         from the two vectors. Return shape (n, m).
     """
 
-    if not isinstance(a, ArrayLike): 
+    if not isinstance(a, ArrayLike):
         raise TypeError(f"Expected arraylike input; got {a}")
     if not isinstance(b, ArrayLike):
         raise TypeError(f"Expected arraylike input; got {b}")
@@ -160,40 +147,76 @@ def outer_op(
 
 
 @jax.jit
-def bisquare(s: ArrayLike, params: ArrayLike) -> ArrayLike:
-    """Generic bisquare function"""
+def bisquare(s: Float[Array, "2"], params: Float[Array, "3"]) -> float:
+    """Generic 2D bisquare function
+    Parameters
+    ----------
+    s: Float[Array, "2"]
+        The point at which to evauluate the bisquare function
+    params: Float[Array, "3"]
+        Parameters of the function; the first two elements are the offset parameter, and the last is the shape parameter.
+        Yes, this should _probably_ be a dictionary or something.
+    """
     squarenorm = jnp.array([jnp.sum((s - params[0:2]) ** 2)])
     w2 = params[2] ** 2
     return (jnp.where(squarenorm < w2, (1 - squarenorm / w2) ** 2, 0))[0]
 
 
+class Basis(NamedTuple):
+    """
+    A simple class for spatial basis expansions.
+
+    Attributes
+    ----------
+    vfun: Float[Array, "ndim"] -> Float[Array, "nbasis"]
+        Applying to a single spatial location, evaluates all the basis functions
+        on the single location and returns the result as a vector.
+    mfun: Float[Array, "ndim n"] -> Float[Array, "nbasis n"]
+        Applying to a array of spatial points, evaluates all the basis functions
+        on each point and returns the results in a matrix.
+    params: Float[Array, "nparams nbasis"]
+        The parameters defining each basis function. For example, for bisquare
+        basis functions, the parameters are the locations of the centers of each
+        function, and the function's scale.
+    nbasis: int
+        The number of basis functions in the expansion.
+    """
+
+    vfun: Callable[[Float[Array, "ndim"]], Float[Array, "nbasis"]]
+    mfun: Callable[[Float[Array, "ndim n"]], Float[Array, "nbasis n"]]
+    params: Float[Array, "nparams nbasis"]
+    nbasis: int
+
+
 def place_basis(
-    data=jnp.array([[0, 0], [1, 1]]),
-    nres=2,
-    aperture=1.25,
-    min_knot_num=3,
-    basis_fun=bisquare,
-):
+    bounds: Float[Array, "ndim 2"] = jnp.array([[0, 1], [0, 1]]),
+    nres: int = 2,
+    aperture: float = 1.25,
+    min_knot_num: int = 3,
+    basis_fun: Callable[
+        [Float[Array, "ndim"], Float[Array, "nparams"]], float
+    ] = bisquare,
+) -> Basis:
     """
     Distributes knots (centroids) and scales for basis functions over a
     number of resolutions,similar to auto_basis from the R package FRK.
     This function must be run outside of a jit loop, since it involves
-    varying the length of arrays. 
+    varying the length of arrays.
 
     Parameters
     ----------
-    data: Arraylike (ndim, npoints)
-        Array of 2D points defining the space on which to put the basis functions
-    nres: Int
+    bounds: Float[Array, "ndim 2"]
+        The bounds for each dimension for the space we want to cover with basis functions
+    nres: int
         The number of resolutions at which to place basis functions
-    aperture: Double
+    aperture: float
         Scaling factor for the scale parameter (scale parameter will be
         w=aperture * d, where d is the minimum distance between any two of the
         knots)
-    min_knot_num: Int
+    min_knot_num: int
         The number of basis functions to place in each dimension at the coursest
         resolution
-    basis_fun: ArrayLike (ndim,), ArrayLike (nparams) -> Double
+    basis_fun: Float[Array, "ndim"], Float[Array, "nparams"] -> float
         The basis functions being used. The basis function's second argument must
         be an array with three doubles; the first coordinate for the centre, the
         second coordinate for the centre, and the scale/aperture of the function.
@@ -203,35 +226,32 @@ def place_basis(
     parameters associated to the basis functions.
     """
 
-    xmin = jnp.min(data[:, 0])
-    xmax = jnp.max(data[:, 0])
-    ymin = jnp.min(data[:, 1])
-    ymax = jnp.max(data[:, 1])
+    xmin = bounds[0, 0]
+    xmax = bounds[0, 1]
+    ymin = bounds[1, 0]
+    ymax = bounds[1, 1]
 
     asp_ratio = (ymax - ymin) / (xmax - xmin)
 
     if asp_ratio < 1:
         ny = jnp.array(min_knot_num)
-        #nx = jnp.round(ny / asp_ratio).astype(int)
+        # nx = jnp.round(ny / asp_ratio).astype(int)
         nx = ny / asp_ratio
     else:
         nx = jnp.array(min_knot_num)
-        #ny = jnp.round(asp_ratio * nx).astype(int)
+        # ny = jnp.round(asp_ratio * nx).astype(int)
         ny = asp_ratio * nx
 
     def basis_at_res(res):
-        bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
-
-        # small point; isn't the 3 here arbitrary? 
+        # small point; isn't the 3 here arbitrary?
         ngrids = jnp.round(jnp.array([nx, ny]) * 3**res).astype(jnp.int32)
-    
+
         grid = create_grid(bounds, ngrids)
 
-
-        w = jnp.min(grid.deltas) * aperture *1.5
+        w = jnp.min(grid.deltas) * aperture * 1.5
 
         # maybe adjust for create_grid being wrong
-        #w = jnp.min(grid.deltas*ngrids/(ngrids-1)) * aperture *1.5
+        # w = jnp.min(grid.deltas*ngrids/(ngrids-1)) * aperture *1.5
 
         return jnp.hstack([grid.coords, jnp.full((grid.ngrid, 1), w)])
 
@@ -239,23 +259,26 @@ def place_basis(
     nbasis = params.shape[0]
 
     @jax.jit
-    def basis_vfun(s):
+    def basis_vfun(s: Float[Array, "ndim"]) -> Float[Array, "nbasis"]:
         return jax.vmap(basis_fun, in_axes=(None, 0))(s, params)
 
     @jax.jit
-    def eval_basis(s_array):
+    def eval_basis(s_array: Float[Array, "ndim n"]) -> Float[Array, "n nbasis"]:
         return jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)), in_axes=(0, None))(
             s_array, params
         )
 
     return Basis(basis_vfun, eval_basis, params, nbasis)
 
+
 def random_basis(
-        key,
-        knot_num=3,
-        data=jnp.array([[0, 0], [1, 1]]),
-        aperture=10,
-        basis_fun=bisquare,
+    key: Int[Array, "2"],
+    knot_num: int = 3,
+    bounds: Float[Array, "ndim 2"] = jnp.array([[0, 1], [0, 1]]),
+    aperture: float = 10,
+    basis_fun: Callable[
+        [Float[Array, "ndim"], Float[Array, "nparams"]], float
+    ] = bisquare,
 ):
     """
     Randomly distributes knots (centroids) and scales for basis functions.
@@ -264,17 +287,17 @@ def random_basis(
 
     Parameters
     ----------
-    key: ArrayLike
+    key: Int[Array, "2"]
         PRNG key
-    knot_num: Int
+    knot_num: int
         The number of knots at which to place basis functions
-    data: Arraylike (ndim, npoints)
-        Array of 2D points defining the space on which to put the basis functions
-    aperture: Double
+    bounds: Float[Array, "ndim 2"]
+        The bounds for each dimension for the space we want to cover with basis functions
+    aperture: float
         Scaling factor for the scale parameter (scale parameter will be
         w=aperture * d, where d is the minimum distance between any two of the
         knots)
-    basis_fun: ArrayLike (ndim,), ArrayLike (nparams) -> Double
+    basis_fun: Float[Array, "ndim"], Float[Array, "nparams"] -> float
         The basis functions being used. The basis function's second argument must
         be an array with three doubles; the first coordinate for the centre, the
         second coordinate for the centre, and the scale/aperture of the function.
@@ -284,27 +307,31 @@ def random_basis(
     parameters associated to the basis functions.
     """
 
-    xmin = jnp.min(data[:, 0])
-    xmax = jnp.max(data[:, 0])
-    ymin = jnp.min(data[:, 1])
-    ymax = jnp.max(data[:, 1])
+    xmin = bounds[0, 0]
+    xmax = bounds[0, 1]
+    ymin = bounds[1, 0]
+    ymax = bounds[1, 1]
 
     keys = jax.random.split(key, 2)
 
     w = ((xmax - xmin) * (ymax - ymin)) / knot_num
-    
-    params=jnp.hstack([jax.random.uniform(keys[0], shape=(knot_num,1), minval=xmin, maxval=xmax),
-                       jax.random.uniform(keys[1], shape=(knot_num,1), minval=ymin, maxval=ymax),
-                       jnp.full((knot_num, 1), w)*aperture])
-    
+
+    params = jnp.hstack(
+        [
+            jax.random.uniform(keys[0], shape=(knot_num, 1), minval=xmin, maxval=xmax),
+            jax.random.uniform(keys[1], shape=(knot_num, 1), minval=ymin, maxval=ymax),
+            jnp.full((knot_num, 1), w) * aperture,
+        ]
+    )
+
     nbasis = params.shape[0]
 
     @jax.jit
-    def basis_vfun(s):
+    def basis_vfun(s: Float[Array, "ndim"]) -> Float[Array, "nbasis"]:
         return jax.vmap(basis_fun, in_axes=(None, 0))(s, params)
 
     @jax.jit
-    def eval_basis(s_array):
+    def eval_basis(s_array: Float[Array, "ndim n"]) -> Float[Array, "n nbasis"]:
         return jax.vmap(jax.vmap(basis_fun, in_axes=(None, 0)), in_axes=(0, None))(
             s_array, params
         )
@@ -312,33 +339,49 @@ def random_basis(
     return Basis(basis_vfun, eval_basis, params, nbasis)
 
 
-def place_cosine_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
-    
+def place_cosine_basis(
+    bounds: Float[Array, "ndim 2"] = jnp.array([[0, 1], [0, 1]]), N: int = 20
+):
+    """
+    Creates cosine (fourier) basis functions at N frequencies at each dimension.
+
+    Parameters
+    ----------
+    bounds: Float[Array, "ndim 2"]
+        The bounds for each dimension for the space we want to cover with basis functions
+    N: int
+        The number of frequencies across each dimension (so in total there will be N^2 basis functions)
+    Returns
+    ----------
+    A Basis object (NamedTuple) with the vector and matrix functions, and the
+    parameters associated to the basis functions.
+    """
+
+    xmin = bounds[0, 0]
+    xmax = bounds[0, 1]
+    ymin = bounds[1, 0]
+    ymax = bounds[1, 1]
+
     N = float(N)
 
-
-    xmin = jnp.min(data[:, 0])
-    xmax = jnp.max(data[:, 0])
-    ymin = jnp.min(data[:, 1])
-    ymax = jnp.max(data[:, 1])
-
-    
     L_1 = jnp.abs(xmin - xmax)
     L_2 = jnp.abs(ymin - ymax)
 
     @jax.jit
     def phi(ks, s):
-        return jnp.cos(ks[0] * jnp.pi * s[0] / L_1) * jnp.cos(ks[1] * jnp.pi * s[1] / L_2)
+        return jnp.cos(ks[0] * jnp.pi * s[0] / L_1) * jnp.cos(
+            ks[1] * jnp.pi * s[1] / L_2
+        )
 
     k1s, k2s = jnp.meshgrid(jnp.arange(N), jnp.arange(N))
     pairs = jnp.stack([k1s.flatten(), k2s.flatten()], axis=-1)
 
     @jax.jit
-    def basis_vfun(s):
+    def basis_vfun(s: Float[Array, "ndim"]) -> Float[Array, "nbasis"]:
         return jax.vmap(phi, in_axes=(0, None))(pairs, s)
 
     @jax.jit
-    def eval_basis(s_array):
+    def eval_basis(s_array: Float[Array, "ndim n"]) -> Float[Array, "n nbasis"]:
         return jax.vmap(jax.vmap(phi, in_axes=(0, None)), in_axes=(None, 0))(
             pairs,
             s_array,
@@ -347,85 +390,75 @@ def place_cosine_basis(data=jnp.array([[0, 0], [1, 1]]), N: int = 20):
     return Basis(basis_vfun, eval_basis, pairs, int(N**2))
 
 
-def plot_kernel(kernel, output_file="kernel.png"):
-    """Will be replaced with the show_plt method in the kernel class."""
-
-    grid = create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([10, 10])).coords
-
-    def offset(s):
-        return -jnp.array(
-            [
-                kernel.params[2] @ kernel.basis[2].vfun(s),
-                kernel.params[3] @ kernel.basis[3].vfun(s),
-            ]
-        )
-
-    vecoffset = jax.vmap(offset)
-
-    offsets = vecoffset(grid)
-
-    fig, ax = plt.subplots(figsize=(6, 5))
-    ax.quiver(grid[:, 0], grid[:, 1], offsets[:, 0], offsets[:, 1])
-    # ax.quiverkey(q, X=0.3, Y=1.1, U=10)
-
-    ax.set_xticks([])
-    ax.set_yticks([])
-
-    plt.title("Kernel Direction")
-
-    plt.savefig(output_file)
-    plt.close()
-
-
 class st_data:
     """
     For storing spatio-temporal data and appropriate methods for plotting such
     data, and converting between long and wide formats.
+
+    NEEDS MUCH MORE DOCUMENTATION
     """
 
-    def __init__(self, x: ArrayLike, y: ArrayLike, times, z: ArrayLike, dt = None, covariates = None, covariate_labels = None):
+    def __init__(
+        self,
+        x: Float[Array, "n"],
+        y: Float[Array, "n"],
+        times: Float[Array, "n"],
+        z: Float[Array, "n"],
+        dt: float = None,
+        covariates: Float[Array, "n ncovs"] = None,
+        covariate_labels: List[str] = None,
+    ):
         self.x = x
         self.y = y
         self.times = times
         self.z = z.astype(y.dtype)
         if covariates is None:
-            self.covariates = jnp.ones((x.size,1))
+            self.covariates = jnp.ones((x.size, 1))
             self.covariate_labels = ["Intercept"]
         else:
-            self.covariates = jnp.column_stack([jnp.ones_like(x), jnp.array(covariates)])
+            self.covariates = jnp.column_stack(
+                [jnp.ones_like(x), jnp.array(covariates)]
+            )
             self.covariate_labels = covariate_labels.insert(0, "Intercept")
 
-        self.data_array = jnp.column_stack((self.x, self.y, self.times, self.z, self.covariates))
-        sorted_indices = jnp.argsort(self.data_array[:, 2]) # always sort by time
-        self.data_array = self.data_array[sorted_indices] 
+        self.data_array = jnp.column_stack(
+            (self.x, self.y, self.times, self.z, self.covariates)
+        )
+        sorted_indices = jnp.argsort(self.data_array[:, 2])  # always sort by time
+        self.data_array = self.data_array[sorted_indices]
 
         # the logic below works, but _probably_ isn't as efficient as is
         # could be. doesn't really need to be though.
-        unique_times = jnp.unique(times) # automatically sorted
+        unique_times = jnp.unique(times)  # automatically sorted
         self.unique_times = unique_times
-        #self.T = len(self.times)
+        # self.T = len(self.times)
         if dt is None:
             dt = jnp.min(jnp.abs(jnp.diff(unique_times)))
-    
+
         full_times = jnp.arange(jnp.min(unique_times), jnp.max(unique_times) + dt, dt)
         self.full_times = full_times
         time_indices = [0]
         for time in full_times[1:]:
-            i=0
-            while times[0]+i*dt <= unique_times[-1]:
-                if jnp.allclose(time, times[0]+i*dt):
+            i = 0
+            while times[0] + i * dt <= unique_times[-1]:
+                if jnp.allclose(time, times[0] + i * dt):
                     time_indices.append(i)
-                i = i+1
+                i = i + 1
         if len(full_times) != len(time_indices):
-            raise ValueError("Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modelling.")
+            raise ValueError(
+                "Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modelling."
+            )
+
         def associate(time):
-            index = jnp.argwhere(jnp.isclose(full_times,time), size=1, fill_value=jnp.nan)
+            index = jnp.argwhere(
+                jnp.isclose(full_times, time), size=1, fill_value=jnp.nan
+            )
             return index[0][0]
 
         self.t = jl.map(associate, times)
-        
+
         self.T = len(self.full_times)
-        
+
         self.coords = jnp.unique(self.data_array[:, 0:2], axis=0)
 
         xmin = jnp.min(self.coords[:, 0])
@@ -434,58 +467,67 @@ class st_data:
         ymax = jnp.max(self.coords[:, 1])
         self.bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
 
-        
-        self.zs_tree = [self.data_array[:,3][jnp.where(self.times==time)] for time in self.full_times]
-        self.X_obs_tree = [self.covariates[jnp.where(self.times==time)] for time in self.full_times]
-        self.coords_tree = [self.data_array[:,0:2][jnp.where(self.times==time)] for time in self.full_times]
+        self.zs_tree = [
+            self.data_array[:, 3][jnp.where(self.times == time)]
+            for time in self.full_times
+        ]
+        self.X_obs_tree = [
+            self.covariates[jnp.where(self.times == time)] for time in self.full_times
+        ]
+        self.coords_tree = [
+            self.data_array[:, 0:2][jnp.where(self.times == time)]
+            for time in self.full_times
+        ]
 
-        self.tilding_elts = [[self.zs_tree[i], self.X_obs_tree[i]] for i in range(len(self.zs_tree))]
+        self.tilding_elts = [
+            [self.zs_tree[i], self.X_obs_tree[i]] for i in range(len(self.zs_tree))
+        ]
 
         # self.wide = self.as_wide()
 
     @partial(jax.jit, static_argnames=["self"])
-    def tildify(self,
-                beta,
-                ):
-
+    def tildify(
+        self,
+        beta,
+    ):
         def entilden(tup):
             z, X_obs = tup
-            return z - X_obs@beta
+            return z - X_obs @ beta
 
         def is_leaf(node):
-                return jax.tree.structure(node).num_leaves == 2
-        
-        #ztildes = self.z - self.X_obs_stacked @ beta
-        #ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
+            return jax.tree.structure(node).num_leaves == 2
+
+        # ztildes = self.z - self.X_obs_stacked @ beta
+        # ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
         ztildes_tree = jax.tree.map(entilden, self.tilding_elts, is_leaf=is_leaf)
         return ztildes_tree
 
     @partial(jax.jit, static_argnames=["self"])
-    def tildify_wide(self,
-                beta,
-                ):
-
+    def tildify_wide(
+        self,
+        beta,
+    ):
         def entilden(tup):
             z, X_obs = tup
-            return z - X_obs@beta
+            return z - X_obs @ beta
 
         def is_leaf(node):
-                return jax.tree.structure(node).num_leaves == 2
-        
-        #ztildes = self.z - self.X_obs_stacked @ beta
-        #ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
+            return jax.tree.structure(node).num_leaves == 2
+
+        # ztildes = self.z - self.X_obs_stacked @ beta
+        # ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
         ztildes_tree = jax.tree.map(entilden, self.tilding_elts, is_leaf=is_leaf)
         return ztildes_tree
-        
+
     def as_wide(self):
         """
         THIS METHOD IS LIMITED; SEEMS TO GET AN ERROR WITH RELATIVELY LOW DIMENSIONS!
 
-        Will liekly need to implement in a different way, prehaps forgoeing jax
+        Will likely need to implement in a different way, prehaps forgoeing jax
         methods.
-        For now, this is simply only applied sparingly, in idem.kalman_filter
+        For now, this is simply only applied sparingly, in idem.kal_filter
         for observation dimension, for example.
-        
+
         Gives the data in wide format. Any missing data will be represented in
         the returned matrix as NaN.
 
@@ -500,29 +542,31 @@ class st_data:
 
         full_times = self.full_times
         xycoords = self.coords
-        #nlocs = data_array.shape[0]
+        # nlocs = data_array.shape[0]
 
         p = self.covariates.shape[1]
 
         @jax.jit
         def getval(xy, t):
             xyt = jnp.hstack((xy, t))
-            index = jnp.argwhere(jnp.all(data_array[:, 0:3] == xyt, axis=1), size=1, fill_value=-1)[0][0]
+            index = jnp.argwhere(
+                jnp.all(data_array[:, 0:3] == xyt, axis=1), size=1, fill_value=-1
+            )[0][0]
             tup = jax.lax.cond(
                 index == -1,
                 lambda x: (jnp.array(jnp.nan), jnp.full((p,), jnp.nan)),
                 lambda x: (self.z[x], self.covariates[x]),
-                index
+                index,
             )
             return tup
-            
-        #@jax.jit
-        #def extract(array):  # (from a generative model, dont trust!)
+
+        # @jax.jit
+        # def extract(array):  # (from a generative model, dont trust!)
         #    array_no_nan = jax.numpy.nan_to_num(array, nan=0.0)
         #    float_value = jnp.sum(array_no_nan)
         #    return float_value
-        #@jax.jit
-        #def getval(xy, t):
+        # @jax.jit
+        # def getval(xy, t):
         #    xyt = jnp.hstack((xy, t))
         #    mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
         #    masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
@@ -535,19 +579,19 @@ class st_data:
 
         z_X_obs_mat = outer_op(xycoords, full_times, getval)
 
-        z_mat = z_X_obs_mat[:,:,0]
-        X_obs_mat = z_X_obs_mat[:,:,1:]
-        
+        z_mat = z_X_obs_mat[:, :, 0]
+        X_obs_mat = z_X_obs_mat[:, :, 1:]
+
         return {
             "x": xycoords[:, 0],
             "y": xycoords[:, 1],
             "z_mat": z_mat,
-            "X_obs_mat": X_obs_mat
+            "X_obs_mat": X_obs_mat,
         }
-        
+
     def show_plot(self):
         nrows = int(jnp.ceil(self.T / 3))
-        
+
         # Create a figure and axes for the subplots
         with plt.style.context("seaborn-v0_8-dark-palette"):
             fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
@@ -586,7 +630,7 @@ class st_data:
 
     def save_plot(self, filename, width=6, height=1.5, dpi=300):
         nrows = int(jnp.ceil(self.T / 3))
-        
+
         # Create a figure and axes for the subplots
         with plt.style.context("seaborn-v0_8-dark-palette"):
             fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
@@ -628,21 +672,25 @@ class st_data:
         """UNIMPLEMENTED"""
         return None
 
-def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=None):
 
+def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=None):
     if pd.api.types.is_datetime64_any_dtype(df[tlabel]):
-        print("Time inputted is of datetime type. This will be converted to a number corresponding to the seconds since the earliest time.")
+        print(
+            "Time inputted is of datetime type. This will be converted to a number corresponding to the seconds since the earliest time."
+        )
         times = (df[tlabel] - df[tlabel].min()).dt.total_seconds()
     elif is_string_dtype(df[tlabel]):
-        print("Time inputted are strings. Attempting to coerce into datetime objects, then into floats...")
+        print(
+            "Time inputted are strings. Attempting to coerce into datetime objects, then into floats..."
+        )
         time_dt = pd.to_datetime(df[tlabel])
         times = jnp.array((time_dt - time_dt.min()).dt.total_seconds())
     elif is_float_dtype(df[tlabel]) or is_integer_dtype(df[tlabel]):
         times = jnp.array(df[tlabel])
     else:
         warnings.warn(
-                """Times inputted not of a familiar type (datetime, string, float or int). Attempting to coerce into a JAX array anyway, but this will likely give an error."""
-            )
+            """Times inputted not of a familiar type (datetime, string, float or int). Attempting to coerce into a JAX array anyway, but this will likely give an error."""
+        )
         times = jnp.array(df[tlabel])
 
     if covariate_labels is None:
@@ -650,152 +698,13 @@ def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=
     else:
         covariates = jnp.column_stack([jnp.array(df[col]) for col in covariate_labels])
 
-    return st_data(x = jnp.array(df[xlabel]),
-                   y = jnp.array(df[ylabel]),
-                   times = times,
-                   z = jnp.array(df[zlabel]),
-                   covariates = covariates,
-                   covariate_labels = covariate_labels)
-    
-def save_basis_plot(basis, output_file, dpi=300):
-
-    params = basis.params
-    padding = jnp.max(basis.params[:,2])/3
-
-    if basis.params.shape[1] != 3:
-        raise ValueError("Basis in show_plot must be knot-based with 3 column in basis.params, corresponding to x, y, and scale.")
-
-    # Create the plot
-    fig, ax = plt.subplots()
-
-    for x, y, r in params:
-        ax.plot(x, y, 'ro')  # Red dot
-        circle = Circle((x, y), r, edgecolor='blue', facecolor='none', linewidth=1.5)
-        ax.add_patch(circle)
-
-    # Set limits to better view circles
-    x_min, x_max = jnp.min(params[:, 0]) - padding, jnp.max(params[:, 0]) + padding
-    y_min, y_max = jnp.min(params[:, 1]) - padding, jnp.max(params[:, 1]) + padding
-    ax.set_xlim(x_min, x_max)
-    ax.set_ylim(y_min, y_max)
-
-    # Save the figure
-    plt.savefig(output_file, dpi=dpi)
-    plt.close()
-
-    
-    
-    
-
-
-def gif_st_grid(
-    data: st_data,
-    output_file="spatio_temporal.gif",
-    interval=100,
-    width=5,
-    height=4,
-    dpi=300,
-):
-    vmin = jnp.min(data.z)
-    vmax = jnp.max(data.z)
-
-    frames = []
-
-    x = data.x
-    y = data.y
-    
-    x_unique = jnp.unique(x)
-    y_unique = jnp.unique(y)
-    X, Y = jnp.meshgrid(x_unique, y_unique)
-
-    for t in data.full_times:
-        z = data.z[data.times == t]
-        Z = z.reshape(len(y_unique), len(x_unique))
-
-        plt.figure(figsize=(width, height))
-
-        sns.heatmap(
-            Z,
-            vmin=vmin,
-            vmax=vmax,
-            cmap="viridis",
-            xticklabels=False,
-            yticklabels=False,
-        )
-
-        buf = io.BytesIO()
-
-        plt.title(f"Time: {t}")
-
-        plt.savefig(buf, format="png", dpi=dpi)
-        plt.close()
-
-        frames.append(Image.open(buf))
-
-    frames[0].save(
-        output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
-    )
-
-
-def gif_st_pts(
-    data: st_data,
-    output_file="spatio_temporal.gif",
-    interval=100,
-    width=5,
-    height=4,
-    dpi=300,
-):
-    vmin = jnp.min(data.z)
-    vmax = jnp.max(data.z)
-
-    frames = []
-
-    T = data.T
-
-    for t in range(T):
-        x = data.coords_tree[t][:,0]
-        y = data.coords_tree[t][:,1]
-        z = data.zs_tree[t]
-
-        fig, ax = plt.subplots(figsize=(width, height))
-
-        # plt.scatter(x, y, c=values, vmin=vmin, vmax=vmax, cmap="viridis")
-
-        sns.scatterplot(
-            x=x,
-            y=y,
-            hue=z,
-            c=z,
-            size=z,
-            sizes=(20, 200),
-            norm=Normalize(vmin=vmin, vmax=vmax),
-            legend=False,
-            ax=ax,
-        )
-
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.set_xticks([])
-        ax.set_yticks([])
-
-        buf = io.BytesIO()
-
-        plt.title(f"Time: {t}")
-        # plt.set_xlabel(data.x)
-        # plt.set_ylabel(data.y)
-
-        norm = plt.Normalize(vmin, vmax)
-        sm = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
-        sm.set_array([])
-        fig.colorbar(sm, ax=ax)
-
-        plt.savefig(buf, format="png", dpi=dpi)
-        plt.close()
-
-        frames.append(Image.open(buf))
-
-    frames[0].save(
-        output_file, save_all=True, append_images=frames[1:], duration=interval, loop=0
+    return st_data(
+        x=jnp.array(df[xlabel]),
+        y=jnp.array(df[ylabel]),
+        times=times,
+        z=jnp.array(df[zlabel]),
+        covariates=covariates,
+        covariate_labels=covariate_labels,
     )
 
 
@@ -805,10 +714,13 @@ def noise(key, tree, noise_scale=1e-5):
     """
     keys = rand.split(key, num=len(jax.tree.leaves(tree)))
     return jax.tree.map(
-        lambda x, k: x + noise_scale * jax.random.normal(k, shape=x.shape) if isinstance(x, jnp.ndarray) else x,
+        lambda x, k: x + noise_scale * jax.random.normal(k, shape=x.shape)
+        if isinstance(x, jnp.ndarray)
+        else x,
         tree,
-        jax.tree.unflatten(jax.tree.structure(tree), keys)
+        jax.tree.unflatten(jax.tree.structure(tree), keys),
     )
+
 
 def check_nans(tree):
     def check(x):
@@ -816,6 +728,7 @@ def check_nans(tree):
             return True
         else:
             return False
+
     return any(jax.tree.leaves(jax.tree.map(check, tree)))
 
 
@@ -825,7 +738,8 @@ class TimeResults(NamedTuple):
     total_time: float
     value: float
 
-def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = "", device=None):
+
+def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc="", device=None):
     """
     Timer function that uses random noise to properly time jit-compiled functions.
     Only takes functions with PyTrees of JAX arrays as inputs.
@@ -836,28 +750,26 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = "", device=None):
     func_jit = jax.jit(func)
 
     failed = False
-    
+
     tot_time = 0
-    progress_bar = tqdm(range(n+1), desc = desc)
+    progress_bar = tqdm(range(n + 1), desc=desc)
     for i in progress_bar:
-        
         noise_key = jax.random.fold_in(key, i)
         inp_noise = noise(noise_key, inp_tree, noise_scale=noise_scale)
-        
+
         start_time = time.time()
         result = func_jit(inp_noise).block_until_ready()
         elapsed = time.time() - start_time
-        #print(f"i: {i}, Value: {round(result,5)}, Elapsed: {round(elapsed, 5)}s")
+        # print(f"i: {i}, Value: {round(result,5)}, Elapsed: {round(elapsed, 5)}s")
 
         if i != 0:
             tot_time = tot_time + elapsed
         else:
             compile_time = elapsed
-            
 
         if check_nans(result):
             warnings.warn("The function has returned a PyTree/array with nan.")
-            failed=True
+            failed = True
 
     if failed:
         value = jnp.nan
@@ -866,9 +778,9 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc = "", device=None):
     else:
         value = func_jit(inp_tree)
         average_time = tot_time / n
-        
-    #print(f"Compile time: {compile_time}s")
-    #print(f"Average time: {av_time}s")
+
+    # print(f"Compile time: {compile_time}s")
+    # print(f"Average time: {av_time}s")
     return TimeResults(compile_time, average_time, tot_time, value)
 
 
@@ -882,10 +794,13 @@ def flatten(tree: PyTree):
     cumsum = jnp.cumsum(sizes[:-1])
     return flat_array, leaves, treedef, cumsum
 
+
 @partial(jax.jit, static_argnames=["treedef", "cumsum"])
 def unflatten(flat_array, leaves, treedef, cumsum):
     splits = jnp.split(flat_array, cumsum)
-    reshaped_leaves = [leaf.reshape(original.shape) for leaf, original in zip(splits, leaves)]
+    reshaped_leaves = [
+        leaf.reshape(original.shape) for leaf, original in zip(splits, leaves)
+    ]
     return jax.tree.unflatten(treedef, reshaped_leaves)
 
 
@@ -899,14 +814,76 @@ def flatten_and_unflatten(tree: PyTree):
 
     # **Ensure sizes and split indices are concrete**
     sizes = [leaf.size for leaf in flat_leaves]  # Extract sizes concretely
-    split_indices = list(jnp.cumsum(jnp.array(sizes[:-1])))  # Precompute split indices outside JIT
+    split_indices = list(
+        jnp.cumsum(jnp.array(sizes[:-1]))
+    )  # Precompute split indices outside JIT
 
     # JIT-compatible unflatten function
     @jax.jit
     def unflatten(flat_array):
         # Dynamically reshape leaves
-        splits = [flat_array[start:end] for start, end in zip([0] + split_indices, split_indices + [len(flat_array)])]
-        reshaped_leaves = [split.reshape(leaf.shape) for split, leaf in zip(splits, flat_leaves)]
+        splits = [
+            flat_array[start:end]
+            for start, end in zip(
+                [0] + split_indices, split_indices + [len(flat_array)]
+            )
+        ]
+        reshaped_leaves = [
+            split.reshape(leaf.shape) for split, leaf in zip(splits, flat_leaves)
+        ]
         return jax.tree.unflatten(treedef, reshaped_leaves)
-    
+
     return flat_array, unflatten
+
+
+@partial(
+    jax.jit,
+    static_argnames=["shape_code"],
+)
+def add_variance(
+    P: Float[Array, "n n"],
+    S2: Union[Float[Array, "1"], Float[Array, "n"], Float[Array, "n n"]],
+    shape_code: int,
+) -> Float[Array, "n n"]:
+    match shape_code:
+        case 0 | 1:
+            return jnp.fill_diagonal(P, S2 + jnp.diag(P), inplace=False)
+        case 2:
+            return P + S2
+        case _:
+            raise ValueError(f"Invalid shape code: {shape_code}")
+
+
+@partial(
+    jax.jit,
+    static_argnames=["shape_code"],
+)
+def mult_variance(
+    P: Float[Array, "n n"],
+    S2: Union[Float[Array, "1"], Float[Array, "n"], Float[Array, "n n"]],
+    shape_code: int,
+):
+    # returns S2 @ P.T in a hopefully efficient way, regardless of the shape of S2
+    match shape_code:
+        case 0:
+            return S2 * P.T
+        case 1:
+            return jnp.diag(S2) @ P.T
+        case 2:
+            return S2 @ P.T
+
+
+@jax.jit
+def qr_R(A, B):
+    """Wrapper for the stacked-QR decompositon"""
+    return jnp.linalg.qr(jnp.vstack([A, B]), mode="r")
+
+
+@jax.jit
+def ql_L(A, B):
+    """Wrapper for the stacked-QL decompositon"""
+    A_flipped = jnp.flip(jnp.vstack([A, B]), axis=1)
+    R = jnp.linalg.qr(A_flipped, mode="r")
+    L = jnp.flip(R, axis=(0, 1))
+
+    return L

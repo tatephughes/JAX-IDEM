@@ -32,14 +32,14 @@ import jax
 jax.config.update("jax_enable_x64", True)
 import os
 import jax.numpy as jnp
-import jax.random as rand
+import jax.random as jr
 import pandas as pd
 import jaxidem.idem as idem
 import jaxidem.utils as utils
 import matplotlib.pyplot as plt
 import jaxidem.plotters as plotters
 
-radar_df = pd.read_csv('data/radar_df.csv')
+radar_df = pd.read_csv('./data/radar_df.csv')
 
 ```
 
@@ -134,7 +134,6 @@ sydney_fig.update_layout(
 sydney_fig.show()
 ```
 
-
 We now create an initial model for this data 
 
 ```{python}
@@ -216,7 +215,7 @@ From there, it is easy to sample from the posterior
 #| eval: false
 import blackjax
 
-key = jax.random.PRNGKey(1) # PRNG key
+key = jr.PRNGKey(1) # PRNG key
 inverse_mass_matrix = jnp.ones(model.nparams)
 num_integration_steps = 10
 step_size = 1e-5
@@ -229,7 +228,7 @@ step=samp.step
 init = samp.init(mle_params)
 
 def sampling_kernel(carry, i):
-    nuts_key = jax.random.fold_in(key, i)
+    nuts_key = jr.fold_in(key, i)
     new_state, info = step(nuts_key, carry)
     return new_state, (new_state, info)
 
@@ -341,4 +340,67 @@ fore_fig.update_layout(
 
 fore_fig.show()
 
+```
+
+
+## Filter Comparison
+
+The radar dataset is 'complete', that is, there is no missing data and each location has an observation at every single time point; in practice, this means that the observation dimension is constant.
+This is important; in Python-JAX it is prefered that data is stored as arrays (tensors), which cannot be 'jagged' (where each row/column can have varying dimension). 
+This can often be circumvented using PyTrees (a catch all term JAX uses to refer to 'container-like' data structures such as lists or tuples, which contain arrays), and indeed is done in the information filter, square-root information filter, and parallel filter (though this does incur a performance cost).
+The same trick cannot been used for the kalman filters, since scan operations do not fully support PyTrees.
+
+With that said, JAX-IDEM only supports missing data/changing data shape is only supported for the former filters.
+To compare the filters, then, we need to use the uncensored data;
+
+```{python}
+radar_df = pd.read_csv('./data/radar_df.csv')
+```
+
+Now, re-initialising the model, the method `get_log_likelihood` handles these cases, and so we can get likelihoods using each of the filters, in order to compare.
+
+```{python}
+#| eval: true
+#| output: false
+
+import pandas as pd
+key = jr.PRNGKey(1) # PRNG key
+
+radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z') 
+model = idem.init_model(data=radar_data, basis_type = 'cosine', basis_args=[20])
+
+log_marginal_kal = model.get_log_like(radar_data, method="kalman", likelihood='full')
+log_marginal_sqrt = model.get_log_like(radar_data, method="sqrt", likelihood='full')
+log_marginal_inf = model.get_log_like(radar_data, method="inf", likelihood='full')
+log_marginal_sqinf = model.get_log_like(radar_data, method="sqinf", likelihood='full')
+log_marginal_pkal = model.get_log_like(radar_data, method="parallel", likelihood='full')
+
+nreps = 5
+
+time_kal   = utils.time_jit(key, log_marginal_kal, model.params, n=nreps)
+time_sqrt  = utils.time_jit(key, log_marginal_sqrt, model.params, n=nreps)
+time_inf   = utils.time_jit(key, log_marginal_inf, model.params, n=nreps)
+time_sqinf = utils.time_jit(key, log_marginal_sqinf, model.params, n=nreps)
+time_pkal  = utils.time_jit(key, log_marginal_pkal, model.params, n=nreps)
+
+data = [
+    ["kal", time_kal.compile_time, time_kal.average_time * 1000, time_kal.value],
+    ["inf", time_inf.compile_time, time_inf.average_time * 1000, time_inf.value],
+    ["sqrt", time_sqrt.compile_time, time_sqrt.average_time * 1000, time_sqrt.value],
+    ["sqinf", time_sqinf.compile_time, time_sqinf.average_time * 1000, time_sqinf.value],
+    ["pkal", time_pkal.compile_time, time_pkal.average_time * 1000, time_pkal.value],
+]
+
+df = pd.DataFrame(data, columns=["Method", "Compile Time (s)", "Average Time (ms)", "Log Likelihood"])
+
+```
+
+```{python}
+#| eval: true
+#| output: true
+
+print(f"Results for IDEM with nbasis={model.nbasis}")
+print(f"Precision: {model.M.dtype}")
+
+print(df.to_markdown(index=False))
 ```

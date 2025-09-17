@@ -1,5 +1,5 @@
 #!/usr/bin/env .venv/bin/python
-#JAX imports
+# JAX imports
 import jax.random as rand
 import jax
 import jax.numpy as jnp
@@ -52,7 +52,7 @@ class Kernel:
 
     def update(self, params):
         return Kernel(self.function, self.basis, params, self.form)
-        
+
     def show_plot(self, width=5, height=4):
         """Shows a plot of the direction of the kernel."""
 
@@ -153,12 +153,13 @@ class IdemParams(NamedTuple):
     The parameters of an IDEM, as described in .
     Some parameters are log-transformed to force everything to be in $\\mathbf{R}$.
     """
-    log_sigma2_eps: Union[Float[Array, "()"],
-                          PyTree[Float[Array, "(nobs[i],)"]],
-                          PyTree[Float[Array, "(nobs[i], nobs[i])"]]]
-    log_sigma2_eta: Union[Float[Array, "()"],
-                          Float[Array, "(r,)"],
-                          Float[Array, "(r, r)"]]
+
+    log_S2_eps: Union[
+        Float[Array, "()"],
+        PyTree[Float[Array, "(nobs[i],)"]],
+        PyTree[Float[Array, "(nobs[i], nobs[i])"]],
+    ]
+    log_S2_eta: Union[Float[Array, "()"], Float[Array, "(r,)"], Float[Array, "(r, r)"]]
     trans_kernel_params: PyTree[Array]
     beta: ArrayLike
 
@@ -177,16 +178,16 @@ class Model:
         process_basis,
         kernel,
         process_grid,
-        sigma2_eta,
-        sigma2_eps,
+        S2_eta,
+        S2_eps,
         beta=jnp.array([0]),
-        covariate_labels = ['Intercept'],
+        covariate_labels=["Intercept"],
         int_grid=create_grid(jnp.array([[0, 1], [0, 1]]), jnp.array([100, 100])),
     ):
         self.process_basis = process_basis
         self.kernel = kernel
         self.process_grid = process_grid
-        self.sigma2_eta = jnp.array(sigma2_eta)
+        self.S2_eta = jnp.array(S2_eta)
         self.int_grid = int_grid
         self.PHI_proc = process_basis.mfun(process_grid.coords)
         self.GRAM = (self.PHI_proc.T @ self.PHI_proc) * process_grid.area
@@ -194,44 +195,49 @@ class Model:
         self.beta = beta
         self.covariate_labels = covariate_labels
         if len(beta) != len(covariate_labels):
-            warnings.warn("beta and covariate_names must have the same length; covariate names is only there to make it clear what variables are covariates, so assuming covariates inputted are of the correct length, things will still work; however, please make sure that the correct variables are being used. It is recommended to put a panda dataframe into idem.init_model to avoid these issues.")
-            
+            warnings.warn(
+                "beta and covariate_names must have the same length; covariate names is only there to make it clear what variables are covariates, so assuming covariates inputted are of the correct length, things will still work; however, please make sure that the correct variables are being used. It is recommended to put a panda dataframe into idem.init_model to avoid these issues."
+            )
+
         self.nbasis = process_basis.nbasis
 
-        trans_kernel_params = (jnp.log(self.kernel.params[0]),
-                               jnp.log(self.kernel.params[1]),
-                               self.kernel.params[2],
-                               self.kernel.params[3])
-        
-        self.params = IdemParams(log_sigma2_eps=jnp.log(sigma2_eps),
-                                 log_sigma2_eta=jnp.log(sigma2_eta),
-                                 trans_kernel_params = trans_kernel_params,
-                                 beta = self.beta)
+        trans_kernel_params = (
+            jnp.log(self.kernel.params[0]),
+            jnp.log(self.kernel.params[1]),
+            self.kernel.params[2],
+            self.kernel.params[3],
+        )
+
+        self.params = IdemParams(
+            log_S2_eps=jnp.log(S2_eps),
+            log_S2_eta=jnp.log(S2_eta),
+            trans_kernel_params=trans_kernel_params,
+            beta=self.beta,
+        )
 
         self.nparams = sum(arr.size for arr in jax.tree.leaves(self.params))
-        
-        self.sigma2_eta_dim = len(self.sigma2_eta.shape)
 
-        match sigma2_eps:
+        self.S2_eta_shape = len(self.S2_eta.shape)
+
+        match S2_eps:
             case jnp.ndarray():
-                self.sigma2_eps = sigma2_eps
-                self.sigma2_eps_dim = len(self.sigma2_eps.shape)
+                self.S2_eps = S2_eps
+                self.S2_eps_shape = len(self.S2_eps.shape)
                 self.eps_type = "array"
-            case _ if isinstance(sigma2_eps, float):
-                self.sigma2_eps = jnp.array(sigma2_eps)
-                self.sigma2_eps_dim = 0
+            case _ if isinstance(S2_eps, float):
+                self.S2_eps = jnp.array(S2_eps)
+                self.S2_eps_shape = 0
                 self.eps_type = "array"
-            case _ if isinstance(jax.tree.flatten(sigma2_eps_tree)[0][0], jnp.ndarray):
-                self.sigma2_eps = sigma2_eps
-                self.sigma2_eps_dim = len(jax.tree.flatten(sigma2_eps_tree)[0][0].shape)
+            case _ if isinstance(jax.tree.flatten(S2_eps_tree)[0][0], jnp.ndarray):
+                self.S2_eps = S2_eps
+                self.S2_eps_shape = len(jax.tree.flatten(S2_eps_tree)[0][0].shape)
                 self.eps_type = "pytree"
 
-    #@partial(jax.jit, static_argnames=["self", "alpha_0"])
+    # @partial(jax.jit, static_argnames=["self", "alpha_0"])
     def simulate_basis(self, key, T, alpha_0=None):
-
         if alpha_0 is None:
             alpha_0 = jnp.zeros(self.nbasis)
-        
+
         M = self.M
         PHI_proc = self.PHI_proc
 
@@ -242,14 +248,13 @@ class Model:
                 will be explosive."""
             )
 
-        
-        match self.sigma2_eta_dim:
+        match self.S2_eta_shape:
             case 0:
-                U_eta = jnp.sqrt(self.sigma2_eta) * jnp.eye(self.nbasis)
+                U_eta = jnp.sqrt(self.S2_eta) * jnp.eye(self.nbasis)
             case 1:
-                U_eta = jnp.diag(jnp.sqrt(self.sigma2_eta))
+                U_eta = jnp.diag(jnp.sqrt(self.S2_eta))
             case 2:
-                U_eta = jnp.linalg.cholesky(self.sigma2_eta)
+                U_eta = jnp.linalg.cholesky(self.S2_eta)
 
         @jax.jit
         def step(carry, key):
@@ -264,34 +269,40 @@ class Model:
 
     def simulate_process(self, alphas):
         return self.PHI_proc @ alphas.T
-    
-    def simulate_observations(self, key, alphas, data):
 
+    def simulate_observations(self, key, alphas, data):
         T = len(data.full_times)
 
         coords_tree = data.coords_tree
         X_obs_tree = data.X_obs_tree
-        
+
         nobs_tree = [obs.shape[0] for obs in coords_tree]
-        
-        match self.sigma2_eps_dim:
+
+        match self.S2_eps_shape:
             case 0:
-                U_eps_tree = [jnp.sqrt(self.sigma2_eps) * jnp.eye(nobs_tree[t]) for t in range(T)]
+                U_eps_tree = [
+                    jnp.sqrt(self.S2_eps) * jnp.eye(nobs_tree[t]) for t in range(T)
+                ]
             case 1:
-                U_eps_tree =jax.tree.map(lambda sig: jnp.diag(jnp.sqrt(sig)), self.sigma2_eps)
+                U_eps_tree = jax.tree.map(
+                    lambda sig: jnp.diag(jnp.sqrt(sig)), self.S2_eps
+                )
             case 2:
-                U_eps_tree = jax.tree.map(jnp.linalg.cholesky, self.sigma2_eps)
-                
+                U_eps_tree = jax.tree.map(jnp.linalg.cholesky, self.S2_eps)
+
         PHI_obs_tree = jax.tree.map(self.process_basis.mfun, coords_tree)
-        
+
         def get_observation(t):
-        
-            return PHI_obs_tree[t] @ alphas[t,:] + X_obs_tree[t] @ self.beta + U_eps_tree[t] @ rand.normal(keys[t], shape=(nobs_tree[t],))
+            return (
+                PHI_obs_tree[t] @ alphas[t, :]
+                + X_obs_tree[t] @ self.beta
+                + U_eps_tree[t] @ rand.normal(keys[t], shape=(nobs_tree[t],))
+            )
 
         keys = jax.random.split(key, T)
 
         return jax.tree.map(get_observation, list(range(T)))
-        
+
     def simulate(
         self,
         key,
@@ -299,14 +310,13 @@ class Model:
         y: ArrayLike,
         times,
         covariates: ArrayLike = None,
-        alpha_0 = None,
-        dt = None
+        alpha_0=None,
+        dt=None,
     ):
-
         M = self.M
         PHI_proc = self.PHI_proc
         beta = self.beta
-                
+
         process_grid = self.process_grid
 
         # Check that M is not explosive
@@ -318,53 +328,72 @@ class Model:
 
         keys = rand.split(key, 3)
 
-        unique_times = jnp.unique(times) # automatically sorted
+        unique_times = jnp.unique(times)  # automatically sorted
         if dt is None:
             dt = jnp.min(jnp.abs(jnp.diff(unique_times)))
-    
+
         full_times = jnp.arange(jnp.min(unique_times), jnp.max(unique_times) + dt, dt)
         T = len(full_times)
-        
+
         alphas = self.simulate_basis(keys[1], T, alpha_0)
 
-        process_values = self.simulate_process(alphas).T.reshape((T*process_grid.ngrid,))
+        process_values = self.simulate_process(alphas).T.reshape(
+            (T * process_grid.ngrid,)
+        )
 
-        obs_data_nan = utils.st_data(x, y, times, z=jnp.full(x.shape, jnp.nan), dt = None, covariates=covariates, covariate_labels=self.covariate_labels)
-        jnp.ones_like(x), 
-        obs_vals = jnp.concatenate(self.simulate_observations(keys[2], alphas, obs_data_nan))
+        obs_data_nan = utils.st_data(
+            x,
+            y,
+            times,
+            z=jnp.full(x.shape, jnp.nan),
+            dt=None,
+            covariates=covariates,
+            covariate_labels=self.covariate_labels,
+        )
+        (jnp.ones_like(x),)
+        obs_vals = jnp.concatenate(
+            self.simulate_observations(keys[2], alphas, obs_data_nan)
+        )
 
-        obs_data = utils.st_data(x, y, times, z=obs_vals, dt = None, covariates=covariates, covariate_labels=self.covariate_labels)
+        obs_data = utils.st_data(
+            x,
+            y,
+            times,
+            z=obs_vals,
+            dt=None,
+            covariates=covariates,
+            covariate_labels=self.covariate_labels,
+        )
 
         times = jnp.repeat(jnp.arange(1, T + 1), process_grid.ngrid)
         rep_coords = jnp.tile(process_grid.coords, (T, 1))
-        x = rep_coords[:,0]
-        y = rep_coords[:,1]
-        
+        x = rep_coords[:, 0]
+        y = rep_coords[:, 1]
 
-        process_data = utils.st_data(x=x,y=y,times=times, z=process_values)
-        
+        process_data = utils.st_data(x=x, y=y, times=times, z=process_values)
+
         return (process_data, obs_data)
 
     def resimulate(self, key, data, alpha_0=None):
         return self.simulate(key, data.x, data.y, data.times, alpha_0)
-    
-    def get_log_like(self,
-                     obs_data,
-                     method="sqrt",
-                     m_0=None,
-                     P_0=None,
-                     likelihood='partial',
-                     negative=False):
 
+    def get_log_like(
+        self,
+        obs_data,
+        method="sqrt",
+        m_0=None,
+        P_0=None,
+        likelihood="partial",
+        negative=False,
+    ):
         nbasis = self.nbasis
-        
+
         if method in ("sqrt", "kalman"):
-                
             zs_tree = obs_data.zs_tree
             # ADD A CHECK THAT DATA N AND LOCATION IS CONSTANT
             obs_locs = obs_data.coords_tree[0]
             PHI_obs = self.process_basis.mfun(obs_locs)
-            
+
             if m_0 is None:
                 m_0 = jnp.zeros(nbasis)
             if P_0 is None:
@@ -376,71 +405,13 @@ class Model:
                     filterer = filts.sqrt_filter
                 case "kalman":
                     init_mat = P_0
-                    filterer = filts.kalman_filter
-                
-            @jax.jit
-            def objective(params):
-                (
-                          log_sigma2_eps,
-                          log_sigma2_eta,
-                          ks,
-                          beta,
-                ) = params
-                ztildes_tree = obs_data.tildify(beta)
-                logks1, logks2, ks3, ks4 = ks
-                ks1 = jnp.exp(logks1)
-                ks2 = jnp.exp(logks2)
-                sigma2_eta = jnp.exp(log_sigma2_eta)
-                sigma2_eps = jnp.exp(log_sigma2_eps)
-                M = self.con_M((ks1, ks2, ks3, ks4))
-                filt_results = filterer(
-                    m_0,
-                    init_mat,
-                    M,
-                    PHI_obs,
-                    sigma2_eta,
-                    sigma2_eps,
-                    ztildes_tree,
-                    likelihood=likelihood,
-                    sigma2_eta_dim = self.sigma2_eta_dim,
-                    sigma2_eps_dim = self.sigma2_eps_dim,
-                )
-                if negative:
-                    return -filt_results['ll']
-                else:
-                    return filt_results['ll']
-            return objective
-                
-        elif method in ("inf", "sqinf"):
-
-            zs_tree = obs_data.zs_tree
-
-            obs_locs_tree = obs_data.coords_tree
-                
-            PHI_obs_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
-            
-            if m_0 is None:
-                m_0 = jnp.zeros(nbasis)
-            if P_0 is None:
-                P_0 = 100 * jnp.eye(nbasis)
-
-            if self.sigma2_eps_dim != 0:
-                raise ValueError("Non-iid measurement errors are not supported for method='inf' or 'sqinf'. Please use methof='kalman' or 'sqrt'.")
-            nu_0 = jnp.linalg.solve(P_0, m_0)
-
-            match method:
-                case "sqinf":
-                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
-                    filterer = filts.sqrt_information_filter
-                case "inf":
-                    init_mat = jnp.linalg.inv(P_0)
-                    filterer = filts.information_filter
+                    filterer = filts.kal_filter
 
             @jax.jit
             def objective(params):
                 (
-                    log_sigma2_eps,
-                    log_sigma2_eta,
+                    log_S2_eps,
+                    log_S2_eta,
                     ks,
                     beta,
                 ) = params
@@ -448,45 +419,114 @@ class Model:
                 logks1, logks2, ks3, ks4 = ks
                 ks1 = jnp.exp(logks1)
                 ks2 = jnp.exp(logks2)
-                sigma2_eta = jnp.exp(log_sigma2_eta)
-                sigma2_eps = jnp.exp(log_sigma2_eps)
+                S2_eta = jnp.exp(log_S2_eta)
+                S2_eps = jnp.exp(log_S2_eps)
                 M = self.con_M((ks1, ks2, ks3, ks4))
                 filt_results = filterer(
-                    nu_0,
+                    m_0,
+                    init_mat,
+                    M,
+                    PHI_obs,
+                    S2_eta,
+                    S2_eps,
+                    ztildes_tree,
+                    likelihood=likelihood,
+                    S2_eta_shape=self.S2_eta_shape,
+                    S2_eps_shape=self.S2_eps_shape,
+                )
+                if negative:
+                    return -filt_results["ll"]
+                else:
+                    return filt_results["ll"]
+
+            return objective
+
+        elif method in ("inf", "sqinf", "parallel"):
+            zs_tree = obs_data.zs_tree
+
+            obs_locs_tree = obs_data.coords_tree
+
+            PHI_obs_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
+
+            if m_0 is None:
+                m_0 = jnp.zeros(nbasis)
+            if P_0 is None:
+                P_0 = 100 * jnp.eye(nbasis)
+
+            if self.S2_eps_shape != 0:
+                raise ValueError(
+                    "Non-iid measurement errors are not supported for method='inf' or 'sqinf'. Please use methof='kalman' or 'sqrt'."
+                )
+
+            match method:
+                case "sqinf":
+                    init_vec = jnp.linalg.solve(P_0, m_0)
+                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
+                    filterer = filts.sqinf_filter
+                case "inf":
+                    init_vec = jnp.linalg.solve(P_0, m_0)
+                    init_mat = jnp.linalg.inv(P_0)
+                    filterer = filts.inf_filter
+                case "parallel":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.pkal_filter
+
+            @jax.jit
+            def objective(params):
+                (
+                    log_S2_eps,
+                    log_S2_eta,
+                    ks,
+                    beta,
+                ) = params
+                ztildes_tree = obs_data.tildify(beta)
+                logks1, logks2, ks3, ks4 = ks
+                ks1 = jnp.exp(logks1)
+                ks2 = jnp.exp(logks2)
+                S2_eta = jnp.exp(log_S2_eta)
+                S2_eps = jnp.exp(log_S2_eps)
+                M = self.con_M((ks1, ks2, ks3, ks4))
+                filt_results = filterer(
+                    init_vec,
                     init_mat,
                     M,
                     PHI_obs_tree,
-                    sigma2_eta,
-                    [sigma2_eps for _ in range(obs_data.T)],
+                    S2_eta,
+                    [S2_eps for _ in range(obs_data.T)],
                     ztildes_tree,
                     likelihood=likelihood,
-                    sigma2_eta_dim = self.sigma2_eta_dim,
-                    sigma2_eps_dim = 0
+                    S2_eta_shape=self.S2_eta_shape,
+                    S2_eps_shape=0,
                 )
                 if negative:
-                    return -filt_results['ll']
+                    return -filt_results["ll"]
                 else:
-                    return filt_results['ll']
+                    return filt_results["ll"]
+
             return objective
         else:
-            raise ValueError(f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf'].")
+            raise ValueError(
+                f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf', 'parallel']."
+            )
 
-    def filter(self,
-               obs_data,
-               forecast=0,
-               method="sqrt",
-               m_0=None,
-               P_0=None,
-               likelihood='partial'):
-
+    def filter(
+        self,
+        obs_data,
+        forecast=0,
+        method="sqrt",
+        m_0=None,
+        P_0=None,
+        likelihood="partial",
+    ):
         nbasis = self.nbasis
-        
+
         if method in ("sqrt", "kalman"):
             zs_tree = obs_data.zs_tree
             # ADD A CHECK THAT DATA N AND LOCATION IS CONSTANT
             obs_locs = obs_data.coords_tree[0]
             PHI_obs = self.process_basis.mfun(obs_locs)
-            
+
             if m_0 is None:
                 m_0 = jnp.zeros(nbasis)
             if P_0 is None:
@@ -498,19 +538,19 @@ class Model:
                     filterer = filts.sqrt_filter
                 case "kalman":
                     init_mat = P_0
-                    filterer = filts.kalman_filter                
+                    filterer = filts.kal_filter
 
             (
-                log_sigma2_eta,
-                log_sigma2_eps,
+                log_S2_eta,
+                log_S2_eps,
                 ks,
                 beta,
             ) = self.params
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)
-            sigma2_eta = jnp.exp(log_sigma2_eta)
-            sigma2_eps = jnp.exp(log_sigma2_eps)
+            S2_eta = jnp.exp(log_S2_eta)
+            S2_eps = jnp.exp(log_S2_eps)
             M = self.con_M((ks1, ks2, ks3, ks4))
             ztildes_tree = obs_data.tildify(beta)
             filt_results = filterer(
@@ -518,48 +558,51 @@ class Model:
                 init_mat,
                 M,
                 PHI_obs,
-                sigma2_eta,
-                sigma2_eps,
+                S2_eta,
+                S2_eps,
                 ztildes_tree,
                 likelihood=likelihood,
-                sigma2_eta_dim = self.sigma2_eta_dim,
-                sigma2_eps_dim = self.sigma2_eps_dim,
-                forecast = forecast
+                S2_eta_shape=self.S2_eta_shape,
+                S2_eps_shape=self.S2_eps_shape,
+                forecast=forecast,
             )
 
-            ms = filt_results['ms']
-            filt_data = basis_params_to_st_data(ms, self.process_basis, self.process_grid)
+            ms = filt_results["ms"]
+            filt_data = basis_params_to_st_data(
+                ms, self.process_basis, self.process_grid
+            )
 
             return (filt_data, filt_results)
-        
+
         elif method in ("inf", "sqinf"):
-                
             zs_tree = obs_data.zs_tree
 
             obs_locs_tree = obs_data.coords_tree
-                
+
             PHI_obs_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
-            
+
             if m_0 is None:
                 m_0 = jnp.zeros(nbasis)
             if P_0 is None:
                 P_0 = 100 * jnp.eye(nbasis)
 
-            if self.sigma2_eps_dim != 0:
-                raise ValueError("Non-iid measurement errors are not supported for method='inf' or 'sqinf'. Please use methof='kalman' or 'sqrt'.")
+            if self.S2_eps_shape != 0:
+                raise ValueError(
+                    "Non-iid measurement errors are not supported for method='inf' or 'sqinf'. Please use methof='kalman' or 'sqrt'."
+                )
             nu_0 = jnp.linalg.solve(P_0, m_0)
 
             match method:
                 case "sqinf":
                     init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
-                    filterer = filts.sqrt_information_filter
+                    filterer = filts.sqinf_filter
                 case "inf":
                     init_mat = jnp.linalg.inv(P_0)
-                    filterer = filts.information_filter
+                    filterer = filts.inf_filter
 
             (
-                log_sigma2_eta,
-                log_sigma2_eps,
+                log_S2_eta,
+                log_S2_eps,
                 ks,
                 beta,
             ) = self.params
@@ -567,78 +610,85 @@ class Model:
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)
-            sigma2_eta = jnp.exp(log_sigma2_eta)
-            sigma2_eps = jnp.exp(log_sigma2_eps)
+            S2_eta = jnp.exp(log_S2_eta)
+            S2_eps = jnp.exp(log_S2_eps)
             M = self.con_M((ks1, ks2, ks3, ks4))
             filt_results = filterer(
                 nu_0,
                 init_mat,
                 M,
                 PHI_obs_tree,
-                sigma2_eta,
-                [sigma2_eps for _ in range(obs_data.T)],
+                S2_eta,
+                [S2_eps for _ in range(obs_data.T)],
                 ztildes_tree,
                 likelihood=likelihood,
-                sigma2_eta_dim = self.sigma2_eta_dim,
-                sigma2_eps_dim = 0,
-                forecast = forecast
+                S2_eta_shape=self.S2_eta_shape,
+                S2_eps_shape=0,
+                forecast=forecast,
             )
 
-            nus = filt_results['nus']
-            nufores = filt_results['nuforecast']
-            
+            nus = filt_results["nus"]
+            nufores = filt_results["nu_forecast"]
+
             match method:
                 case "sqinf":
-                    Rs = (filt_results['Rs'], False)
+                    Rs = (filt_results["Rs"], False)
                     ms = jax.scipy.linalg.cho_solve(Rs, nus[..., None]).squeeze(-1)
-                    Rfores = (filt_results['Rforecast'], False)
-                    mfores = jax.scipy.linalg.cho_solve(Rfores, nufores[..., None]).squeeze(-1)
+                    Rfores = (filt_results["R_forecast"], False)
+                    mfores = jax.scipy.linalg.cho_solve(
+                        Rfores, nufores[..., None]
+                    ).squeeze(-1)
                 case "inf":
-                    Qs = filt_results['Qs']
+                    Qs = filt_results["Qs"]
                     ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
-                    Qfores = filt_results['Qforecast']
+                    Qfores = filt_results["Q_forecast"]
                     mfores = jnp.linalg.solve(Qfores, nufores[..., None]).squeeze(-1)
 
-            filt_data = basis_params_to_st_data(ms, self.process_basis, self.process_grid)
-            fore_data = basis_params_to_st_data(mfores, self.process_basis, self.process_grid)
-            
-            return (filt_data, fore_data, filt_results)
-        
-        else:
-            raise ValueError(f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf'].")
+            filt_data = basis_params_to_st_data(
+                ms, self.process_basis, self.process_grid
+            )
+            fore_data = basis_params_to_st_data(
+                mfores, self.process_basis, self.process_grid
+            )
 
+            return (filt_data, fore_data, filt_results)
+
+        else:
+            raise ValueError(
+                f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf']."
+            )
 
     def update(self, params):
-
         (
-                log_sigma2_eta,
-                log_sigma2_eps,
-                ks,
-                beta,
+            log_S2_eta,
+            log_S2_eps,
+            ks,
+            beta,
         ) = params
         logks1, logks2, ks3, ks4 = ks
         ks1 = jnp.exp(logks1)
         ks2 = jnp.exp(logks2)
-        sigma2_eta = jnp.exp(log_sigma2_eta)
-        sigma2_eps = jnp.exp(log_sigma2_eps)
+        S2_eta = jnp.exp(log_S2_eta)
+        S2_eps = jnp.exp(log_S2_eps)
 
-        ker_params = (ks1,ks2,ks3,ks4)
+        ker_params = (ks1, ks2, ks3, ks4)
 
         new_kernel = self.kernel.update(ker_params)
-        
-        newmodel = Model(self.process_basis,
-                         new_kernel,
-                         self.process_grid,
-                         sigma2_eta=sigma2_eta,
-                         sigma2_eps=sigma2_eps,
-                         beta=beta,
-                         int_grid=self.int_grid)
+
+        newmodel = Model(
+            self.process_basis,
+            new_kernel,
+            self.process_grid,
+            S2_eta=S2_eta,
+            S2_eps=S2_eps,
+            beta=beta,
+            int_grid=self.int_grid,
+        )
 
         return newmodel
 
-            
     def smooth(self, ms, Ps, mpreds, Ppreds):
-        """NOT FULLY IMPLEMENTED """
+        """NOT FULLY IMPLEMENTED"""
         M = self.M
         nbasis = ms[-1].shape[0]
 
@@ -650,19 +700,6 @@ class Model:
                 [jnp.flip(seq[1], axis=1), jnp.reshape(Ps[-1], (1, nbasis, nbasis))]
             ),
             jnp.flip(seq[2], axis=1),
-        )
-
-    def lag1smooth(self, Ps, Js, K_T, PHI_obs):
-        """NOT FULLY IMPLEMENTED OR TESTED"""
-        M = self.M
-        nbasis = Ps[0].shape[0]
-
-        carry, seq = filts.lag1_smoother(Ps, Js, K_T, PHI_obs, M)
-
-        P_TTmT = (jnp.eye(nbasis) - K_T @ PHI_obs) @ M @ Ps[-2]
-
-        return jnp.concatenate(
-            [jnp.flip(seq, axis=1), jnp.reshape(P_TTmT, (1, nbasis, nbasis))]
         )
 
     @partial(jax.jit, static_argnames=["self"])
@@ -694,7 +731,6 @@ class Model:
             )
             return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
 
-
         vec_ker = jax.vmap(jax.vmap(kernel_func, in_axes=(None, 0)), in_axes=(0, None))
         K = vec_ker(self.process_grid.coords, self.process_grid.coords)
         # TODO: Investigate better, faster, more accurate ways to ocmpute this?
@@ -713,7 +749,7 @@ class Model:
         target_nll: ArrayLike = -jnp.inf,
         eps=None,
         loading_bar=True,
-        method = 'sqrt'
+        method="sqrt",
     ):
         """
         Fits a new model by maximum likelihood estimation, maximizing the
@@ -730,7 +766,7 @@ class Model:
           (including a column of 1s)
         fixed_ind: list = []
           List of strings representing the variables to keep fixed at the value
-          in ```self```. Possible values; "sigma2_eps", "sigma2_eta", "ks1",
+          in ```self```. Possible values; "S2_eps", "S2_eta", "ks1",
           "ks2", "ks3", "ks4", "beta".
         lower: tuple = None
           Lower bounds on the parameters
@@ -770,7 +806,11 @@ class Model:
 
         print(f"Initial Parameters:\n\n{format_params(self.params)}\n")
 
-        nll_val_grad =  jax.value_and_grad(self.get_log_like(obs_data, method=method, likelihood='partial', negative=True))
+        nll_val_grad = jax.value_and_grad(
+            self.get_log_like(
+                obs_data, method=method, likelihood="partial", negative=True
+            )
+        )
 
         nll, _ = nll_val_grad(self.params)
         params = self.params
@@ -787,7 +827,7 @@ class Model:
             updates, opt_state = optimizer.update(grad, opt_state, params=params)
             params = optax.apply_updates(params, updates)
             # params = optax.projections.projection_box(params, lower, upper)
-            
+
             if eps is not None and (jnp.isclose(nll, nllprev, atol=eps)):
                 print("Likelihood stopped improving. Stopping early...")
                 break
@@ -819,35 +859,40 @@ class Model:
         )
 
         return (new_fitted_model, params)
-    
-    def sample_posterior(self,
-                         key,
-                         obs_data,
-                         n,
-                         #burnin, # nto implemented
-                         init=None,
-                         sampling_kernel=None,):
-        
+
+    def sample_posterior(
+        self,
+        key,
+        obs_data,
+        n,
+        # burnin, # nto implemented
+        init=None,
+        sampling_kernel=None,
+    ):
         nparams = sum(arr.size for arr in jax.tree.leaves(self.params))
 
         if sampling_kernel is None:
+            log_marginal = model.get_log_like(
+                obs_data,
+                method="sqinf",
+                likelihood="partial",
+                P_0=1000 * jnp.eye(self.process_basis.nbasis),
+            )
 
-            log_marginal = model.get_log_like(obs_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(self.process_basis.nbasis)) 
-       
             imm = jnp.ones(nparams)
             num_int = 5
             samp = blackjax.hmc(log_marginal, 1e-3, imm, num_int)
-            step=samp.step
+            step = samp.step
             init = samp.init(model.params)
-        
+
             def sampling_kernel(carry, i):
                 nuts_key = jax.random.fold_in(key, i)
                 new_state, info = step(nuts_key, carry)
                 return new_state, (new_state, info)
-        
+
         _, (sample, info) = jax.lax.scan(sampling_kernel, init, jnp.arange(n))
-        
-        return (sample,info)
+
+        return (sample, info)
 
 
 def gen_example_idem(
@@ -856,10 +901,10 @@ def gen_example_idem(
     ngrid: ArrayLike = jnp.array([41, 41]),
     nints: ArrayLike = jnp.array([100, 100]),
     process_basis: Basis = None,
-    sigma2_eta=0.05**2,
-    sigma2_eps=0.1**2,
+    S2_eta=0.05**2,
+    S2_eps=0.1**2,
     beta=None,
-    covariate_labels = ['Intercept']
+    covariate_labels=["Intercept"],
 ):
     """
     Creates an example IDE model, with randomly generated kernel on the
@@ -887,7 +932,7 @@ def gen_example_idem(
     """
 
     if beta is None:
-       beta = jnp.zeros(len(covariate_labels))
+        beta = jnp.zeros(len(covariate_labels))
 
     keys = rand.split(key, 2)
 
@@ -925,50 +970,64 @@ def gen_example_idem(
         kernel = param_exp_kernel(K_basis, k)
 
     nbasis = process_basis.nbasis
-        
-    if sigma2_eta is None:
-        sigma2_eta = 0.05**2
-    elif sigma2_eta == "random":
+
+    if S2_eta is None:
+        S2_eta = 0.05**2
+    elif S2_eta == "random":
         A = rand.normal(keys[2], shape=(nbasis, nbasis))
-        sigma2_eta = A.T @ A
-        
+        S2_eta = A.T @ A
+
     return Model(
         process_basis=process_basis,
         kernel=kernel,
         process_grid=process_grid,
-        sigma2_eta=sigma2_eta,
-        sigma2_eps=sigma2_eps,
+        S2_eta=S2_eta,
+        S2_eps=S2_eps,
         beta=beta,
         covariate_labels=covariate_labels,
     )
 
-def init_model(data,
-               n_process_grid=41,
-               n_int_grid=100,
-               basis_type = 'cosine',
-               basis_args=[10],
-               k_spat_inv = True,
-               k_basis_args=[[1,1], [3,3]]):
 
+def init_model(
+    data,
+    n_process_grid=41,
+    n_int_grid=100,
+    basis_type="cosine",
+    basis_args=[10],
+    k_spat_inv=True,
+    k_basis_args=[[1, 1], [3, 3]],
+):
     # minimum width of the space
     width = min([jnp.max(data.x) - jnp.min(data.x), jnp.max(data.y) - jnp.min(data.y)])
-    
-    
-    #initial variances
-    sigma2_eta = jnp.var(data.z)/2
-    sigma2_eps = jnp.var(data.z)/2
+
+    # initial variances
+    S2_eta = jnp.var(data.z) / 2
+    S2_eps = jnp.var(data.z) / 2
     beta = jnp.zeros(data.covariates.shape[1])
-    
-    if basis_type == 'cosine':
-        process_basis = utils.place_cosine_basis(data = data.coords, N=basis_args[0])
-    elif basis_type == 'bisquare':
-        process_basis = utils.place_basis(data = data.coords,
-                                          nres = basis_args[0],
-                                          min_knot_num = basis_args[1],) # defaults to bisquare basis functions
+
+    xmin = jnp.min(data.coords[:, 0])
+    xmax = jnp.max(data.coords[:, 0])
+    ymin = jnp.min(data.coords[:, 1])
+    ymax = jnp.max(data.coords[:, 1])
+
+    bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
+
+    if basis_type == "cosine":
+        process_basis = utils.place_cosine_basis(bounds=bounds, N=basis_args[0])
+    elif basis_type == "bisquare":
+        process_basis = utils.place_basis(
+            bounds=bounds,
+            nres=basis_args[0],
+            min_knot_num=basis_args[1],
+        )  # defaults to bisquare basis functions
     else:
-        raise ValueError(f"Invalid basis_type, {basis_type}, Please select one of ['bisquare', 'cosine'] (only these currently implemented).")
-    
-    process_grid = utils.create_grid(data.bounds, jnp.array([n_process_grid, n_process_grid]))
+        raise ValueError(
+            f"Invalid basis_type, {basis_type}, Please select one of ['bisquare', 'cosine'] (only these currently implemented)."
+        )
+
+    process_grid = utils.create_grid(
+        data.bounds, jnp.array([n_process_grid, n_process_grid])
+    )
     int_grid = utils.create_grid(data.bounds, jnp.array([n_int_grid, n_int_grid]))
 
     const_basis = utils.constant_basis
@@ -982,38 +1041,48 @@ def init_model(data,
         )
         k = (
             jnp.array([150.0]),
-            jnp.array([0.02*width]),
-            jnp.array([0.]),
-            jnp.array([0.]),
+            jnp.array([0.02 * width]),
+            jnp.array([0.0]),
+            jnp.array([0.0]),
         )
         kernel = param_exp_kernel(K_basis, k)
     else:
         K_basis = (
             const_basis,
             const_basis,
-            place_basis(data=data.coords, nres=k_basis_args[0][0], min_knot_num=k_basis_args[0][1]),
-            place_basis(data=data.coords, nres=k_basis_args[1][0], min_knot_num=k_basis_args[1][1]),
+            place_basis(
+                bounds=bounds,
+                nres=k_basis_args[0][0],
+                min_knot_num=k_basis_args[0][1],
+            ),
+            place_basis(
+                bounds=bounds,
+                nres=k_basis_args[1][0],
+                min_knot_num=k_basis_args[1][1],
+            ),
         )
         k = (
             jnp.array([200]),
-            jnp.array([0.02*width]),
+            jnp.array([0.02 * width]),
             0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
             0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
         )
         kernel = param_exp_kernel(K_basis, k)
 
-    model = Model(process_basis=process_basis,
-                  kernel=kernel,
-                  process_grid=process_grid,
-                  sigma2_eta=sigma2_eta,
-                  sigma2_eps=sigma2_eps,
-                  beta=beta,
-                  covariate_labels = data.covariate_labels,
-                  int_grid=int_grid)
+    model = Model(
+        process_basis=process_basis,
+        kernel=kernel,
+        process_grid=process_grid,
+        S2_eta=S2_eta,
+        S2_eps=S2_eps,
+        beta=beta,
+        covariate_labels=data.covariate_labels,
+        int_grid=int_grid,
+    )
 
     return model
-    
-    
+
+
 def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     """
     Converts the process expansion coefficients back into the original process
@@ -1068,15 +1137,15 @@ def format_params(params):
 
 def print_params(params: IdemParams):
     print("Parameters:")
-    print(f"  sigma2_eps: {jnp.exp(params.log_sigma2_eps).tolist()}")
-    print(f"  sigma2_eta: {jnp.exp(params.log_sigma2_eta).tolist()}")
+    print(f"  S2_eps: {jnp.exp(params.log_S2_eps).tolist()}")
+    print(f"  S2_eta: {jnp.exp(params.log_S2_eta).tolist()}")
     print(f"  Kernel Parameters:")
     print(f"    Scale: {jnp.exp(params.trans_kernel_params[0]).tolist()}")
     print(f"    Shape: {jnp.exp(params.trans_kernel_params[1]).tolist()}")
     print(f"    Offset X: {params.trans_kernel_params[2].tolist()}")
     print(f"    Offset Y: {params.trans_kernel_params[3].tolist()}")
     print(f"  beta: {params.beta.tolist()}")
-    
+
 
 if __name__ == "__main__":
     print("IDEM loaded as main. Simulating a simple example.")
@@ -1094,5 +1163,3 @@ if __name__ == "__main__":
     # Show all the plots generated
     # Plots are stored in the process_data, obs_data and model.kernel objects.
     process_data.show_plot()
-
-  

@@ -3,17 +3,20 @@ website:
   - contents:
     - reference/index.qmd
     - contents:
-      - reference/ql_L.qmd
-      - reference/kalman_filter.qmd
-      section: Filtering and Smoothing Functions
+      - reference/filters.kal_filter.qmd
+      - reference/filters.inf_filter.qmd
+      - reference/filters.sqrt_filter.qmd
+      - reference/filters.sqinf_filter.qmd
+      - reference/filters.pkal_filter.qmd
+      section: Filtering Methods
     - contents:
-      - reference/Kernel.qmd
-      - reference/param_exp_kernel.qmd
-      - reference/IdemParams.qmd
-      section: Integro-Difference Models in JAX
-    - contents:
-      - reference/Grid.qmd
-      - reference/outer_op.qmd
-      section: Utilties
+      - reference/utils.Grid.qmd
+      - reference/utils.create_grid.qmd
+      - reference/utils.place_basis.qmd
+      - reference/utils.random_basis.qmd
+      - reference/utils.place_cosine_basis.qmd
+      - reference/utils.st_data.qmd
+      - reference/utils.time_jit.qmd
+      section: Utilities
     id: reference
   - id: dummy-sidebar

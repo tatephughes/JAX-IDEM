@@ -1,7 +1,0 @@
-# bisquare { #jaxidem.utilities.bisquare }
-
-```python
-utilities.bisquare(s, params)
-```
-
-Generic bisquare function

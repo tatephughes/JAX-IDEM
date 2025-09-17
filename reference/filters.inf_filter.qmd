@@ -1,0 +1,85 @@
+# filters.inf_filter { #jaxidem.filters.inf_filter }
+
+`filters.inf_filter`
+
+
+
+## Functions
+
+| Name | Description |
+| --- | --- |
+| [inf_filter](#jaxidem.filters.inf_filter.inf_filter) | The Information Filter. |
+
+### inf_filter { #jaxidem.filters.inf_filter.inf_filter }
+
+```python
+filters.inf_filter.inf_filter(
+    nu_0,
+    Q_0,
+    M,
+    PHI_tree,
+    S2_eta,
+    S2_eps_tree,
+    zs_tree,
+    S2_eta_shape,
+    S2_eps_shape,
+    forecast=0,
+    likelihood='partial',
+)
+```
+
+The Information Filter.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name         | Type                                                                                    | Description                                                                                                                                                                                                    | Default     |
+|--------------|-----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
+| nu_0         | Float\[Array, r\]                                                                       | Initial information vector at time T=0.                                                                                                                                                                        | _required_  |
+| Q_0          | Float\[Array, \'r r\'\]                                                                 | Initial information matrix at time T=0.                                                                                                                                                                        | _required_  |
+| M            | Float\[Array, \'r r\'\]                                                                 | State-transition matrix.                                                                                                                                                                                       | _required_  |
+| PHI_tree     | PyTree\[Float\[Array, \'?n r\'\]\]                                                      | Observation matrices for each time step. Each leaf corresponds to a time step and may have a different observation dimension `n`.                                                                              | _required_  |
+| S2_eta       | Union\[Float\[Array, 1\], Float\[Array, r\], Float\[Array, \'r r\'\]\]                  | Process noise variance. Can be of shape (1,) (for scalar/i.i.d.), shape (r,) (for uncorrelated noise), or shape (r, r) (for correlated noise).                                                                 | _required_  |
+| S2_eps_tree  | PyTree\[Union\[Float\[Array, 1\], Float\[Array, \'?n\'\], Float\[Array, \'?n ?n\'\]\]\] | Observation noise variance for each time step. Each leaf may vary in dimension: shape (1,) for scalar/i.i.d. noise, shape (n,) for uncorrelated noise, or shape (n, n) for correlated noise.                   | _required_  |
+| zs_tree      | PyTree\[Float\[Array, n\]\]                                                             | Observed data values. Each leaf corresponds to a time step and may have a different observation dimension `n`.                                                                                                 | _required_  |
+| S2_eta_shape | int                                                                                     | Shape code for `S2_eta` (needed for JIT compilation); 0 is scalar/i.i.d., 1 is vector/uncorrelated, 2 is matrix/correlated. Must match the dimensionality of `S2_eta`.                                         | _required_  |
+| S2_eps_shape | int                                                                                     | Shape code for `S2_eps` (needed for JIT compilation); 0 is scalar/i.i.d., 1 is vector/uncorrelated, 2 is matrix/correlated. Must match the dimensionality of each leaf of `S2_eps`.                            | _required_  |
+| forecast     | int                                                                                     | Number of time points to forecast ahead.                                                                                                                                                                       | `0`         |
+| likelihood   | Literal\[\'none\', \'partial\', \'full\'\]                                              | Log-likelihood computation mode. Must be one of 'none' (no likelihood is computed), 'partial' (likelihood computed up to an additive constant), or 'full' (full likelihood is computed). Default is 'partial'. | `'partial'` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name         | Type               | Description                  |
+|--------------|--------------------|------------------------------|
+| filt_results | InformationResults | For details see Notes below. |
+
+#### Notes {.doc-section .doc-section-notes}
+
+The return type is InformationResults, containing:
+
+    - `ll` : float
+      Log-likelihood value (possibly up to an additive constant).
+
+    - `nus` : PyTree[Float[Array, "T r"]]
+      Information vectors at each time step.
+
+    - `Qs` : PyTree[Float[Array, "T r r"]]
+      Information matrices at each time step.
+
+    - `nu_preds` : PyTree[Float[Array, "T r"]]
+      Predicted information vectors.
+
+    - `Q_preds` : PyTree[Float[Array, "T r r"]]
+      Predicted information matrices.
+
+    - `nu_forecast` : Float[Array, "forecast r"]
+      Forecasted information vectors.
+
+    - `Q_forecast` : Float[Array, "forecast r r"]
+      Forecasted information matrices.
+
+Symbolic dimensions:
+
+    - `r` : state dimension
+    - `n` : observation dimension (may vary per time step)
+    - `T` : number of time steps
+    - `forecast` : number of forecast steps

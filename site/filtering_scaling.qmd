@@ -632,7 +632,7 @@ def pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, zs):
         
         C_k = imdp @ S2_eta
 
-        nu_k = M.T @ PHI.T @ jsc.linalg.solve(S_k, z_k)
+        nu_k = M.T @ PHI.T @ jsc.linalg.solve(S_k, z_k, assume_a = "pos")
         Q_k = M.T @ PHI.T @ jsc.linalg.solve(S_k, PHI @ M)
     
         return (A_k, b_k, C_k, nu_k, Q_k)
@@ -1229,16 +1229,16 @@ model = idem.Model(
     process_basis=process_basis,
     kernel=kernel,
     process_grid=process_grid,
-    sigma2_eta=S2_eta,
-    sigma2_eps=S2_eps,
+    S2_eta=S2_eta,
+    S2_eps=S2_eps,
     beta=beta,
     covariate_labels=covariate_labels,
 )
 
 M = model.M
 PHI = model.process_basis.mfun(coords)
-S2_eta = model.sigma2_eta
-S2_eps = model.sigma2_eps
+S2_eta = model.S2_eta
+S2_eps = model.S2_eps
 
 S_eta = jnp.linalg.cholesky(S2_eta)
 S_eps = jnp.linalg.cholesky(S2_eps)
@@ -1326,11 +1326,11 @@ R_0 = jnp.linalg.cholesky(Q_0)
 
 zs_tree = [z for z in zs]
 PHI_tree = [PHI for _ in range(T)]
-sigma2_eta = S2_eta
-sigma2_eps = S2_eps
-sigma2_eps_tree = [S2_eps for _ in range(T)]
+S2_eta = S2_eta
+S2_eps = S2_eps
+S2_eps_tree = [S2_eps for _ in range(T)]
 
-from jaxidem.filters import information_filter as information_filter_tree
+from jaxidem.filters import inf_filter as information_filter_tree
 
 #jit_kal   = lambda tup: kalman_filter(m_0, P_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
 #jit_inf   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
@@ -1349,20 +1349,20 @@ from jaxidem.filters import information_filter as information_filter_tree
 #                                                2, 2, 0, 'full')['ll']
 
 
-jit_kal   = lambda tup: kalman_filter(m_0, P_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
-jit_inf   = lambda tup: information_filter(nu_0, Q_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
-jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
-jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
-jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, M, PHI, sigma2_eta, sigma2_eps, tup[0])['ll']
+jit_kal   = lambda tup: kalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, tup[0])['ll']
+jit_inf   = lambda tup: information_filter(nu_0, Q_0, M, PHI, S2_eta, S2_eps, tup[0])['ll']
+jit_sqrt  = lambda tup: sqrt_filter(m_0, U_0, M, PHI, S2_eta, S2_eps, tup[0])['ll']
+jit_sqinf = lambda tup: sqinf_filter(nu_0, R_0, M, PHI, S2_eta, S2_eps, tup[0])['ll']
+jit_pkal  = lambda tup: pkalman_filter(m_0, P_0, M, PHI, S2_eta, S2_eps, tup[0])['ll']
 jit_pkal2  = lambda tup: pkalman_filter_tree(m_0, P_0, M, [PHI for _ in range(T)],
-                                            sigma2_eta,
-                                            [sigma2_eps for _ in range(T)],
+                                            S2_eta,
+                                            [S2_eps for _ in range(T)],
                                             tup[0],
                                             2, 2, 'full')['ll']
 jit_inf2  = lambda tup: information_filter_tree(nu_0, Q_0, M, [PHI for _ in range(T)],
-                                            sigma2_eta,
-                                            [sigma2_eps for _ in range(T)],
-                                            tup[0],
+                                            S2_eta,
+                                            [S2_eps for _ in range(T)],
+                                            list(tup[0]),
                                                 2, 2, 0, 'full')['ll']
 
 

@@ -1,0 +1,87 @@
+# filters.kal_filter { #jaxidem.filters.kal_filter }
+
+`filters.kal_filter`
+
+
+
+## Functions
+
+| Name | Description |
+| --- | --- |
+| [kal_filter](#jaxidem.filters.kal_filter.kal_filter) | The standard Kalman Filter. |
+
+### kal_filter { #jaxidem.filters.kal_filter.kal_filter }
+
+```python
+filters.kal_filter.kal_filter(
+    m_0,
+    P_0,
+    M,
+    PHI,
+    S2_eta,
+    S2_eps,
+    zs_tree,
+    S2_eta_shape,
+    S2_eps_shape,
+    forecast=0,
+    likelihood='partial',
+)
+```
+
+The standard Kalman Filter.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name         | Type                                                                   | Description                                                                                                                                                                                                                                                                                     | Default     |
+|--------------|------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
+| m_0          | Float\[Array, r\]                                                      | Prior mean of the filter at T=0.                                                                                                                                                                                                                                                                | _required_  |
+| P_0          | Float\[Array, \'r r\'\]                                                | Prior Variance of the filter at T=0.                                                                                                                                                                                                                                                            | _required_  |
+| M            | Float\[Array, \'r r\'\]                                                | State-Transition Matrix.                                                                                                                                                                                                                                                                        | _required_  |
+| PHI          | Float\[Array, \'n r\'\]                                                | Observation Matrix.                                                                                                                                                                                                                                                                             | _required_  |
+| S2_eta       | Union\[Float\[Array, 1\], Float\[Array, r\], Float\[Array, \'r r\'\]\] | Process noise variance. Can be of shape (1,) (for scalar/i.i.d.), shape (r,) (for uncorrelated noise), or shape (r, r) (for correlated noise).                                                                                                                                                  | _required_  |
+| S2_eps       | Union\[Float\[Array, 1\], Float\[Array, n\], Float\[Array, \'n n\'\]\] | Observation noise variance. Can be of shape (1,) (for scalar/i.i.d. noise), shape (n,) (for uncorrelated noise), or shape (n, n) (for correlated noise).                                                                                                                                        | _required_  |
+| zs_tree      | PyTree\[Float\[Array, n\]\]                                            | The observed data values. For the Kalman filter, each observation must have the same dimension and use the same observation matrix. For varying observation dimension and observation matrix, use the information filter, square-root information filter, of temporally parallel Kalman filter. | _required_  |
+| S2_eta_shape | int                                                                    | Shape code for `S2_eta` (needed for JIT compilation); 0 is scalar/i.i.d., 1 is vector/uncorrelated, 2 is matrix/correlated. Must match the dimensionality of `S2_eta`.                                                                                                                          | _required_  |
+| S2_eps_shape | int                                                                    | Shape code for `S2_eps` (needed for JIT compilation); 0 is scalar/i.i.d., 1 is vector/uncorrelated, 2 is matrix/correlated. Must match the dimensionality of `S2_eps`.                                                                                                                          | _required_  |
+| forecast     | int                                                                    | The number of time points to forecast ahead.                                                                                                                                                                                                                                                    | `0`         |
+| likelihood   | Literal\[\'none\', \'partial\', \'full\'\]                             | Log-likelihood computation mode. Must be one of 'none'; No likelihood is computed, 'partial'; Likelihood computed up to an additive constant 'full'; Full likelihood is computed Default is 'partial'.                                                                                          | `'partial'` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name         | Type          | Description                 |
+|--------------|---------------|-----------------------------|
+| filt_results | KalmanResults | For details see notes below |
+
+#### Notes {.doc-section .doc-section-notes}
+
+
+The return type is KalmanResults, containing
+
+    - `ll` : float
+        - Log-likelihood value (possibly up to an additive constant).
+
+    - `ms` : PyTree[Float[Array, "T r"]]
+        - Posterior means at each time step.
+
+    - `Ps` : PyTree[Float[Array, "T r r"]]
+        - Posterior covariance matrices at each time step.
+
+    - `mpreds` : PyTree[Float[Array, "T r"]]
+        - Predicted means at each time step.
+
+    - `Ppreds` : PyTree[Float[Array, "T r r"]]
+        - Predicted covariance matrices at each time step.
+
+    - `mforecast` : Float[Array, "forecast r"]
+        - Forecast means.
+
+    - `Pforecast` : Float[Array, "forecast r r"]
+        - Forecast covariance matrices.
+
+
+Symbolic dimensions:
+
+   - `r` : state dimension
+   - `n` : observation dimension
+   - `T` : number of time steps
+   - `forecast` : number of forecast steps

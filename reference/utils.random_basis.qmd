@@ -1,0 +1,32 @@
+# utils.random_basis { #jaxidem.utils.random_basis }
+
+```python
+utils.random_basis(
+    key,
+    knot_num=3,
+    bounds=jnp.array([[0, 1], [0, 1]]),
+    aperture=10,
+    basis_fun=bisquare,
+)
+```
+
+Randomly distributes knots (centroids) and scales for basis functions.
+This function must be run outside of a jit loop, since it involves
+varying the length of arrays.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name      | Type                                                                 | Description                                                                                                                                                                                                                  | Default                       |
+|-----------|----------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| key       | Int\[Array, 2\]                                                      | PRNG key                                                                                                                                                                                                                     | _required_                    |
+| knot_num  | int                                                                  | The number of knots at which to place basis functions                                                                                                                                                                        | `3`                           |
+| bounds    | Float\[Array, \'ndim 2\'\]                                           | The bounds for each dimension for the space we want to cover with basis functions                                                                                                                                            | `jnp.array([[0, 1], [0, 1]])` |
+| aperture  | float                                                                | Scaling factor for the scale parameter (scale parameter will be w=aperture * d, where d is the minimum distance between any two of the knots)                                                                                | `10`                          |
+| basis_fun | Callable\[\[Float\[Array, ndim\], Float\[Array, nparams\]\], float\] | The basis functions being used. The basis function's second argument must be an array with three doubles; the first coordinate for the centre, the second coordinate for the centre, and the scale/aperture of the function. | `bisquare`                    |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                      | Description   |
+|--------|---------------------------------------------------------------------------|---------------|
+|        | A Basis object (NamedTuple) with the vector and matrix functions, and the |               |
+|        | parameters associated to the basis functions.                             |               |

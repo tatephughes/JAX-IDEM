@@ -160,9 +160,12 @@ Q_0 = jnp.zeros((4,4))
 
 filt_results_inf = information_filter(nu_0, Q_0, M, PHI, S2_eta, S2_eps, zs)
 
+nus = filt_results_inf['nus']
+Qs = filt_results_inf['Qs']
+
 # exclude the first point; its nan since Q_0 is 0
-ms = jnp.linalg.solve(filt_results_inf['Qs'], filt_results_inf['nus'][..., None]).squeeze(-1)[1:]
-Ps = jnp.linalg.inv(filt_results_inf['Qs'])[1:]
+ms = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)[1:]
+Ps = jnp.linalg.inv(Qs)[1:]
 
 m_x, m_y = ms[1:50, 0], ms[1:50, 1] 
 s2_x, s2_y = Ps[1:50, 0,0], Ps[1:50, 1,1]
@@ -238,7 +241,7 @@ Well, yes, but what I really want to talk about is the way in which people tend 
 
 ::: {.callout-note icon=false}
 
-## ['Information Filter' from Wikipedia](en.wikipedia.org/wiki/Kalman_filter#Information_filter)
+## ['Information Filter' from Wikipedia](https://en.wikipedia.org/wiki/Kalman_filter#Information_filter)
 
 Additionally, the information filter allows for system information initialization according to $I_{1\mid0} = P_{1\mid0}^{-1}=0$, which would not be possible for the regular Kalman filter.
 :::
@@ -268,11 +271,30 @@ def kalman_filter_vague(M, PHI, S2_eta, S2_eps, zs):
     r = M.shape[0]
     nobs = zs.shape[1]
 
-    P1 = jnp.linalg.pinv(PHI.T@ jnp.linalg.solve(S2_eps, PHI))    
-    m1 = P1 @ PHI.T @ jnp.linalg.solve(S2_eps, zs[0])
+    #P1 = jnp.linalg.pinv(PHI.T@ jnp.linalg.solve(S2_eps, PHI))    
+    #m1 = P1 @ PHI.T @ jnp.linalg.solve(S2_eps, zs[0])
 
-    #m1 = PHI.T @ jnp.linalg.solve(S2_eps, zs[0])
-    #P1 = PHI.T @ jnp.linalg.solve(S2_eps, PHI)
+    Q1 = PHI.T @ jnp.linalg.solve(S2_eps, PHI)
+    nu1 = PHI.T @ jnp.linalg.solve(S2_eps, zs[0])
+
+    Minv = jnp.linalg.inv(M)
+    S2_eta_inv = jnp.linalg.inv(S2_eta)
+    
+    S_t = Minv.T @ Q1 @ Minv
+    J_t = jsc.linalg.solve((S_t + S2_eta_inv).T, S_t.T).T
+        
+    nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu1
+    Q_pred = (jnp.eye(r) - J_t) @ S_t
+    
+    nu2 = nu_pred + PHI.T @ jnp.linalg.solve(S2_eps, zs[1])
+    Q2 = Q_pred + PHI.T @ jnp.linalg.solve(S2_eps, PHI)
+
+    Ppred = jnp.linalg.inv(Q_pred)
+    mpred = Ppred@nu_pred
+
+    
+    P2 = jnp.linalg.inv(Q2)
+    m2 = P2@nu2
     
     @jax.jit
     def step(carry, z_t):
@@ -308,9 +330,11 @@ def kalman_filter_vague(M, PHI, S2_eta, S2_eps, zs):
 
     carry, seq = jl.scan(
         step,
-        (m1, P1, m1, P1, 0),
-        zs[1:],
+        (m2, P2, mpred, Ppred, 0),
+        zs[2:],
     )
+
+    seq = jax.tree.map(lambda f, e: jnp.concatenate([f[None, :], e]), (m2, P2, mpred, Ppred), seq[:4])
 
     ll, ms, Ps, mpreds, Ppreds = (carry[4], seq[0], seq[1], seq[2], seq[3])
     
@@ -399,3 +423,5 @@ print(ms[:3])
 print(ms2[:3])
 
 ```
+
+

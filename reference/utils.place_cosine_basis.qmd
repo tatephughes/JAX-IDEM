@@ -1,0 +1,21 @@
+# utils.place_cosine_basis { #jaxidem.utils.place_cosine_basis }
+
+```python
+utils.place_cosine_basis(bounds=jnp.array([[0, 1], [0, 1]]), N=20)
+```
+
+Creates cosine (fourier) basis functions at N frequencies at each dimension.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type                       | Description                                                                                     | Default                       |
+|--------|----------------------------|-------------------------------------------------------------------------------------------------|-------------------------------|
+| bounds | Float\[Array, \'ndim 2\'\] | The bounds for each dimension for the space we want to cover with basis functions               | `jnp.array([[0, 1], [0, 1]])` |
+| N      | int                        | The number of frequencies across each dimension (so in total there will be N^2 basis functions) | `20`                          |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                      | Description   |
+|--------|---------------------------------------------------------------------------|---------------|
+|        | A Basis object (NamedTuple) with the vector and matrix functions, and the |               |
+|        | parameters associated to the basis functions.                             |               |

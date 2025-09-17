@@ -249,11 +249,24 @@ Do simpler filter implementations
 * 4th September
 
 ** Implement PKF in JAX-IDEM
-
 ** Think more psqrt
-
 ** read the bayes linear paper
 
 
 * TODO Tomorrow (8th Sept)
 Tomorrow, i want to have some comparisons between the filters in the sydney radar bayesian inference example page. Now that parallel filtering is fully implemented. I also want to much aboot with various little optimisations to get them all as good as can be.
+
+
+* 11th September
+
+** Fix kalman jank
+- args to solve commands
+- maybe nugget
+- 0.5(A.T + A)
+**** UPDATE: yeah i dont think this is fixable in fp64 even.
+- The problem seems to be the scale of $M$ and $\Phi$ in IDEM models. The average eigval of each are about 700 and 16 resp. so $\Sigma_t = \Phi^T (M^T P_{t-1} M + \Sigma_\eta) \Phi + \Sigma_\epsilon$ sees extreme precision issues that arent easily resolved without square-root or inverse methods.
+** Read more
+*** try and think abt standard kf as bayes linear
+** think more abt psqrt
+** Take a full day spring cleaning (Monday)
+** write up the problem better

@@ -19,7 +19,7 @@ bibliography: site/Bibliography.bib
 
 ```{python}
 #| output: false
-#| eval: true
+#| eval: false
 
 import jax
 import os
@@ -41,12 +41,12 @@ process_basis = utils.place_cosine_basis(N = 10)
 
 #process_basis = utils.place_basis()
 
-sigma2_eta = jnp.diag((0.01*jnp.ones(process_basis.nbasis)).at[1].set(40.0).at[30].set(80.0).at[31].set(60.0))
+S2_eta = jnp.diag((0.01*jnp.ones(process_basis.nbasis)).at[1].set(40.0).at[30].set(80.0).at[31].set(60.0))
 
 #sigma2_eta = 0.01
 
 covariate_labels=['Intercept', 'x', 'y']
-model = idem.gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]), process_basis = process_basis, sigma2_eta = sigma2_eta, covariate_labels=covariate_labels)
+model = idem.gen_example_idem(keys[0], k_spat_inv=False, ngrid=jnp.array([40, 40]), process_basis = process_basis, S2_eta = S2_eta, covariate_labels=covariate_labels)
 
 # Simulation
 T = 50
