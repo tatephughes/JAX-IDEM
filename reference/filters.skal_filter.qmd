@@ -1,6 +1,6 @@
-# filters.kal_filter { #jaxidem.filters.kal_filter }
+# filters.skal_filter { #jaxidem.filters.skal_filter }
 
-`filters.kal_filter`
+`filters.skal_filter`
 
 
 
@@ -8,12 +8,12 @@
 
 | Name | Description |
 | --- | --- |
-| [kal_filter](#jaxidem.filters.kal_filter.kal_filter) | The standard Kalman Filter. |
+| [skal_filter](#jaxidem.filters.skal_filter.skal_filter) | The Joseph-stabilised Kalman Filter. |
 
-### kal_filter { #jaxidem.filters.kal_filter.kal_filter }
+### skal_filter { #jaxidem.filters.skal_filter.skal_filter }
 
 ```python
-filters.kal_filter.kal_filter(
+filters.skal_filter.skal_filter(
     m_0,
     P_0,
     M,
@@ -28,7 +28,9 @@ filters.kal_filter.kal_filter(
 )
 ```
 
-The standard Kalman Filter.
+The Joseph-stabilised Kalman Filter.
+
+Small change to the update step of the Kalman filter can reduce numerical instability.
 
 #### Parameters {.doc-section .doc-section-parameters}
 

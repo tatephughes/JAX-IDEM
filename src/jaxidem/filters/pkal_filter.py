@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax.scipy as jsc
 import jax.lax as jl
 from jax.scipy.linalg import solve_triangular as st
+from jax.scipy.linalg import solve
 
 # Typing imports
 from jaxtyping import ArrayLike, PyTree, Array, Float
@@ -127,14 +128,14 @@ def pkal_filter(
     # Possibly better to use cholesky since S is pdef
     # cholS = jsc.linalg.cho_factor(S_1)
     # D_1 = (jsc.linalg.cho_solve(cholS, PHI_tree[0])@P1pred.T).T
-    D_1 = (jnp.linalg.solve(S_1, PHI_tree[0] @ P1pred)).T
+    D_1 = solve(S_1, PHI_tree[0] @ P1pred, assume_a="pos").T
 
     A_1 = jnp.zeros((r, r))
     b_1 = m1pred + D_1 @ (zs_tree[0] - PHI_tree[0] @ m1pred)
     C_1 = P1pred - D_1 @ S_1 @ D_1.T
 
-    nu_1 = M.T @ PHI_tree[0].T @ jsc.linalg.solve(S_1, zs_tree[0])
-    Q_1 = M.T @ PHI_tree[0].T @ jsc.linalg.solve(S_1, PHI_tree[0] @ M)
+    nu_1 = M.T @ PHI_tree[0].T @ solve(S_1, zs_tree[0], assume_a="pos")
+    Q_1 = M.T @ PHI_tree[0].T @ solve(S_1, PHI_tree[0] @ M, assume_a="pos")
 
     first_elt = (A_1, b_1, C_1, nu_1, Q_1)
 
@@ -218,11 +219,11 @@ def pkal_filter(
         ipqc = I + Q_j @ C_i
 
         # lots of cho solves, can be simplified.
-        A_ij = A_j @ jsc.linalg.solve(ipcq, A_i)
-        b_ij = A_j @ jsc.linalg.solve(ipcq, (b_i + C_i @ nu_j)) + b_j
-        C_ij = A_j @ jsc.linalg.solve(ipcq, C_i @ A_j.T) + C_j
-        nu_ij = A_i.T @ jsc.linalg.solve(ipqc, nu_j - Q_j @ b_i) + nu_i
-        Q_ij = A_i.T @ jsc.linalg.solve(ipqc, Q_j @ A_i) + Q_i
+        A_ij = A_j @ solve(ipcq, A_i, assume_a="pos")
+        b_ij = A_j @ solve(ipcq, (b_i + C_i @ nu_j), assume_a="pos") + b_j
+        C_ij = A_j @ solve(ipcq, C_i @ A_j.T, assume_a="pos") + C_j
+        nu_ij = A_i.T @ solve(ipqc, nu_j - Q_j @ b_i, assume_a="pos") + nu_i
+        Q_ij = A_i.T @ solve(ipqc, Q_j @ A_i, assume_a="pos") + Q_i
 
         return (A_ij, b_ij, C_ij, nu_ij, Q_ij)
 

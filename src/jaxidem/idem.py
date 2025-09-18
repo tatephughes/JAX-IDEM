@@ -388,7 +388,7 @@ class Model:
     ):
         nbasis = self.nbasis
 
-        if method in ("sqrt", "kalman"):
+        if method in ("sqrt", "kalman", "skalman"):
             zs_tree = obs_data.zs_tree
             # ADD A CHECK THAT DATA N AND LOCATION IS CONSTANT
             obs_locs = obs_data.coords_tree[0]
@@ -401,11 +401,14 @@ class Model:
 
             match method:
                 case "sqrt":
-                    init_mat = jnp.linalg.cholesky(P_0)
+                    init_mat = jnp.linalg.cholesky(P_0, upper=True)
                     filterer = filts.sqrt_filter
                 case "kalman":
                     init_mat = P_0
                     filterer = filts.kal_filter
+                case "skalman":
+                    init_mat = P_0
+                    filterer = filts.skal_filter
 
             @jax.jit
             def objective(params):
@@ -461,7 +464,7 @@ class Model:
             match method:
                 case "sqinf":
                     init_vec = jnp.linalg.solve(P_0, m_0)
-                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
+                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0), upper=True)
                     filterer = filts.sqinf_filter
                 case "inf":
                     init_vec = jnp.linalg.solve(P_0, m_0)
@@ -1041,7 +1044,7 @@ def init_model(
         )
         k = (
             jnp.array([150.0]),
-            jnp.array([0.02 * width]),
+            jnp.array([0.002 * width]),
             jnp.array([0.0]),
             jnp.array([0.0]),
         )
@@ -1063,7 +1066,7 @@ def init_model(
         )
         k = (
             jnp.array([200]),
-            jnp.array([0.02 * width]),
+            jnp.array([0.002 * width]),
             0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
             0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
         )

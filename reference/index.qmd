@@ -7,6 +7,7 @@ Various forms of the Kalman filter, each with its own stability and performance 
 | | |
 | --- | --- |
 | [filters.kal_filter](filters.kal_filter.qmd#jaxidem.filters.kal_filter) |  |
+| [filters.skal_filter](filters.skal_filter.qmd#jaxidem.filters.skal_filter) |  |
 | [filters.inf_filter](filters.inf_filter.qmd#jaxidem.filters.inf_filter) |  |
 | [filters.sqrt_filter](filters.sqrt_filter.qmd#jaxidem.filters.sqrt_filter) |  |
 | [filters.sqinf_filter](filters.sqinf_filter.qmd#jaxidem.filters.sqinf_filter) |  |

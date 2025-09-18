@@ -871,7 +871,7 @@ To do this, we re-write the variance in _Joseph Stabilised Form_ as follows;
 The update step of the Kalman filter can be written
 
 $$\begin{split}
-  P_{t+1\mid t+1}= (I - K_{t+1} \Phi_{t+1}) P_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^\intercal + \Sigma_{\epsilon},
+  P_{t+1\mid t+1}= (I - K_{t+1} \Phi_{t+1}) P_{t+1\mid t}(I - K_{t+1} \Phi_{t+1})^\intercal + K_{t+1}\Sigma_{\epsilon}K_{t+1}^{\intercal},
 \end{split}
 $$
 
@@ -885,11 +885,11 @@ As in [@chin2023], write
 $$\begin{split}
   \bv \alpha_t - \bv m_{t+1\mid t+1} & = \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\tilde{\bv z}_{t+1} - \Phi_{t+1} \bv m_{t+1\mid t})\\
   &= \bv \alpha_t - \bv m_{t \mid t+1} - K_{t+1} (\Phi_{t+1} \bv \alpha_{t} + \bv \epsilon_{t+1} - \Phi_{t+1}\bv m_{t+1\mid t})\\
-  &= (I - K_{t+1} \Phi_{t+1})(\bv \alpha_t - \bv m_{t+1 \mid t}) - \bv \epsilon_{t+1}.
+  &= (I - K_{t+1} \Phi_{t+1})(\bv \alpha_t - \bv m_{t+1 \mid t}) - K_{t+1}\bv \epsilon_{t+1}.
 \end{split}
 $$
 
-Now,
+Now, since
 
 $$\begin{split}
   P_{t+1\mid t+1} &= \mathbb C\mathrm{ov}[\bv \alpha_t]\\
@@ -897,7 +897,7 @@ $$\begin{split}
 \end{split}
 $$
 
-Which, noting that $\bv \epsilon_{t+1}$ are independant of $\bv \alpha_t$ and $\mathbb E[(\bv \alpha_t - \bv m_{t+1 \mid t})^\intercal (\bv \alpha_t - \bv m_{t+1 \mid t})]=P_{t+1\mid t}$, gets us the result.
+and $\bv \epsilon_{t+1}$ are independant of $\bv \alpha_t$, we get the result.
 
 \qed
 

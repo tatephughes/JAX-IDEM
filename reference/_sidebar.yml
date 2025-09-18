@@ -4,6 +4,7 @@ website:
     - reference/index.qmd
     - contents:
       - reference/filters.kal_filter.qmd
+      - reference/filters.skal_filter.qmd
       - reference/filters.inf_filter.qmd
       - reference/filters.sqrt_filter.qmd
       - reference/filters.sqinf_filter.qmd

@@ -59,6 +59,7 @@ quartodoc:
       desc: Various forms of the Kalman filter, each with its own stability and performance profile. For more information, see [Filtering Scaling](../site/filtering_scaling.qmd).
       contents:
         - filters.kal_filter
+        - filters.skal_filter
         - filters.inf_filter
         - filters.sqrt_filter
         - filters.sqinf_filter

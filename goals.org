@@ -270,3 +270,14 @@ Tomorrow, i want to have some comparisons between the filters in the sydney rada
 ** think more abt psqrt
 ** Take a full day spring cleaning (Monday)
 ** write up the problem better
+
+
+
+* 18th September
+
+- Add assume_a to everything
+  - add the satibilised kalman filter
+- write up the psqrt problem please
+  - maybe also pinf
+
+- more documentation

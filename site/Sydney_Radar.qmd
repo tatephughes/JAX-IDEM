@@ -370,6 +370,7 @@ radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z')
 model = idem.init_model(data=radar_data, basis_type = 'cosine', basis_args=[20])
 
 log_marginal_kal = model.get_log_like(radar_data, method="kalman", likelihood='full')
+log_marginal_skal = model.get_log_like(radar_data, method="skalman", likelihood='full')
 log_marginal_sqrt = model.get_log_like(radar_data, method="sqrt", likelihood='full')
 log_marginal_inf = model.get_log_like(radar_data, method="inf", likelihood='full')
 log_marginal_sqinf = model.get_log_like(radar_data, method="sqinf", likelihood='full')
@@ -378,6 +379,7 @@ log_marginal_pkal = model.get_log_like(radar_data, method="parallel", likelihood
 nreps = 5
 
 time_kal   = utils.time_jit(key, log_marginal_kal, model.params, n=nreps)
+time_skal   = utils.time_jit(key, log_marginal_skal, model.params, n=nreps)
 time_sqrt  = utils.time_jit(key, log_marginal_sqrt, model.params, n=nreps)
 time_inf   = utils.time_jit(key, log_marginal_inf, model.params, n=nreps)
 time_sqinf = utils.time_jit(key, log_marginal_sqinf, model.params, n=nreps)
@@ -385,6 +387,7 @@ time_pkal  = utils.time_jit(key, log_marginal_pkal, model.params, n=nreps)
 
 data = [
     ["kal", time_kal.compile_time, time_kal.average_time * 1000, time_kal.value],
+    ["skal", time_skal.compile_time, time_skal.average_time * 1000, time_skal.value],
     ["inf", time_inf.compile_time, time_inf.average_time * 1000, time_inf.value],
     ["sqrt", time_sqrt.compile_time, time_sqrt.average_time * 1000, time_sqrt.value],
     ["sqinf", time_sqinf.compile_time, time_sqinf.average_time * 1000, time_sqinf.value],

@@ -29,7 +29,7 @@ class KalmanResults(TypedDict):
     jax.jit,
     static_argnames=["S2_eta_shape", "S2_eps_shape", "forecast", "likelihood"],
 )
-def kal_filter(
+def skal_filter(
     m_0: Float[Array, "r"],
     P_0: Float[Array, "r r"],
     M: Float[Array, "r r"],
@@ -43,7 +43,9 @@ def kal_filter(
     likelihood: Literal["none", "partial", "full"] = "partial",
 ) -> KalmanResults:
     """
-    The standard Kalman Filter.
+    The Joseph-stabilised Kalman Filter.
+
+    Small change to the update step of the Kalman filter can reduce numerical instability.
 
     Parameters
     ----------
@@ -119,7 +121,16 @@ def kal_filter(
         K_t = (solve(Sigma_t, PHI, assume_a="pos") @ P_pred.T).T
 
         m_up = m_pred + K_t @ e_t
-        P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred
+
+        match S2_eps_shape:
+            case 0:
+                ksk = S2_eps * K_t @ K_t.T
+            case 1:
+                ksk = K_t @ jnp.diag(S2_eps) @ K_t.T
+            case 2:
+                ksk = K_t @ S2_eps @ K_t.T
+
+        P_up = (jnp.eye(r) - K_t @ PHI) @ P_pred @ (jnp.eye(r) - K_t @ PHI).T + ksk
 
         if likelihood == "full":
             Ui_t = jnp.linalg.cholesky(Sigma_t)

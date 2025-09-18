@@ -2,6 +2,7 @@ import pytest
 import jax.numpy as jnp
 
 from jaxidem.filters.kal_filter import kal_filter
+from jaxidem.filters.skal_filter import skal_filter
 from jaxidem.filters.inf_filter import inf_filter
 from jaxidem.filters.sqrt_filter import sqrt_filter
 from jaxidem.filters.sqinf_filter import sqinf_filter
@@ -63,6 +64,23 @@ def test_all_filters_agree(shared_inputs):
     )
     ms_kf, Ps_kf = kf["ms"], kf["Ps"]
     ll_kf = kf["ll"]
+
+    # 1.5) Stabilised Kalman
+    skf = skal_filter(
+        m_0=shared_inputs["m_0"],
+        P_0=shared_inputs["P_0"],
+        M=shared_inputs["M"],
+        PHI=shared_inputs["PHI"],
+        S2_eta=shared_inputs["S2_eta"],
+        S2_eps=shared_inputs["S2_eps"],
+        zs_tree=shared_inputs["zs_tree"],
+        S2_eta_shape=shared_inputs["S2_eta_shape"],
+        S2_eps_shape=shared_inputs["S2_eps_shape"],
+        forecast=shared_inputs["forecast"],
+        likelihood=shared_inputs["likelihood"],
+    )
+    ms_skf, Ps_skf = skf["ms"], skf["Ps"]
+    ll_skf = skf["ll"]
 
     # 2) Information Filter
     inf = inf_filter(
@@ -142,6 +160,7 @@ def test_all_filters_agree(shared_inputs):
 
     # Now compare all to the standard Kalman outputs
     for name, (ms_i, Ps_i, ll_i) in {
+        "skf": (ms_skf, Ps_skf, ll_skf),
         "inf": (ms_inf, Ps_inf, ll_inf),
         "sqrt": (ms_sq, Ps_sq, ll_sq),
         "sqinf": (ms_sqinf, Ps_sqinf, ll_sqinf),

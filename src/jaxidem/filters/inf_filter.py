@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax.scipy as jsc
 import jax.lax as jl
 from jax.scipy.linalg import solve_triangular as st
+from jax.scipy.linalg import solve
 
 # Typing imports
 from jaxtyping import ArrayLike, PyTree, Array, Float
@@ -135,8 +136,8 @@ def inf_filter(
                 i_k = PHI_k.T @ (z_k / S2_eps_k)
                 I_k = PHI_k.T / S2_eps_k @ PHI_k
             case 2:
-                i_k = PHI_k.T @ jnp.linalg.solve(S2_eps_k, z_k)
-                I_k = PHI_k.T @ jnp.linalg.solve(S2_eps_k, PHI_k)
+                i_k = PHI_k.T @ solve(S2_eps_k, z_k, assume_a="pos")
+                I_k = PHI_k.T @ solve(S2_eps_k, PHI_k, assume_a="pos")
 
         return jnp.vstack((i_k, I_k))
 
@@ -147,13 +148,13 @@ def inf_filter(
 
     # This is one situation where I do not know how to avoid inverting
     # a matrix explicitly...
-    Minv = jnp.linalg.solve(M, jnp.eye(r))
+    Minv = jnp.linalg.inv(M)
 
     match S2_eta_shape:
         case 0 | 1:
             S2_eta_inv = 1 / S2_eta
         case 2:
-            S2_eta_inv = jnp.linalg.solve(S2_eta, jnp.eye(r))
+            S2_eta_inv = solve(S2_eta, jnp.eye(r), assume_a="pos")
 
     def step(carry, scan_elt):
         nu_tt, Q_tt, _, _ = carry
@@ -163,7 +164,9 @@ def inf_filter(
 
         S_t = Minv.T @ Q_tt @ Minv
 
-        J_t = jnp.linalg.solve(add_variance(S_t, S2_eta_inv, S2_eta_shape).T, S_t.T).T
+        J_t = solve(
+            add_variance(S_t, S2_eta_inv, S2_eta_shape).T, S_t.T, assume_a="pos"
+        ).T
 
         # match S2_eta_shape:
         #    case 0:
