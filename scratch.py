@@ -1,145 +1,106 @@
-def information_filter_nojit(
-        nu_0,
-        Q_0,
-        M,
-        PHI,
-        S2_eta,
-        S2_eps,
-        zs
-):
+import jax
 
-    r = nu_0.shape[0]
-    nobs = zs.shape[1]
+jax.config.update("jax_enable_x64", True)
+import os
+import jax.numpy as jnp
+import jax.random as jr
+import pandas as pd
+import jaxidem.idem as idem
+import jaxidem.utils as utils
+import matplotlib.pyplot as plt
+from jax.scipy.linalg import solve
 
-    i = jax.vmap(lambda z: PHI.T @ jnp.linalg.solve(S2_eps, z), in_axes=0)(zs)
-    I = PHI.T @ jnp.linalg.solve(S2_eps, PHI)
+from quadax import quadgk
+
+
+key = jr.PRNGKey(1)  # PRNG key
+
+radar_df = pd.read_csv("./data/radar_df.csv")
+radar_data = utils.pd_to_st(radar_df, "s2", "s1", "time", "z")
+model = idem.init_model(
+    data=radar_data,
+    basis_type="cosine",
+    basis_args=[20],
+    n_int_grid=2000,
+    n_process_grid=100,
+)
+
+
+self = model
+
+ks = self.kernel.params
+
+
+def con_M_new(ks):
+    def k(s, r):
+        theta = (
+            ks[0] @ self.kernel.basis[0].vfun(s),
+            ks[1] @ self.kernel.basis[1].vfun(s),
+            jnp.array(
+                [
+                    ks[2] @ self.kernel.basis[2].vfun(s),
+                    ks[3] @ self.kernel.basis[3].vfun(s),
+                ]
+            ),
+        )
+        return theta[0] * jnp.exp(-(jnp.sum((r - s - theta[2]) ** 2)) / theta[1])
+
+    # vec_ker = jax.vmap(jax.vmap(kernel_func, in_axes=(None, 0)), in_axes=(0, None))
+    # K = vec_ker(self.process_grid.coords, self.process_grid.coords)
+    # TODO: Investigate better, faster, more accurate ways to ocmpute this?
+
+    xmin = jnp.min(self.process_grid.coords[:, 0])
+    xmax = jnp.max(self.process_grid.coords[:, 0])
+    ymin = jnp.min(self.process_grid.coords[:, 1])
+    ymax = jnp.max(self.process_grid.coords[:, 1])
     
-    Minv = jnp.linalg.inv(M)
-    S2_eta_inv = jnp.linalg.inv(S2_eta)
+    phi = self.process_basis.vfun
 
-    def step(carry, i):
-        nu_tt, Q_tt, _, _ = carry
+    def integrand(s, r):
+        return k(s, r) * jnp.outer(phi(s), phi(r))
 
-        S_t = Minv.T @ Q_tt @ Minv
-        J_t = jnp.linalg.solve((S_t + S2_eta_inv).T, S_t.T).T
-        
-        nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu_tt
-        Q_pred = (jnp.eye(r) - J_t) @ S_t
+   return quadgk(lambda s: quadgk(lambda r: f(s, r), -1.0, 1.0)[0], 0.0, jnp.pi)[0]
 
-        nu_up = nu_pred + i
-        Q_up = Q_pred + I
-
-        new_carry = (nu_up, Q_up, nu_pred, Q_pred)
-        
-        return new_carry, new_carry
     
-    carry, seq = jl.scan(
-        step,
-        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
-        i,
+    M = solve(self.GRAM, quadgk(integrand))
+    
+    return (
+        solve(self.GRAM, self.PHI_proc.T @ K @ self.PHI_proc)
+        * self.process_grid.area**2
     )
-    
-    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
-
-    def likelihood_func(z, nu_pred, Q_pred):
-        e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
-        chol_Sigma_t = jnp.linalg.cholesky(
-            PHI @ jnp.linalg.solve(Q_pred, PHI.T) + S2_eps
-        )
-        z = st(chol_Sigma_t, e, lower=True)
-
-        ll = (
-            -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
-            - 0.5 * jnp.dot(z, z)
-            - 0.5 * nobs * jnp.log(2 * jnp.pi)
-        )
-        return ll
-
-    lls = jax.vmap(likelihood_func)(zs, nupreds, Qpreds)
-    ll = jnp.sum(lls)
-    
-    filt_results = {"ll": ll,
-                    "nus": nus,
-                    "Qs": Qs,
-                    "nupreds": nupreds,
-                    "Qpreds": Qpreds}
-
-    return filt_results
 
 
-def information_filter_nojit(
-        nu_0,
-        Q_0,
-        M,
-        PHI,
-        S2_eta,
-        S2_eps,
-        zs
-):
+# Outer integral over s
+def double_integral():
+    def outer_integral(s):
+        # Inner integral over r
+        def inner_integral(r):
+            return integrand(s, r)  # shape (400, 400)
 
-    r = nu_0.shape[0]
-    nobs = zs.shape[1]
+        # Integrate over r and get matrix
+        result_r, _ = quadgk(lambda x: quadgk(lambda y: inner_integral(r[0], r[1]), , 1.0)[0], 0.0, jnp.pi)[0]
+        return result_r  # shape (400, 400)
 
-    i = jax.vmap(lambda z: PHI.T @ jnp.linalg.solve(S2_eps, z), in_axes=0)(zs)
-    I = PHI.T @ jnp.linalg.solve(S2_eps, PHI)
-    
-    Minv = jnp.linalg.inv(M)
-    S2_eta_inv = jnp.linalg.inv(S2_eta)
-
-    @jax.jit
-    def step(carry, i):
-        nu_tt, Q_tt, _, _ = carry
-
-        S_t = Minv.T @ Q_tt @ Minv
-        J_t = jnp.linalg.solve((S_t + S2_eta_inv).T, S_t.T).T
-        
-        nu_pred = (jnp.eye(r) - J_t) @ Minv.T @ nu_tt
-        Q_pred = (jnp.eye(r) - J_t) @ S_t
-
-        nu_up = nu_pred + i
-        Q_up = Q_pred + I
-
-        new_carry = (nu_up, Q_up, nu_pred, Q_pred)
-        
-        return new_carry, new_carry
-    
-    carry, seq = jl.scan(
-        step,
-        (nu_0, Q_0, jnp.zeros(r), jnp.eye(r)),
-        i,
-    )
-    
-    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
-
-    @jax.jit
-    def likelihood_func(z, nu_pred, Q_pred):
-        e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
-        chol_Sigma_t = jnp.linalg.cholesky(
-            PHI @ jnp.linalg.solve(Q_pred, PHI.T) + S2_eps
-        )
-        z = st(chol_Sigma_t, e, lower=True)
-
-        ll = (
-            -jnp.sum(jnp.log(jnp.diag(chol_Sigma_t)))
-            - 0.5 * jnp.dot(z, z)
-            - 0.5 * nobs * jnp.log(2 * jnp.pi)
-        )
-        return ll
-
-    lls = jax.vmap(likelihood_func)(zs, nupreds, Qpreds)
-    ll = jnp.sum(lls)
-    
-    filt_results = {"ll": ll,
-                    "nus": nus,
-                    "Qs": Qs,
-                    "nupreds": nupreds,
-                    "Qpreds": Qpreds}
-
-    return filt_results
+    # Integrate over s and get final matrix
+    result_s, _ = quadgk(outer_integral, s_min, s_max)
+    return result_s  # shape (400, 400)
 
 
-jit_inf_n   = lambda tup: information_filter_nojit(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
-jit_inf_y   = lambda tup: information_filter(nu_0, Q_0, tup[0], tup[1], tup[2], tup[3], tup[4])['ll']
+def inner_integral(s):
+    def integrate_r1(r1):
+        def integrate_r2(r2):
+            r = jnp.array([r1, r2])
+            return integrand(s, r)  # shape (400, 400)
+        return quadgk(integrate_r2, [ymin, ymax])[0]  # shape (400, 400)
+    return quadgk(integrate_r1, [xmin, xmax])[0]  # shape (400, 400)
 
-time_inf_n   = time_jit(key, jit_inf_n, inp_tree, n=100)
-time_inf_y   = time_jit(key, jit_inf_y, inp_tree, n=100)
+
+con_M_old = self.con_M
+
+
+time_old = utils.time_jit(key, con_M_old, ks, n=200)
+time_new = utils.time_jit(key, con_M_new, ks, n=200)
+
+
+print("New compile/compute", time_new.compile_time, time_new.average_time)
+print("Old compile/compute", time_old.compile_time, time_old.average_time)

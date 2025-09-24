@@ -18,6 +18,7 @@ from jaxidem.utils import create_grid
 import imageio
 import os
 
+import shutil
 
 try:
     import plotly.graph_objects as go
@@ -279,19 +280,29 @@ def save_st_gif(frames,
     # Create a temporary folder
     os.makedirs("frames", exist_ok=True)
 
+    base_layout = dict(
+        xaxis=dict(showticklabels=showticklabels),
+        yaxis=dict(showticklabels=showticklabels, scaleanchor="x"),
+        width=800,
+        height=600
+    )
+    
     # Save each frame as PNG
     for i, frame in enumerate(frames):
         fig = go.Figure(data=frame.data)
         apply_theme(fig, fontsize=20)
-        fig.update_layout(
-            xaxis=dict(showticklabels=showticklabels),
-            yaxis=dict(showticklabels=showticklabels, scaleanchor="x")
-        )
+        fig.update_layout(**base_layout)
         fig.write_image(f"frames/frame_{i:03d}.png", width=800, height=600)
 
     # Stitch into GIF
     images = [imageio.imread(f"frames/frame_{i:03d}.png") for i in range(len(frames))]
     imageio.mimsave(filename, images, duration=0.1, loop=0)  # duration in seconds per frame
+
+    try:
+        shutil.rmtree("frames")
+    except Exception as e:
+        print(f"Warning: could not delete temp folder: {e}")
+
 
 
 def kernel_plot(kernel):

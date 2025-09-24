@@ -1,4 +1,4 @@
-project:
+\project:
   title: "JAX-IDEM"
   type: website
   output-dir: docs
@@ -55,6 +55,11 @@ quartodoc:
   package: jaxidem
   css: reference/_styles-quartodoc.css
   sections:
+    - title: IDEM
+      desc: The idem.Model class and surrounded classes and functions.
+      contents:
+        - idem.Model
+        - idem.Model.fit_mle
     - title: Filtering Methods
       desc: Various forms of the Kalman filter, each with its own stability and performance profile. For more information, see [Filtering Scaling](../site/filtering_scaling.qmd).
       contents:
@@ -73,4 +78,6 @@ quartodoc:
         - utils.random_basis
         - utils.place_cosine_basis
         - utils.st_data
+        - utils.pd_to_st
         - utils.time_jit
+        - utils.flatten_and_unflatten

@@ -425,6 +425,21 @@ wheels = [
 ]
 
 [[package]]
+name = "equinox"
+version = "0.13.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jax" },
+    { name = "jaxtyping" },
+    { name = "typing-extensions" },
+    { name = "wadler-lindig" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c8/43/2b7b3895f910f2335ade18a261b3f77ce9466605adbb211c4e254ad14b25/equinox-0.13.1.tar.gz", hash = "sha256:e90f11cfe66b2f73f5c172260a17c48851794a0f243dd2cbe4ea70f4c90cbd07", size = 139339, upload-time = "2025-09-20T15:21:40.199Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/10/9c0687024ce9e478a667262d111fb15502828d28c93482b48446e3558efd/equinox-0.13.1-py3-none-any.whl", hash = "sha256:3c6e9043352c9a63216b40e3f3cdd1d1452f82a0175cfe322f79630ebdb80d71", size = 179254, upload-time = "2025-09-20T15:21:38.679Z" },
+]
+
+[[package]]
 name = "executing"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -691,6 +706,7 @@ dependencies = [
     { name = "optax" },
     { name = "pandas" },
     { name = "pytest" },
+    { name = "quadax" },
     { name = "quarto" },
     { name = "seaborn" },
     { name = "tqdm" },
@@ -721,6 +737,7 @@ requires-dist = [
     { name = "plotly", marker = "extra == 'plotting'", specifier = ">=6.1.1" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest", marker = "extra == 'test'" },
+    { name = "quadax", specifier = ">=0.2.9" },
     { name = "quarto", specifier = ">=0.1.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "tqdm", specifier = ">=4.67.1" },
@@ -1961,6 +1978,20 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/76/0c/3a633acd762aa6655fcb71fa841907eae0ab1e8582ff494b137266de341d/pyzmq-26.4.0-pp311-pypy311_pp73-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:43b03c1ceea27c6520124f4fb2ba9c647409b9abdf9a62388117148a90419494", size = 798248, upload-time = "2025-04-04T12:05:17.376Z" },
     { url = "https://files.pythonhosted.org/packages/cd/cc/6c99c84aa60ac1cc56747bed6be8ce6305b9b861d7475772e7a25ce019d3/pyzmq-26.4.0-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7731abd23a782851426d4e37deb2057bf9410848a4459b5ede4fe89342e687a9", size = 756757, upload-time = "2025-04-04T12:05:19.19Z" },
     { url = "https://files.pythonhosted.org/packages/13/9c/d8073bd898eb896e94c679abe82e47506e2b750eb261cf6010ced869797c/pyzmq-26.4.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:a222ad02fbe80166b0526c038776e8042cd4e5f0dec1489a006a1df47e9040e0", size = 555371, upload-time = "2025-04-04T12:05:20.702Z" },
+]
+
+[[package]]
+name = "quadax"
+version = "0.2.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "equinox" },
+    { name = "jax" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f6/a0/df4a3f61e90039e8e70100199d4b80a2529e876cebba8818c86218e6ea83/quadax-0.2.9.tar.gz", hash = "sha256:594ffddc0af894d9d89fd145dc3907168d6ead29e05e266548b2365b850eda51", size = 35445, upload-time = "2025-07-31T00:31:46.377Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/e9/07b545bda225fb8ccff5e5d20361bd90f352d8df8380adcd5f59e149ca65/quadax-0.2.9-py3-none-any.whl", hash = "sha256:41c72d919294a2db3afa797d1ea1183f960d04f4aaec383267d16df68c76e267", size = 30730, upload-time = "2025-07-31T00:31:45.09Z" },
 ]
 
 [[package]]

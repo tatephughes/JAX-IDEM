@@ -36,9 +36,21 @@ class Grid(NamedTuple):
     with some key quantities such as the lenth between grid points, the
     number of grid points and the area/volume of each grid square/cube.
     Supports arbitrarily high dimension.
-    Ideally, in the future, this will support non-regular grids with any
-    necessary quantities to do, for example, integration over the points on the
-    grid.
+
+    Attributes
+    ----------
+    coords : Float[Array, "n dim"]
+        The coordinates of all grid points, stored as an array of shape (n, dim).
+    deltas : Float[Array, "dim"]
+        The spacing between grid points along each dimension.
+    ngrids : Int[Array, "dim"]
+        The number of grid points along each axis.
+    ngrid : int
+        The total number of grid points (i.e., n = product of ngrids).
+    dim : int
+        The spatial dimension of the grid.
+    area : float
+        The area (in 2D) or volume (in 3D) of each grid cell.
 
     Notes
     -----
@@ -46,6 +58,10 @@ class Grid(NamedTuple):
 
         - `dim` : the space dimension
         - `n` : the number of points on the grid
+
+    Ideally, in the future, this will support non-regular grids with any
+    necessary quantities to do, for example, integration over the points on the
+    grid.
     """
 
     coords: Float[Array, "n dim"]
@@ -392,10 +408,22 @@ def place_cosine_basis(
 
 class st_data:
     """
-    For storing spatio-temporal data and appropriate methods for plotting such
-    data, and converting between long and wide formats.
+    Stores spatio-temporal data for use with IDEMs.
 
-    NEEDS MUCH MORE DOCUMENTATION
+    Supports:
+    - Regular spatial grids with arbitrary covariates
+    - Time alignment on a regular lattice
+
+    Limitations:
+    - Assumes regular time spacing
+    - Assumes spatial coordinates are 2D
+    - Wide-format conversion may fail for sparse or irregular data
+
+    Attributes:
+    - x, y, times, z: raw data vectors
+    - covariates: design matrix without intercept (intercept is added in __init__)
+    - full_times: regular time lattice
+    - coords_tree, zs_tree, X_obs_tree: time-sliced views
     """
 
     def __init__(
@@ -419,7 +447,7 @@ class st_data:
             self.covariates = jnp.column_stack(
                 [jnp.ones_like(x), jnp.array(covariates)]
             )
-            self.covariate_labels = covariate_labels.insert(0, "Intercept")
+            self.covariate_labels = ["Intercept"] + list(covariate_labels)
 
         self.data_array = jnp.column_stack(
             (self.x, self.y, self.times, self.z, self.covariates)
@@ -483,8 +511,6 @@ class st_data:
             [self.zs_tree[i], self.X_obs_tree[i]] for i in range(len(self.zs_tree))
         ]
 
-        # self.wide = self.as_wide()
-
     @partial(jax.jit, static_argnames=["self"])
     def tildify(
         self,
@@ -502,178 +528,38 @@ class st_data:
         ztildes_tree = jax.tree.map(entilden, self.tilding_elts, is_leaf=is_leaf)
         return ztildes_tree
 
-    @partial(jax.jit, static_argnames=["self"])
-    def tildify_wide(
-        self,
-        beta,
-    ):
-        def entilden(tup):
-            z, X_obs = tup
-            return z - X_obs @ beta
-
-        def is_leaf(node):
-            return jax.tree.structure(node).num_leaves == 2
-
-        # ztildes = self.z - self.X_obs_stacked @ beta
-        # ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
-        ztildes_tree = jax.tree.map(entilden, self.tilding_elts, is_leaf=is_leaf)
-        return ztildes_tree
-
-    def as_wide(self):
-        """
-        THIS METHOD IS LIMITED; SEEMS TO GET AN ERROR WITH RELATIVELY LOW DIMENSIONS!
-
-        Will likely need to implement in a different way, prehaps forgoeing jax
-        methods.
-        For now, this is simply only applied sparingly, in idem.kal_filter
-        for observation dimension, for example.
-
-        Gives the data in wide format. Any missing data will be represented in
-        the returned matrix as NaN.
-
-        Returns
-        ----------
-        A dictionary containing the x coordinates and y coordinates as JAX
-        arrays, and a matrix corresponding to the value of the process at
-        each time point (columns) and spatial point (rows).
-        """
-        data_array = self.data_array
-        zs_and_covs = jnp.column_stack([self.z, self.covariates])
-
-        full_times = self.full_times
-        xycoords = self.coords
-        # nlocs = data_array.shape[0]
-
-        p = self.covariates.shape[1]
-
-        @jax.jit
-        def getval(xy, t):
-            xyt = jnp.hstack((xy, t))
-            index = jnp.argwhere(
-                jnp.all(data_array[:, 0:3] == xyt, axis=1), size=1, fill_value=-1
-            )[0][0]
-            tup = jax.lax.cond(
-                index == -1,
-                lambda x: (jnp.array(jnp.nan), jnp.full((p,), jnp.nan)),
-                lambda x: (self.z[x], self.covariates[x]),
-                index,
-            )
-            return tup
-
-        # @jax.jit
-        # def extract(array):  # (from a generative model, dont trust!)
-        #    array_no_nan = jax.numpy.nan_to_num(array, nan=0.0)
-        #    float_value = jnp.sum(array_no_nan)
-        #    return float_value
-        # @jax.jit
-        # def getval(xy, t):
-        #    xyt = jnp.hstack((xy, t))
-        #    mask = jnp.all(data_array[:, 0:3] == xyt, axis=1)
-        #    masked = jnp.where(mask, data_array[:, 3], jnp.tile(jnp.nan, nlocs))
-        #    return jl.cond(
-        #        jnp.all(jnp.isnan(masked)),
-        #        lambda x: jnp.nan,
-        #        lambda x: extract(masked),
-        #        0,
-        #    )
-
-        z_X_obs_mat = outer_op(xycoords, full_times, getval)
-
-        z_mat = z_X_obs_mat[:, :, 0]
-        X_obs_mat = z_X_obs_mat[:, :, 1:]
-
-        return {
-            "x": xycoords[:, 0],
-            "y": xycoords[:, 1],
-            "z_mat": z_mat,
-            "X_obs_mat": X_obs_mat,
-        }
-
-    def show_plot(self):
-        nrows = int(jnp.ceil(self.T / 3))
-
-        # Create a figure and axes for the subplots
-        with plt.style.context("seaborn-v0_8-dark-palette"):
-            fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
-            axes = axes.flatten()
-
-            vmin = jnp.min(self.z)
-            vmax = jnp.max(self.z)
-
-            # Loop through each time point and create a scatter plot
-            for i in range(self.T):
-                # fairly sure this should use jnp.where or similar
-                x = self.coords_tree[i][:, 0]
-                y = self.coords_tree[i][:, 1]
-                values = self.zs_tree[i]
-
-                scatter = axes[i].scatter(
-                    x,
-                    y,
-                    c=values,
-                    cmap="viridis",
-                    vmin=vmin,
-                    vmax=vmax,
-                )
-                axes[i].set_title(f"Time = {i}", fontsize=11)
-                # axes[t].set_xlabel("x", fontsize=9)
-                # axes[t].set_ylabel("y", fontsize=9)
-                axes[i].tick_params(
-                    axis="both", which="major", labelsize=5
-                )  # Set tick labels font size
-
-                # Add color bar
-                fig.colorbar(scatter, ax=axes[i])
-
-            fig.tight_layout()
-            fig.show()
-
-    def save_plot(self, filename, width=6, height=1.5, dpi=300):
-        nrows = int(jnp.ceil(self.T / 3))
-
-        # Create a figure and axes for the subplots
-        with plt.style.context("seaborn-v0_8-dark-palette"):
-            fig, axes = plt.subplots(nrows, 3, figsize=(6, nrows * 1.5))
-            axes = axes.flatten()
-
-            vmin = jnp.min(self.z)
-            vmax = jnp.max(self.z)
-
-            # Loop through each time point and create a scatter plot
-            for i in range(self.T):
-                # fairly sure this should use jnp.where or similar
-                x = self.coords_tree[i][:, 0]
-                y = self.coords_tree[i][:, 1]
-                values = self.zs_tree[i]
-
-                scatter = axes[i].scatter(
-                    x,
-                    y,
-                    c=values,
-                    cmap="viridis",
-                    vmin=vmin,
-                    vmax=vmax,
-                )
-                axes[i].set_title(f"Time = {i}", fontsize=11)
-                # axes[t].set_xlabel("x", fontsize=9)
-                # axes[t].set_ylabel("y", fontsize=9)
-                axes[i].tick_params(
-                    axis="both", which="major", labelsize=5
-                )  # Set tick labels font size
-
-                # Add color bar
-                fig.colorbar(scatter, ax=axes[i])
-
-            fig.tight_layout()
-            fig.savefig(filename, dpi=dpi)
-            plt.close()
-
-    def save_gif(self):
-        """UNIMPLEMENTED"""
-        return None
-
 
 def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=None):
+    """
+    Converts a pandas DataFrame into a `st_data` object for spatio-temporal modeling.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The input DataFrame containing spatio-temporal data.
+    xlabel : str
+        Column name for the x spatial coordinate.
+    ylabel : str
+        Column name for the y spatial coordinate.
+    tlabel : str
+        Column name for the time variable. Can be datetime, string, float, or int.
+        This will be converted into seconds for datetime or string types.
+    zlabel : str
+        Column name for the observed process value.
+    covariate_labels : list of str, optional
+        List of column names for covariates. An intercept column is automatically added.
+
+    Returns
+    -------
+    st_data
+        A structured spatio-temporal data object with time-sliced views and covariate matrix.
+
+    Notes
+    -----
+    - If `covariate_labels` is None, a single intercept column is used.
+    - Only supports 2D coordinates, and times should fit on a lattice.
+    """
+
     if pd.api.types.is_datetime64_any_dtype(df[tlabel]):
         print(
             "Time inputted is of datetime type. This will be converted to a number corresponding to the seconds since the earliest time."
@@ -744,7 +630,7 @@ def time_jit(key, func, inp_tree, n, noise_scale=1e-5, desc="", device=None):
     Timer function that uses random noise to properly time jit-compiled functions.
     Only takes functions with PyTrees of JAX arrays as inputs.
 
-    Returns a tuple containing the compile time and the average run time.
+    Returns a tuple containing the compile time (attribute `compile_time`) and the average run time (attribute `average_time`, and the result of the computation at its original input (attribute `value`).
     """
 
     func_jit = jax.jit(func)
@@ -788,6 +674,31 @@ constant_basis = place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1)
 
 
 def flatten(tree: PyTree):
+    """
+        Flattens a PyTree into a single 1D JAX array, preserving structure metadata for reconstruction.
+
+        Parameters
+        ----------
+        tree : PyTree
+            A nested structure of JAX arrays (e.g. list, tuple, dict of arrays).
+
+        Returns
+        -------
+        flat_array : jax.Array
+            A 1D array containing all leaf values concatenated in order.
+        leaves : list of jax.Array
+            The individual leaf arrays extracted from the tree.
+        treedef : jax.tree_util.PyTreeDef
+            The structure definition needed to reconstruct the original tree.
+        cumsum : jax.Array
+            Cumulative offsets of each leaf within the flat array (excluding final leaf),
+    useful for slicing or mapping back to leaf boundaries.
+
+        Notes
+        -----
+        - Use `jax.tree_unflatten(treedef, leaves)` to reconstruct the original tree.
+        - This function assumes all leaves are array-like and compatible with `jnp.ravel`.
+    """
     leaves, treedef = jax.tree.flatten(tree)
     flat_array = jnp.concatenate([jnp.ravel(leaf) for leaf in leaves])
     sizes = jnp.array([leaf.size for leaf in leaves])
@@ -797,6 +708,35 @@ def flatten(tree: PyTree):
 
 @partial(jax.jit, static_argnames=["treedef", "cumsum"])
 def unflatten(flat_array, leaves, treedef, cumsum):
+    """
+        Reconstructs a PyTree from a flattened 1D array and shape metadata.
+
+        This function reverses the operation performed by `flatten()`, restoring the original
+    PyTree structure and leaf shapes using the provided `treedef` and `leaves`. It assumes
+    that `flat_array` was created by concatenating the raveled leaves in order.
+
+        Parameters
+        ----------
+        flat_array : jax.Array
+            A 1D array containing all leaf values concatenated.
+        leaves : list of jax.Array
+            The original leaf arrays (used to recover shapes).
+        treedef : jax.tree_util.PyTreeDef
+            The structure definition of the original PyTree.
+        cumsum : jax.Array
+            Cumulative offsets used to split `flat_array` into leaf segments.
+
+        Returns
+        -------
+        tree : PyTree
+            The reconstructed PyTree with original structure and leaf shapes.
+
+        Notes
+        -----
+        - Assumes `utils.flatten()` was used to generate `flat_array`, `leaves`, `treedef`, and `cumsum`.
+        - Leaf shapes are restored using `.reshape(original.shape)` from the original leaves.
+    """
+
     splits = jnp.split(flat_array, cumsum)
     reshaped_leaves = [
         leaf.reshape(original.shape) for leaf, original in zip(splits, leaves)
@@ -805,7 +745,34 @@ def unflatten(flat_array, leaves, treedef, cumsum):
 
 
 def flatten_and_unflatten(tree: PyTree):
-    """WARNING: written with a generative model, seems to make sense and work."""
+    """
+        Flattens a PyTree into a 1D JAX array and returns a JIT-compatible function to reconstruct it.
+
+        This utility is useful for optimization, serialization, or transformation workflows where
+    structured data must be flattened into a single array, but later reconstructed with full shape
+    and structure fidelity.
+
+        Parameters
+        ----------
+        tree : PyTree
+            A nested structure of JAX arrays (e.g. list, tuple, dict of arrays).
+
+        Returns
+        -------
+        flat_array : jax.Array
+            A 1D array containing all leaf values concatenated in order.
+        unflatten : Callable[[jax.Array], PyTree]
+            A JIT-compiled function that reconstructs the original PyTree from a flat array.
+
+        Notes
+        -----
+        - Leaf shapes are preserved using `.reshape()` during reconstruction.
+        - The returned `unflatten` function is statically compiled and safe to use inside JAX transforms.
+        - Useful for parameter packing/unpacking in custom optimizers or probabilistic models.
+
+        WARNING; written with the aid of a generative model. Does the trick, and is simple enough.
+    """
+
     # Flatten the PyTree
     flat_leaves, treedef = jax.tree.flatten(tree)
 

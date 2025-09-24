@@ -187,6 +187,7 @@ Consider whether time should be the first index
 
 ** Send pastoral report tommorrow afternoon
 
+
 * 18th June
 
 ** Why do the filters disagree between preecisions even on small models
@@ -279,5 +280,8 @@ Tomorrow, i want to have some comparisons between the filters in the sydney rada
   - add the satibilised kalman filter
 - write up the psqrt problem please
   - maybe also pinf
+    - Since now all filters get the same value, and pkal already works in dimension r, I have doubts that this would make any difference.
+      - But, like, what if it did tho
+        - what if doing the same 'sufficient statistic' thing as in the inf filter lets you store the likelihood in a more 'complete' way?
 
 - more documentation

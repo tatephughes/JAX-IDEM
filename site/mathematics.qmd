@@ -431,7 +431,7 @@ We then have
 $$\begin{split}
 \bv Z_t &= \Phi \bv \alpha_t + X_{t} \bv \beta + \bv \epsilon_t, \quad t = 1,\dots, T,\\
 \bv \alpha_{t+1} &= M\bv \alpha_t + \bv\eta_t,\quad t = 0,1,\dots, T-1,\\
-M &= \int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s \int_{\mathcal D_s^2}\bv\phi(\bv s) \kappa(\bv s, \bv r; \bv\theta_\kappa)\bv\phi(\bv r)^\intercal d\bv r d \bv s,
+M &= \left[\int_{\mathcal D_s}\bv\phi(\bv s) \bv\phi(\bv s)^\intercal d\bv s\right]^{-1} \int_{\mathcal D_s^2}\bv\phi(\bv s) \kappa(\bv s, \bv r; \bv\theta_\kappa)\bv\phi(\bv r)^\intercal d\bv r d \bv s,
 \end{split}
 $$
 

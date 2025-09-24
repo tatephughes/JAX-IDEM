@@ -4,7 +4,7 @@ import jax.random as rand
 import jax
 import jax.numpy as jnp
 import jax.lax as jl
-from jax.numpy.linalg import solve
+from jax.scipy.linalg import solve
 from jax_tqdm import scan_tqdm
 from tqdm.auto import tqdm
 import optax
@@ -171,6 +171,84 @@ class Model:
     process grid and all involved bases must be manually made to be the domain
     of interest.
     To build a model using a dataset as a base, use init_model.
+
+    Example
+    ----------
+
+    ```{python}
+    #| output: false
+    #| eval: false
+
+    import jax
+    import jaxidem.idem as idem
+    import jaxidem.utils as utils
+    import pandas as pd
+
+    radar_df = pd.read_csv('./data/radar_df.csv')
+    radar_data = utils.pd_to_st(radar_df, 's2', 's1', 'time', 'z')
+
+    # Use a cosine basis with 20 frequencies in each axis (400 frequencies total)
+    model = idem.init_model(data=radar_data, basis_type = 'cosine', basis_args=[20])
+
+    ```
+
+    We can get the negative log-likelihood function of the model (using square-root information filter) using `get_log_likelihood`
+
+    ```{python}
+    #| eval: false
+    nll = model.get_log_like(radar_data, method="sqinf", likelihood='full')
+
+    # this function takes arguments similar to `model.params`
+    idem.print_params(model.params)
+    # >>> Parameters:
+    #       S2_eps: 49.88551330566406         <- noise of the basis coefficients
+    #       S2_eta: 49.88551330566406         <- noise of the observation
+    #       Kernel Parameters:                <- defines flow and diffusion of the process
+    #         Scale: [150.00001525878906]     <- these parameters can themselves be basis
+    #         Shape: [0.13500000536441803]       coefficients, allowing for spatiially
+    #         Offset X: [0.0]                    invariant kernels
+    #         Offset Y: [0.0]
+    #       beta: [0.0]                       <- linear coefficients
+
+    print(nll(model.params))
+    # >>> -84666.09
+    ```
+
+    From here, we can do anything with this likelihood; for example, using optax to estimate the MLE
+
+    ```{python}
+    #| eval: false
+    import optax
+
+    nll_val_grad = jax.value_and_grad(nll)
+    optimizer=optax.adam(1e-1)
+    params = model.params
+    opt_state = optimizer.init(model.params)
+
+    for i in range(10): # for reasonable results, need a lot more than this
+        val, grad = nll_val_grad(params)
+        updates, opt_state = optimizer.update(grad, opt_state, params=params)
+        params = optax.apply_updates(params, updates)
+
+    idem.print_params(params)
+    # >>> Parameters:
+    #       S2_eps: 18.12257957458496
+    #       S2_eta: 18.876611709594727
+    #       Kernel Parameters:
+    #         Scale: [407.7012939453125]
+    #         Shape: [0.28592854738235474]
+    #         Offset X: [-0.050182048231363297]
+    #         Offset Y: [-0.02744264155626297]
+    #       beta: [-1.0158119201660156]
+
+    # A new fitted model can be created using `Model.update`
+    fitted_model = model.update(params)
+    ```
+
+    This functionality is also built-in to `Model.fit_mle`.
+    MCMC using BlackJAX is also built-in to `Model.sample_posterior`.
+
+
     """
 
     def __init__(
@@ -313,6 +391,10 @@ class Model:
         alpha_0=None,
         dt=None,
     ):
+        """
+        Runs a simulation of the IDEM, generating the process at the models process_grid, and observations at given x, y, and times,
+        """
+
         M = self.M
         PHI_proc = self.PHI_proc
         beta = self.beta
@@ -444,7 +526,7 @@ class Model:
 
             return objective
 
-        elif method in ("inf", "sqinf", "parallel"):
+        elif method in ("inf", "sqinf", "parallel", "ikalman"):
             zs_tree = obs_data.zs_tree
 
             obs_locs_tree = obs_data.coords_tree
@@ -474,6 +556,10 @@ class Model:
                     init_vec = m_0
                     init_mat = P_0
                     filterer = filts.pkal_filter
+                case "ikalman":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.ikal_filter
 
             @jax.jit
             def objective(params):
@@ -759,7 +845,7 @@ class Model:
         data likelihood, computed by the standard Kalman filter, using a given
         OPTAX optimiser.
 
-        Params
+        Parameters
         ----------
         obs_data: st_data
           The observed data, as an st_data object containing the data to be fit
@@ -799,7 +885,7 @@ class Model:
         loading_bar:bool = True
           Displays a tqdm bar during the main loop.
 
-        Returns: tuple
+        Returns
         ----------
         A tuple containing a new, fitted idem.IDEM object and the corresponding
         parameters.

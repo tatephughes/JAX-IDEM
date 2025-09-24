@@ -3,10 +3,12 @@ import jax.numpy as jnp
 
 from jaxidem.filters.kal_filter import kal_filter
 from jaxidem.filters.skal_filter import skal_filter
+from jaxidem.filters.ikal_filter import ikal_filter
 from jaxidem.filters.inf_filter import inf_filter
 from jaxidem.filters.sqrt_filter import sqrt_filter
 from jaxidem.filters.sqinf_filter import sqinf_filter
 from jaxidem.filters.pkal_filter import pkal_filter
+from jaxidem.filters.spkal_filter import spkal_filter
 
 
 def invert_information(nus, Qs):
@@ -81,6 +83,23 @@ def test_all_filters_agree(shared_inputs):
     )
     ms_skf, Ps_skf = skf["ms"], skf["Ps"]
     ll_skf = skf["ll"]
+
+    # 1.5.5) Pseudo-information filter
+    ikf = ikal_filter(
+        m_0=shared_inputs["m_0"],
+        P_0=shared_inputs["P_0"],
+        M=shared_inputs["M"],
+        PHI_tree=shared_inputs["PHI_tree"],
+        S2_eta=shared_inputs["S2_eta"],
+        S2_eps_tree=shared_inputs["S2_eps_tree"],
+        zs_tree=shared_inputs["zs_tree"],
+        S2_eta_shape=shared_inputs["S2_eta_shape"],
+        S2_eps_shape=shared_inputs["S2_eps_shape"],
+        forecast=shared_inputs["forecast"],
+        likelihood=shared_inputs["likelihood"],
+    )
+    ms_ikf, Ps_ikf = ikf["ms"], ikf["Ps"]
+    ll_ikf = ikf["ll"]
 
     # 2) Information Filter
     inf = inf_filter(
@@ -158,13 +177,31 @@ def test_all_filters_agree(shared_inputs):
     ms_pk, Ps_pk = pk["ms"], pk["Ps"]
     ll_pk = pk["ll"]
 
+    # 5) Parallel Kalman Filter
+    spk = spkal_filter(
+        m_0=shared_inputs["m_0"],
+        P_0=shared_inputs["P_0"],
+        M=shared_inputs["M"],
+        PHI_tree=shared_inputs["PHI_tree"],
+        S2_eta=shared_inputs["S2_eta"],
+        S2_eps_tree=shared_inputs["S2_eps_tree"],
+        zs_tree=shared_inputs["zs_tree"],
+        S2_eta_shape=shared_inputs["S2_eta_shape"],
+        S2_eps_shape=shared_inputs["S2_eps_shape"],
+        likelihood=shared_inputs["likelihood"],
+    )
+    ms_spk, Ps_spk = spk["ms"], spk["Ps"]
+    ll_spk = spk["ll"]
+
     # Now compare all to the standard Kalman outputs
     for name, (ms_i, Ps_i, ll_i) in {
         "skf": (ms_skf, Ps_skf, ll_skf),
+        "ikf": (ms_ikf, Ps_ikf, ll_ikf),
         "inf": (ms_inf, Ps_inf, ll_inf),
         "sqrt": (ms_sq, Ps_sq, ll_sq),
         "sqinf": (ms_sqinf, Ps_sqinf, ll_sqinf),
         "pkal": (ms_pk, Ps_pk, ll_pk),
+        "spkal": (ms_spk, Ps_spk, ll_spk),
     }.items():
         # means
         assert jnp.allclose(ms_kf, ms_i, atol=1e-5), f"{name} means differ"

@@ -206,6 +206,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/filters.skal_filter.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">filters.skal_filter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/filters.inf_filter.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">filters.inf_filter</span></a>
   </div>
@@ -452,27 +458,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="notes" class="level4 doc-section doc-section-notes" data-number="1.1.1.3">
 <h4 class="doc-section doc-section-notes anchored" data-number="1.1.1.3" data-anchor-id="notes"><span class="header-section-number">1.1.1.3</span> Notes</h4>
-<p>The return type is KalmanResults, containing</p>
-<pre><code>- `ll` : float
-    - Log-likelihood value (possibly up to an additive constant).
-
-- `ms` : PyTree[Float[Array, "T r"]]
-    - Posterior means at each time step.
-
-- `Ps` : PyTree[Float[Array, "T r r"]]
-    - Posterior covariance matrices at each time step.
-
-- `mpreds` : PyTree[Float[Array, "T r"]]
-    - Predicted means at each time step.
-
-- `Ppreds` : PyTree[Float[Array, "T r r"]]
-    - Predicted covariance matrices at each time step.
-
-- `mforecast` : Float[Array, "forecast r"]
-    - Forecast means.
-
-- `Pforecast` : Float[Array, "forecast r r"]
-    - Forecast covariance matrices.</code></pre>
+<p>The return type is KalmanResults, containing: - <code>ll</code> : float - Log-likelihood value (possibly up to an additive constant). - <code>ms</code> : PyTree[Float[Array, “T r”]] - Posterior means at each time step. - <code>Ps</code> : PyTree[Float[Array, “T r r”]] - Posterior covariance matrices at each time step. - <code>mpreds</code> : PyTree[Float[Array, “T r”]] - Predicted means at each time step. - <code>Ppreds</code> : PyTree[Float[Array, “T r r”]] - Predicted covariance matrices at each time step. - <code>mforecast</code> : Float[Array, “forecast r”] - Forecast means. - <code>Pforecast</code> : Float[Array, “forecast r r”] - Forecast covariance matrices.</p>
 <p>Symbolic dimensions:</p>
 <ul>
 <li><code>r</code> : state dimension</li>
