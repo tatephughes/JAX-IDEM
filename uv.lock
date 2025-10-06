@@ -698,6 +698,7 @@ version = "0.1.20"
 source = { editable = "." }
 dependencies = [
     { name = "blackjax" },
+    { name = "imageio" },
     { name = "jax-tqdm" },
     { name = "jaxlib" },
     { name = "jaxtyping" },
@@ -725,6 +726,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "blackjax", specifier = ">=1.2.5" },
+    { name = "imageio", specifier = ">=2.37.0" },
     { name = "imageio", marker = "extra == 'plotting'", specifier = ">=2.37.0" },
     { name = "jax-tqdm", specifier = ">=0.3.1" },
     { name = "jaxlib", specifier = ">=0.5.0" },

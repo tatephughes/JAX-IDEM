@@ -117,6 +117,8 @@ def sqinf_filter(
         - `n` : observation dimension (may vary per time step)
         - `T` : number of time steps
         - `forecast` : number of forecast steps
+
+    Note that PHI_tree must all have full row rank.
     """
 
     r = nu_0.shape[0]
@@ -135,7 +137,7 @@ def sqinf_filter(
         match S2_eps_shape:
             case 0:
                 i_k = PHI_k.T @ z_k / S2_eps_k
-                # Below cholseky _should_ be faster, but is much less stable; why?
+                # Below cholesky _should_ be faster, but is much less stable; why?
                 # R_k = safe_qr(PHI_k) / jnp.sqrt(S2_eps_k)
                 # R_k = jnp.linalg.qr((PHI_k), mode="r") / jnp.sqrt(S2_eps_k)
                 # R_k = safe_cholesky(PHI_k.T @ PHI_k / S2_eps_k)
@@ -145,7 +147,7 @@ def sqinf_filter(
                 i_k = PHI_k.T @ st(
                     sigma_eps, st(sigma_eps.T, z_k, lower=False), lower=True
                 )
-                R_k = jnp.linalg.qr(st(sigma_eps.T, PHI_k, lower=False), mode="r")
+                R_k = jnRp.linalg.qr(st(sigma_eps.T, PHI_k, lower=False), mode="r")
             case 2:
                 sigma_eps = jnp.linalg.cholesky(S2_eps_k)
                 i_k = PHI_k.T @ st(

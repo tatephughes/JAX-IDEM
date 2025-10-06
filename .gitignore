@@ -83,3 +83,4 @@ jax.iml
 
 # results
 site/results/*
+**/*.quarto_ipynb

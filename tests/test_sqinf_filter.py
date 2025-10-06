@@ -30,6 +30,8 @@ def simple_sqinf_inputs():
         S2_eps_shape=0,
     )
 
+# Aight so this pytest does NOT check for nans, which absolutely happen here.
+# Problem is, sqinf filter downright FAILS for n<r, which is EXPECTED BEHAVIOUR
 
 @pytest.mark.parametrize("likelihood", ["none", "partial", "full"])
 def test_sqinf_filter_shapes_and_keys(simple_sqinf_inputs, likelihood):

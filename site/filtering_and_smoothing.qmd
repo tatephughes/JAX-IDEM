@@ -76,6 +76,7 @@ import plotly.graph_objs as go
 
 import pandas as pd
 import pickle
+
 ```
 
 ```{python}
@@ -95,18 +96,19 @@ zs = []
 T = 50
 keys = jax.random.split(key, T*2)
 
-sigma2_eta = jnp.array(0.001)
-sigma2_eps = jnp.array(0.01)
+S2_eta = jnp.array(0.001)
+S2_eps = jnp.array(0.01)
 
 PHI = jnp.array([[1, 0], [0.6, 0.4], [0.4, 0.6]])
+
 ```
 
 
 ```{python}
-#| eval: false
+#| eval: true
 for i in range(T):
-    alphas.append(M @ alphas[i] + jnp.sqrt(sigma2_eta)*jax.random.normal(keys[2*i], shape=(2,)))
-    zs.append(PHI @ alphas[i+1] + jnp.sqrt(sigma2_eps)*jax.random.normal(keys[2*i+1], shape=(3,)))
+    alphas.append(M @ alphas[i] + jnp.sqrt(S2_eta)*jax.random.normal(keys[2*i], shape=(2,)))
+    zs.append(PHI @ alphas[i+1] + jnp.sqrt(S2_eps)*jax.random.normal(keys[2*i+1], shape=(3,)))
 
 
 alphas = jnp.array(alphas)
@@ -115,15 +117,19 @@ zs_tree = zs
 alphas_df = pd.DataFrame(alphas, columns = ["x", "y"])
 zs_df = pd.DataFrame(zs, columns = ["x", "y", "z"])
 
-with open('./pickles/alphas.pkl', 'wb') as file:
-    pickle.dump((alphas, zs_tree, alphas_df, zs_df), file)
+# for testing
+
+S2_eta = S2_eps
+S2_eps_tree = [S2_eps]*T
+PHI_tree = [PHI]*T
+likelihood = 'full'
+S2_eps_shape = 0
+S2_eta_shape = 0
+
+m_0 = jnp.zeros(2)
+P_0 = 100*jnp.eye(2)
+U_0 = jnp.linalg.cholesky(P_0)
     
-```
-
-
-```{python}
-with open('./pickles/alphas.pkl', 'rb') as file: 
-    alphas, zs_tree, alphas_df, zs_df = pickle.load(file)
 ```
 
 ```{python}
@@ -167,25 +173,25 @@ We do this with two 'forms' of the filter, which should be equivalent.
 m_0 = jnp.zeros(2)
 P_0 = 100*jnp.eye(2)
 
-# We need to give the dimensions of both sigma2_eps and sigma2_eta.
+# We need to give the dimensions of both S2_eps and S2_eta.
 # Since our errors are all iid, this is 0
-sigma2_eps_dim = sigma2_eps.ndim
-sigma2_eta_dim = sigma2_eta.ndim
+S2_eps_shape = S2_eps.ndim
+S2_eta_shape = S2_eta.ndim
 
 
-filt_results = filt.kalman_filter(m_0,
-                                  P_0,
-                                  M,
-                                  PHI,
-                                  sigma2_eta,
-                                  sigma2_eps,
-                                  zs_tree,
-                                  sigma2_eps_dim = sigma2_eps_dim,
-                                  sigma2_eta_dim = sigma2_eta_dim,
-                                  forecast=0,
-                                  likelihood='full'
-    )
-    
+filt_results = filt.kal_filter(m_0,
+                               P_0,
+                               M,
+                               PHI,
+                               S2_eta,
+                               S2_eps,
+                               zs_tree,
+                               S2_eps_shape = S2_eps_shape,
+                               S2_eta_shape = S2_eta_shape,
+                               forecast=0,
+                               likelihood='full'
+                               )
+
 ms_df = pd.DataFrame(list(filt_results['ms']), columns = ["x", "y"])
 
 combined_df = pd.concat([alphas_df.assign(line='True Process'), ms_df.assign(line='Filtered Process Means')])
@@ -199,54 +205,6 @@ fig3.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), ya
 fig3.show()
 ```
 
-## Pseudo-information filter?
-
-This is a test.
-
-```{python}
-#| eval: false
-#| label: fig-alt
-#| fig-caption: "The pseudo-infomration filtered means"
-
-i = PHI.T @ zs / sigma2_eps
-I = PHI.T @ PHI / sigma2_eps
-
-filt_results_alt = filt.kalman_filter(m_0,
-                                  P_0,
-                                  M,
-                                  I,
-                                  sigma2_eta,
-                                  I,
-                                  i,
-                                  sigma2_eps_dim = 2,
-                                  sigma2_eta_dim = sigma2_eta_dim,
-                                  forecast=0,
-                                  likelihood='full'
-    )
-ms_df_alt = pd.DataFrame(list(filt_results_alt['ms']), columns = ["x", "y"])
-
-combined_df = pd.concat([alphas_df.assign(line='True Process'), ms_df_alt.assign(line='Filtered Process Means')])
-
-# Creating the line plot with custom colors
-fig_alt = px.line(combined_df, x='x', y='y', color='line',
-               color_discrete_sequence=['blue', 'red'], height=200)  # Specify colors here
-
-fig_alt.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
-# Show the plot
-fig_alt.show()
-print(filt_results_alt["ll"])
-```
-
-Let's check if they really are the same;
-
-```{python}
-#print(jnp.allclose(filt_results['ms'], filt_results_alt['ms'], atol=1e-04))
-#print(jnp.allclose(filt_results['Ps'], filt_results_alt['Ps'], atol=1e-04))
-print(filt_results['ms'][0:5])
-#print(filt_results_alt['ms'][0:5])
-```
-
-
 # Information Filter
 
 Similarily, we can apply the information filter.
@@ -259,21 +217,21 @@ Since the information filter function has support for time varying observation s
 Q_0 = 0.01 * jnp.eye(2) 
 nu_0 = jnp.zeros(2)
 
-PHI_tree = tuple([PHI for _ in range(T)])
-sigma2_eps_tree = tuple([sigma2_eps for _ in range(T)])
+PHI_tree = [PHI]*T
+S2_eps_tree = [S2_eps]*T
 
-filt_results2  = filt.information_filter(nu_0,
-                                         Q_0,
-                                         M,
-                                         PHI_tree,
-                                         sigma2_eta,
-                                         [sigma2_eps for _ in range(T)],
-                                         zs_tree,
-                                         sigma2_eps_dim = sigma2_eps_dim,
-                                         sigma2_eta_dim = sigma2_eta_dim,
-                                         forecast = 0,
-                                         likelihood='full'
-                                         )
+filt_results2  = filt.inf_filter(nu_0,
+                                 Q_0,
+                                 M,
+                                 PHI_tree,
+                                 S2_eta,
+                                 S2_eps_tree,
+                                 zs_tree,
+                                 S2_eps_shape = S2_eps_shape,
+                                 S2_eta_shape = S2_eta_shape,
+                                 forecast = 0,
+                                 likelihood='full'
+                                 )
 
 ms2 = jnp.linalg.solve(filt_results2['Qs'], filt_results2['nus'][..., None]).squeeze(-1)
 
@@ -312,16 +270,16 @@ U_0 = 10*jnp.eye(2)
 # Since we have independant errors, we can use the faster sqrt_filter_indep.
     
 filt_results3 = filt.sqrt_filter(m_0,
-                                         U_0,
-                                         M,
-                                         PHI,
-                                         sigma2_eta,
-                                         sigma2_eps,
-                                         zs_tree,
-                                         sigma2_eps_dim = sigma2_eps_dim,
-                                         sigma2_eta_dim = sigma2_eta_dim,
-                                         forecast=0,
-                                         likelihood='full')
+                                 U_0,
+                                 M,
+                                 PHI,
+                                 S2_eta,
+                                 S2_eps,
+                                 zs_tree,
+                                 S2_eps_shape = S2_eps_shape,
+                                 S2_eta_shape = S2_eta_shape,
+                                 forecast=0,
+                                 likelihood='full')
     
 ms3_df = pd.DataFrame(list(filt_results3['ms']), columns = ["x", "y"])
 
@@ -344,18 +302,18 @@ fig5.show()
 
 R_0 = 0.1*jnp.eye(2)
     
-filt_results4  = filt.sqrt_information_filter(nu_0,
-                                              R_0,
-                                              M,
-                                              PHI_tree,
-                                              sigma2_eta,
-                                              [sigma2_eps for _ in range(T)],
-                                              zs_tree,
-                                              sigma2_eps_dim = sigma2_eps_dim,
-                                              sigma2_eta_dim = sigma2_eta_dim,
-                                              forecast=0,
-                                              likelihood='full'
-                                              )
+filt_results4  = filt.sqinf_filter(nu_0,
+                                   R_0,
+                                   M,
+                                   PHI_tree,
+                                   S2_eta,
+                                   S2_eps_tree,
+                                   zs_tree,
+                                   S2_eps_shape = S2_eps_shape,
+                                   S2_eta_shape = S2_eta_shape,
+                                   forecast=0,
+                                   likelihood='full'
+                                   )
 
 Qs2 = jnp.matmul(jnp.transpose(filt_results4['Rs'], (0, 2, 1)), filt_results4['Rs'])
 
@@ -382,169 +340,7 @@ print(filt_results3['ll'])
 print(filt_results4['ll'])
 ```
 
-# Fitting
-
-Let's 'forget' some of the details of the original model; the propegation matrix $M$ and the variances $\sigma^2_\epsilon$ and $\sigma^2_\eta$ (though we keep the assumption that everything is independant)
-
-```{python}
-#| eval: false
-#| label: fig-kalman-fitted
-#| fig-caption: "The (Kalman) fitted and filtered means"
-
-# initial guesses
-
-def objective_kalman(params):
-    M = params['M']
-    sigma2_eps = jnp.exp(params['log_sigma2_eps'])
-    sigma2_eta = jnp.exp(params['log_sigma2_eta'])
-
-    Sigma_eta = sigma2_eta * jnp.eye(2)
-    Sigma_eps = sigma2_eps * jnp.eye(3)
-
-    ll, ms, Ps, _, _, _ = fsf.kalman_filter(m_0,
-                                            P_0,
-                                            M,
-                                            PHI,
-                                            Sigma_eta,
-                                            Sigma_eps,
-                                            zs.T,
-                                            likelihood="full")
-    return -ll
-
-objk_grad = jax.grad(objective_kalman)
-             
-import optax
-
-# initial guesses
-param0 = {"M": jnp.eye(2),
-          "log_sigma2_eps": jnp.log(jnp.array(0.01)),
-          "log_sigma2_eta": jnp.log(jnp.array(0.01))}
-start_learning_rate = 1e-1
-optimizer = optax.adam(start_learning_rate)
-param_ad = param0
-opt_state = optimizer.init(param_ad)
-import time
-start_time = time.time()
-                                   
-for i in range(50):
-    grad = objk_grad(param_ad)
-    updates, opt_state = optimizer.update(grad, opt_state)
-    param_ad = optax.apply_updates(param_ad, updates)
-    nll = objective_kalman(param_ad)
-#    print(nll)
-
-ll, ms3, Ps, _, _, _ = fsf.kalman_filter(m_0,
-                                         P_0,
-                                         param_ad['M'],
-                                         PHI,
-                                         jnp.exp(param_ad['log_sigma2_eta'])*jnp.eye(2),
-                                         jnp.exp(param_ad['log_sigma2_eps'])*jnp.eye(3),
-                                         zs.T,)
-end_time = time.time()
-
-print(f"Time Elapsed is {end_time - start_time}")
-print(param_ad)
-print("true M is ", M)
-
-ms3_df = pd.DataFrame(list(ms3), columns = ["x", "y"])
-
-combined_df = pd.concat([alphas_df.assign(line='True Process'), ms3_df.assign(line='Filtered Process Means')])
-
-# Creating the line plot with custom colors
-fig4 = px.line(combined_df, x='x', y='y', color='line',
-               color_discrete_sequence=['blue', 'red'], height=200)  # Specify colors here
-
-fig4.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
-# Show the plot
-fig4.show()
-```
-
-These results are great.
-Lets confirm that the information filter is also working, using the same method
-
-```{python}
-#| eval: false
-#| label: fig-information-fitted
-#| fig-caption: "The (information) fitted and filtered means"
-
-@jax.jit
-def objective_info(params):
-    M = params['M']
-    sigma2_eps = jnp.exp(params['log_sigma2_eps'])
-    sigma2_eta = jnp.exp(params['log_sigma2_eta'])
-
-    ll, _, _, _, _ = fsf.information_filter_iid(nu_0,
-                                      Q_0,
-                                      M,
-                                      PHI_tree,
-                                      sigma2_eta,
-                                      sigma2_eps,
-                                      zs_tree,
-                                      likelihood="full")
-    return -ll
-
-obji_grad = jax.grad(objective_info)
-
-# initial guesses
-param0 = {"M": jnp.eye(2),
-          "log_sigma2_eps": jnp.log(jnp.array(0.01)),
-          "log_sigma2_eta": jnp.log(jnp.array(0.01))}
-start_learning_rate = 1e-1
-optimizer = optax.adam(start_learning_rate)
-param_ad = param0
-opt_state = optimizer.init(param_ad)
-
-start_time = time.time()
-
-for i in range(5):
-    grad = obji_grad(param_ad)
-    updates, opt_state = optimizer.update(grad, opt_state)
-    param_ad = optax.apply_updates(param_ad, updates)
-    nll = objective_info(param_ad)
-    #print(nll)
-
-ll, nus, Qs, _, _ = fsf.information_filter_iid(nu_0,
-                                     Q_0,
-                                     param_ad['M'],
-                                     PHI_tree,
-                                     jnp.exp(param_ad['log_sigma2_eta']),
-                                     jnp.exp(param_ad['log_sigma2_eps']),
-                                     zs_tree,)
-
-ms4 = jnp.linalg.solve(Qs, nus[..., None]).squeeze(-1)
-                                                                     
-#ll, nus, Qs = fsf.information_filter_iid(nu_0,
-#                                           P_0,
-#                                           param_ad['M'],
-#                                           PHI_tree,
-#                                           param_ad['sigma2_eta'],
-#                                           param_ad['sigma2_eps'],
-#                                           zs_tree,)
-
-                                                                
-end_time = time.time()
-                                                                                         
-print(f"Time Elapsed is {end_time - start_time}")
-print(param_ad)
-print("true M is ", M)
-
-ms4_df = pd.DataFrame(list(ms4), columns = ["x", "y"])
-
-combined_df = pd.concat([alphas_df.assign(line='True Process'), ms4_df.assign(line='Filtered Process Means')])
-
-# Creating the line plot with custom colors
-fig5 = px.line(combined_df, x='x', y='y', color='line',
-               color_discrete_sequence=['blue', 'green'], height=200)  # Specify colors here
-
-fig5.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
-# Show the plot
-fig5.show()
-```
-
-
-
-
-# Parallel Kalman Filter
+## Parallel Kalman Filter
 
 
 ```{python}
@@ -554,18 +350,15 @@ fig5.show()
 Q_0 = 0.01 * jnp.eye(2)  
 nu_0 = jnp.zeros(2) 
 
-PHI_tree = tuple([PHI for _ in range(T)])
-sigma2_eps_tree = tuple([sigma2_eps for _ in range(T)])
-
-filt_resultsp  = filt.pkalman_filter(m_0,
+filt_resultsp  = filt.pkal_filter(m_0,
                                      P_0,
                                      M,
                                      PHI_tree,
-                                     sigma2_eta,
-                                     [sigma2_eps for _ in range(T)],
+                                     S2_eta,
+                                     S2_eps_tree,
                                      zs_tree,
-                                     sigma2_eps_dim = sigma2_eps_dim, 
-                                     sigma2_eta_dim = sigma2_eta_dim,
+                                     S2_eps_shape = S2_eps_shape, 
+                                     S2_eta_shape = S2_eta_shape,
                                      likelihood='full'
                                      )
 
@@ -583,8 +376,50 @@ fig6.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), ya
 fig6.show() 
 ```
 
+```{python}
+jnp.abs(filt_resultsp['ms'] - filt_results['ms']).max() 
+```
+
+```{python}
+#| label: fig-psfilt
+#| fig-caption: "The (sqrt parallel) filtered means"
+
+filt_resultsps  = filt.psqrt_filter(m_0,
+                                     U_0,
+                                     M,
+                                     PHI_tree,
+                                     S2_eta,
+                                     S2_eps_tree,
+                                     zs_tree,
+                                     S2_eps_shape = S2_eps_shape, 
+                                     S2_eta_shape = S2_eta_shape,
+                                     likelihood='full'
+                                     )
+
+msps_df = pd.DataFrame(list(filt_resultsps['ms']), columns = ["x", "y"])
+
+combined_df = pd.concat([alphas_df.assign(line='True Process'), msps_df.assign(line='Sqrt Parallel Filtered Process Means')])
+
+
+# Creating the line plot with custom colors
+fig6 = px.line(combined_df, x='x', y='y', color='line',
+               color_discrete_sequence=['blue', 'green'], height=400)  # Specify colors here
+
+fig6.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
+# Show the plot
+fig6.show() 
+```
+
+```{python}
+jnp.abs(filt_resultsps['ms'] - filt_results['ms']).max() 
+```
 
 
 ```{python}
-jnp.abs(filt_resultsp['ms'] - filt_results['ms']).max() 
+print(filt_results['ll'])
+print(filt_results2['ll'])
+print(filt_results3['ll'])
+print(filt_results4['ll'])
+print(filt_resultsp['ll'])
+print(filt_resultsps['ll'])
 ```

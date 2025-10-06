@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax.scipy as jsc
 import jax.lax as jl
 from jax.scipy.linalg import solve_triangular as st
-from jax.scipy.linalg import solve
+
 
 # Typing imports
 from jaxtyping import ArrayLike, PyTree, Array, Float
@@ -14,18 +14,19 @@ from typing import Tuple, Union, Literal, TypedDict
 from functools import partial
 from jaxidem.utils import add_variance
 from jaxidem.utils import mult_variance
+from jaxidem.utils import qr_R
 
 
-class PKalmanResults(TypedDict):
+class PSqrtResults(TypedDict):
     ll: float
     ms: PyTree[Float[Array, "T r"]]
     Ps: PyTree[Float[Array, "T r r"]]
 
 
 @partial(jax.jit, static_argnames=["S2_eta_shape", "S2_eps_shape", "likelihood"])
-def pkal_filter(
+def psqrt_filter(
     m_0: Float[Array, "r"],
-    P_0: Float[Array, "r r"],
+    U_0: Float[Array, "r r"],
     M: Float[Array, "r r"],
     PHI_tree: Union[Float[Array, "1"], Float[Array, "r"], Float[Array, "r r"]],
     S2_eta: Union[Float[Array, "1"], Float[Array, "r"], Float[Array, "r r"]],
@@ -36,7 +37,7 @@ def pkal_filter(
     S2_eta_shape: int,
     S2_eps_shape: int,
     likelihood: Literal["none", "partial", "full"] = "partial",
-) -> PKalmanResults:
+) -> PSqrtResults:
     """
     The Temporally Parallel Kalman Filter.
 
@@ -98,111 +99,118 @@ def pkal_filter(
     """
 
     r = m_0.shape[0]
+    I = jnp.eye(r)
+    
+    match S2_eta_shape:
+       case 0:
+           S_eta = jnp.eye(r) * jnp.sqrt(S2_eta)
+       case 1:
+           S_eta = jnp.diag(jnp.sqrt(S2_eta))
+       case 2:
+           S_eta = jnp.linalg.cholesky(S2_eta)
 
+    # Im not sure this is jit-compatible....
+    #nobs = jax.tree.map(lambda z: z.size, zs_tree)
+    match S2_eps_shape:
+        case 0:
+            S_eps_tree = jax.tree.map(lambda z, s2: jnp.eye(z.size)*jnp.sqrt(s2), zs_tree, S2_eps_tree)
+        case 1:
+            S_eps_tree = jax.tree.map(lambda s2: jnp.diag(jnp.sqrt(s2)), S2_eps_tree)
+        case 2:
+            S_eps_tree = jax.tree.map(jnp.linalg.cholesky, S2_eps_tree)
+        
     # Get first filtering elements
     m1pred = M @ m_0
-    P1pred = add_variance(M @ P_0 @ M.T, S2_eta, S2_eta_shape)
+    U1pred = qr_R(U_0@M.T, S_eta)
 
-    S_1 = add_variance(
-        PHI_tree[0] @ P1pred @ PHI_tree[0].T, S2_eps_tree[0], S2_eps_shape
-    )
+    W_1 = qr_R(U1pred@PHI_tree[0].T, S_eps_tree[0])
 
-    K_1 = solve(S_1, PHI_tree[0] @ P1pred, assume_a="pos").T
+    K_1 = st(W_1, st(W_1.T, PHI_tree[0]@U1pred.T@U1pred, lower=True), lower=False).T
 
     A_1 = jnp.zeros((r, r))
     b_1 = m1pred + K_1 @ (zs_tree[0] - PHI_tree[0] @ m1pred)
-    C_1 = P1pred - K_1 @ S_1 @ K_1.T
+    Uc_1 = qr_R(U1pred@(I - K_1@PHI_tree[0]).T, S_eps_tree[0]@K_1.T)
 
-    nu_1 = M.T @ PHI_tree[0].T @ solve(S_1, zs_tree[0], assume_a="pos")
-    J_1 = M.T @ PHI_tree[0].T @ solve(S_1, PHI_tree[0] @ M, assume_a="pos")
+    nu_1 = M.T @ PHI_tree[0].T @ st(W_1, st(W_1.T, zs_tree[0], lower=False),lower=True)
+    Uj_1 = qr_R(st(W_1.T, PHI_tree[0]@M, lower=True), jnp.zeros((zs_tree[0].size, r)))
 
-    first_elt = (A_1, b_1, C_1, nu_1, J_1)
+    first_elt = (A_1, b_1, Uc_1, nu_1, Uj_1)
 
-    def get_element(z_k, PHI_k, S2_eps_k):
+    def get_element(z_k, PHI_k, S_eps_k):
 
-        s2p = mult_variance(PHI_k, S2_eta, S2_eta_shape)
-        ps2p = PHI_k @ s2p
+        n = z_k.size
 
-        S_k = add_variance(ps2p, S2_eps_k, S2_eps_shape)
-        cholS = jsc.linalg.cho_factor(S_k)
+        W_k = qr_R(S_eta @ PHI_k.T, S_eps_k)
 
-        K_k = (jsc.linalg.cho_solve(cholS, s2p.T)).T
-
-        imkp = jnp.eye(r) - K_k @ PHI_k
-
+        K_k = st(W_k, st(W_k.T, PHI_k @ S_eta @ S_eta.T, lower=True), lower=False).T
+        
+        imkp = (I - K_k @ PHI_k)
+        
         A_k = imkp @ M
         b_k = K_k @ z_k
 
-        C_k = mult_variance(imkp, S2_eta, S2_eta_shape).T
+        Uc_k = qr_R(S_eta @ imkp.T, S_eps_k @ K_k.T)
 
-        nu_k = M.T @ PHI_k.T @ jsc.linalg.cho_solve(cholS, z_k)
-        J_k = M.T @ PHI_k.T @ jsc.linalg.cho_solve(cholS, PHI_k @ M)
+        nu_k = M.T @ PHI_k.T @ st(W_k, st(W_k.T, z_k, lower=True),lower=False)
+        Uj_k = qr_R(st(W_k.T, PHI_k@M, lower=True), jnp.zeros((n, r)))
+        
+        return (A_k, b_k, Uc_k, nu_k, Uj_k)
 
-        return (A_k, b_k, C_k, nu_k, J_k)
+    elts = jax.tree.map(get_element, zs_tree[1:], PHI_tree[1:], S_eps_tree[1:])
 
-    elts = jax.tree.map(get_element, zs_tree[1:], PHI_tree[1:], S2_eps_tree[1:])
-    
-    # this might lead to biig compile times. not 100% sure
-    # all_elts = jax.tree.map(lambda *xs: jnp.stack(xs, axis=0), *((first_elt,) + elts))
     all_elts = jax.tree.map(lambda *xs: jnp.stack(xs, axis=0), first_elt, *elts)
 
-    I = jnp.eye(r)
-    
     @jax.vmap
     def compose(elt_i, elt_j):
-        A_i, b_i, C_i, nu_i, J_i = elt_i
-        A_j, b_j, C_j, nu_j, J_j = elt_j
+        A_i, b_i, Uc_i, nu_i, Uj_i = elt_i
+        A_j, b_j, Uc_j, nu_j, Uj_j = elt_j
 
-        ipcj = I + C_i @ J_j
-        #ipjc = I + J_j @ C_i
-
-        # lots of cho solves, can be simplified maybe
-        A_ij = A_j @ solve(ipcj, A_i)
-        b_ij = A_j @ solve(ipcj, (b_i + C_i @ nu_j)) + b_j
+        # not happy about this
+        C_i = Uc_i.T@Uc_i
+        J_j = Uj_j.T@Uj_j
         
-        C_ij = A_j @ solve(ipcj, C_i @ A_j.T) + C_j
-        #nu_ij = A_i.T @ solve(ipjc, nu_j - J_j @ b_i) + nu_i
-        nu_ij = A_i.T @ solve(ipcj.T, nu_j - J_j @ b_i) + nu_i
-        J_ij = A_i.T @ solve(ipcj.T, J_j @ A_i) + J_i
+        scpcjc = qr_R(Uj_j@C_i, Uc_i)
+        sjpjcj = qr_R(Uc_i@J_j, Uj_j)
 
-        return (A_ij, b_ij, C_ij, nu_ij, J_ij)
+        A_ij = A_j@C_i@st(scpcjc, st(scpcjc.T, A_i, lower=True), lower=False)
+        b_ij = A_j@C_i@st(scpcjc, st(scpcjc.T, b_i + C_i @ nu_j, lower=True), lower=False) + b_j
+        Uc_ij = qr_R(st(scpcjc.T, C_i@A_j.T, lower=True), Uc_j)
+
+        # J_j is only invertible under specific circumstances!
+        nu_ij = A_i.T @ J_j @ st(sjpjcj, st(sjpjcj.T, nu_j - J_j @ b_i, lower=True), lower=False) + nu_i
+        Uj_ij = qr_R(st(sjpjcj.T, J_j, lower=True) @ A_i, Uj_i)
+
+        return (A_ij, b_ij, Uc_ij, nu_ij, Uj_ij)
 
     final_elts = jl.associative_scan(compose, all_elts)
 
     ms = final_elts[1]
-    Ps = final_elts[2]
+    Us = final_elts[2]
     # nu, Q = final_elts[3][-1], final_elts[4][-1]
 
     mpreds = jnp.einsum("ij,tj->ti", M, jnp.vstack([m_0, final_elts[1]])[:-1])
 
-    vadd_eta = jax.vmap(lambda P: add_variance(P, S2_eta, S2_eta_shape))
-
-    vMmult = jax.vmap(lambda P: M.T @ P @ M)
-
-    Ppreds = vadd_eta(
-        jnp.einsum(
-            "ij,tjk,kl->til", M, jnp.vstack([P_0[None, :, :], final_elts[2]])[:-1], M.T
-        )
-    )
+    Upreds = jax.vmap(lambda U: qr_R(U@M.T, S_eta))(jnp.vstack([U_0[None, :, :], Us])[:-1])
 
     if likelihood in ("full", "partial"):
-
+    
         @jax.jit
-        def get_ll(z_k, PHI_k, S2_eps_k, mpred, Ppred):
+        def get_ll(z_k, PHI_k, S_eps_k, mpred, Upred):
 
             n = z_k.size
             
             e = z_k - PHI_k @ mpred
             # Sigma_t = PHI @ P_pred @ PHI.T + S2_eps
-            Sigma_t = add_variance(PHI_k @ Ppred @ PHI_k.T, S2_eps_k, S2_eps_shape)
+            #Sigma_t = add_variance(PHI_k @ Ppred @ PHI_k.T, S_eps_k, S2_eps_shape)
 
-            Ui_t = jnp.linalg.cholesky(Sigma_t)
-            s = st(Ui_t, e, lower=True)
+            Ui_t = qr_R(Upred @ PHI_k.T, S_eps_k)
+            
+            s = st(Ui_t.T, e, lower=True)
 
             match likelihood:
                 case "full":
                     ll = (
-                        -jnp.sum(jnp.log(jnp.diag(Ui_t)))
+                        -jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
                         - 0.5 * jnp.dot(s, s)
                         - 0.5 * n * jnp.log(2 * jnp.pi)
                     )
@@ -211,7 +219,7 @@ def pkal_filter(
 
             return ll
 
-        lls = jnp.array(jax.tree.map(get_ll, zs_tree, PHI_tree, S2_eps_tree, list(mpreds), list(Ppreds)))
+        lls = jnp.array(jax.tree.map(get_ll, zs_tree, PHI_tree, S_eps_tree, list(mpreds), list(Upreds)))
         ll = jnp.sum(lls)
 
     elif likelihood == "none":
@@ -221,6 +229,6 @@ def pkal_filter(
             "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
         )
 
-    filt_results = PKalmanResults(ll=ll, ms=ms, Ps=Ps)
+    filt_results = PSqrtResults(ll=ll, ms=ms, Us=Us)
 
     return filt_results

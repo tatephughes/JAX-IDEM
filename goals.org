@@ -285,3 +285,10 @@ Tomorrow, i want to have some comparisons between the filters in the sydney rada
         - what if doing the same 'sufficient statistic' thing as in the inf filter lets you store the likelihood in a more 'complete' way?
 
 - more documentation
+
+
+* 2nd Oct
+
+- Fix psqrt
+- Send the rischardson paper
+- flesh out paper and READ
