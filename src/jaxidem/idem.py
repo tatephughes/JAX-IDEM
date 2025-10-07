@@ -526,7 +526,7 @@ class Model:
 
             return objective
 
-        elif method in ("inf", "sqinf", "parallel", "ikalman"):
+        elif method in ("inf", "sqinf", "parallel", "ikalman", "psqrt"):
             zs_tree = obs_data.zs_tree
 
             obs_locs_tree = obs_data.coords_tree
@@ -556,6 +556,10 @@ class Model:
                     init_vec = m_0
                     init_mat = P_0
                     filterer = filts.pkal_filter
+                case "psqrt":
+                    init_vec = m_0
+                    init_mat = jnp.linalg.cholesky(P_0)
+                    filterer = filts.psqrt_filter
                 case "ikalman":
                     init_vec = m_0
                     init_mat = P_0

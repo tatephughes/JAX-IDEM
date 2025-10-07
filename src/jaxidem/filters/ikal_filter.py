@@ -44,17 +44,11 @@ def ikal_filter(
     forecast: int = 0,
     likelihood: Literal["none", "partial", "full"] = "partial",
 ) -> KalmanResults:
+    
     r = m_0.size
     n = zs_tree[0].size
 
-    mapping_elts = jax.tree.map(
-        lambda z, phi, eps: (z, phi, eps), zs_tree, PHI_tree, S2_eps_tree
-    )
-
-    def informationify(tup: tuple):
-        z_k = tup[0]
-        PHI_k = tup[1]
-        S2_eps_k = tup[2]
+    def informationify(z_k, PHI_k, S2_eps_k):
 
         match S2_eps_shape:
             case 0 | 1:
@@ -66,10 +60,7 @@ def ikal_filter(
 
         return jnp.vstack((i_k, I_k))
 
-    def is_leaf(node):
-        return jax.tree.structure(node).num_leaves == 3
-
-    scan_elts = jnp.stack(jax.tree.map(informationify, mapping_elts, is_leaf=is_leaf))
+    scan_elts = jnp.stack(jax.tree.map(informationify, zs_tree, PHI_tree, S2_eps_tree))
 
     @jax.jit
     def step(carry, scan_elt):
@@ -108,17 +99,12 @@ def ikal_filter(
     if likelihood in ("full", "partial"):
 
         @jax.jit
-        def get_ll(tree):
-            z = tree[0]
-            nobs = z.shape[0]
-            PHI = tree[1]
-            S2_eps = tree[2]
-            mpred = tree[3]
-            Ppred = tree[4]
+        def get_ll(z, PHI, S2_eps, m_pred, P_pred):
+            n = z.size
 
-            e = z - PHI @ mpred
-            # Sigma_t = PHI @ P_pred @ PHI.T + S2_eps
-            Sigma_t = add_variance(PHI @ Ppred @ PHI.T, S2_eps, S2_eps_shape)
+            e = z - PHI @ m_pred
+
+            Sigma_t = add_variance(PHI @ P_pred @ PHI.T, S2_eps, S2_eps_shape)
 
             Ui_t = jnp.linalg.cholesky(Sigma_t)
             s = st(Ui_t, e, lower=True)
@@ -128,28 +114,14 @@ def ikal_filter(
                     ll = (
                         -jnp.sum(jnp.log(jnp.diag(Ui_t)))
                         - 0.5 * jnp.dot(s, s)
-                        - 0.5 * nobs * jnp.log(2 * jnp.pi)
+                        - 0.5 * n * jnp.log(2 * jnp.pi)
                     )
                 case "partial":
                     ll = -jnp.sum(jnp.log(jnp.diag(Ui_t))) - 0.5 * jnp.dot(s, s)
 
             return ll
 
-        mapping_elts = jax.tree.map(
-            lambda t: (
-                zs_tree[t],
-                PHI_tree[t],
-                S2_eps_tree[t],
-                mpreds[t],
-                Ppreds[t],
-            ),
-            tuple(range(len(zs_tree))),
-        )
-
-        def is_leaf(node):
-            return jax.tree.structure(node).num_leaves == 5
-
-        lls = jnp.array(jax.tree.map(get_ll, mapping_elts, is_leaf=is_leaf))
+        lls = jnp.array(jax.tree.map(get_ll, zs_tree, PHI_tree, S2_eps_tree, list(mpreds), list(Ppreds)))
         ll = jnp.sum(lls)
 
     elif likelihood == "none":

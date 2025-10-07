@@ -141,9 +141,6 @@ def pkal_filter(
         return (A_k, b_k, C_k, nu_k, J_k)
 
     elts = jax.tree.map(get_element, zs_tree[1:], PHI_tree[1:], S2_eps_tree[1:])
-    
-    # this might lead to biig compile times. not 100% sure
-    # all_elts = jax.tree.map(lambda *xs: jnp.stack(xs, axis=0), *((first_elt,) + elts))
     all_elts = jax.tree.map(lambda *xs: jnp.stack(xs, axis=0), first_elt, *elts)
 
     I = jnp.eye(r)
@@ -156,12 +153,10 @@ def pkal_filter(
         ipcj = I + C_i @ J_j
         #ipjc = I + J_j @ C_i
 
-        # lots of cho solves, can be simplified maybe
         A_ij = A_j @ solve(ipcj, A_i)
-        b_ij = A_j @ solve(ipcj, (b_i + C_i @ nu_j)) + b_j
-        
+        b_ij = A_j @ solve(ipcj, (b_i + C_i @ nu_j)) + b_j        
         C_ij = A_j @ solve(ipcj, C_i @ A_j.T) + C_j
-        #nu_ij = A_i.T @ solve(ipjc, nu_j - J_j @ b_i) + nu_i
+
         nu_ij = A_i.T @ solve(ipcj.T, nu_j - J_j @ b_i) + nu_i
         J_ij = A_i.T @ solve(ipcj.T, J_j @ A_i) + J_i
 

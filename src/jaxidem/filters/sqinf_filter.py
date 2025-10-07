@@ -123,15 +123,7 @@ def sqinf_filter(
 
     r = nu_0.shape[0]
 
-    mapping_elts = jax.tree.map(
-        lambda t: (zs_tree[t], PHI_tree[t], S2_eps_tree[t]),
-        tuple(range(len(zs_tree))),
-    )
-
-    def informationify(tup: tuple):
-        z_k = tup[0]
-        PHI_k = tup[1]
-        S2_eps_k = tup[2]
+    def informationify(z_k, PHI_k, S2_eps_k):
 
         # THIS WILL FAIL if S2_eps_shape!=0 and there is a time point with no data.
         match S2_eps_shape:
@@ -157,10 +149,7 @@ def sqinf_filter(
 
         return jnp.vstack((i_k, R_k))
 
-    def is_leaf(node):
-        return jax.tree.structure(node).num_leaves == 3
-
-    scan_elts = jnp.array(jax.tree.map(informationify, mapping_elts, is_leaf=is_leaf))
+    scan_elts = jnp.array(jax.tree.map(informationify, zs_tree, PHI_tree, S2_eps_tree))
 
     # Minv = jnp.linalg.solve(M, jnp.eye(r))
     match S2_eta_shape:
@@ -194,59 +183,33 @@ def sqinf_filter(
         scan_elts,
     )
 
+    nus, Rs, nupreds, Rpreds = (seq[0], seq[1], seq[2], seq[3])
+    
     if likelihood in ("full", "partial"):
-        mapping_elts = jax.tree.map(
-            lambda t: (
-                zs_tree[t],
-                PHI_tree[t],
-                seq[2][t],
-                seq[3][t],
-                S2_eps_tree[t],
-            ),
-            tuple(range(len(zs_tree))),
-        )
-
-        def likelihood_func(tree):
-            z = tree[0]
-            nobs = z.shape[0]
-            PHI = tree[1]
-            nu_pred = tree[2]
-            R_pred = tree[3]
-            S2_eps = tree[4]
-
+        
+        def likelihood_func(z_k, PHI_k, S2_eps_k, nu_pred, R_pred):
+            n_k = z_k.shape[0]
+            
             match S2_eps_shape:
                 case 0:
-                    sigma_eps = jnp.sqrt(S2_eps) * jnp.eye(nobs)
+                    S_eps = jnp.sqrt(S2_eps_k) * jnp.eye(n_k)
                 case 1:
-                    sigma_eps = jnp.diag(jnp.sqrt(S2_eps))
+                    S_eps = jnp.diag(jnp.sqrt(S2_eps_k))
                 case 2:
-                    sigma_eps = jnp.linalg.cholesky(S2_eps)
+                    S_eps = jnp.linalg.cholesky(S2_eps_k)
 
-            # Q_pred = R_pred.T@R_pred
-            # e = z - PHI @ jnp.linalg.solve(Q_pred, nu_pred)
-            e = z - PHI @ st(R_pred, st(R_pred.T, nu_pred, lower=True), lower=False)
+            e_k = z_k - PHI_k @ st(R_pred, st(R_pred.T, nu_pred, lower=True), lower=False)
 
-            # Yes, the comments below make no sense. need to test more.
+            Ui_t = qr_R(st(R_pred.T, PHI_k.T, lower=True), S_eps)
 
-            # P_oprop = PHI @ jnp.linalg.solve(Q_pred, PHI.T)
-            # Sigma_t = P_oprop + sigma_eps.T@sigma_eps
-            # chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-
-            # or
-
-            # CHANGE THIS TO THE CHOLESKY VERSION
-            # Its way faster (on GPU) and seems about as stable
-            Ui_t = qr_R(st(R_pred.T, PHI.T, lower=True), sigma_eps)
-            # chol_Sigma_t = jnp.linalg.cholesky(R_t.T @ R_t)
-
-            s = st(Ui_t.T, e, lower=True)
+            s = st(Ui_t.T, e_k, lower=True)
 
             match likelihood:
                 case "full":
                     ll = (
                         -jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t))))
                         - 0.5 * jnp.dot(s, s)
-                        - 0.5 * nobs * jnp.log(2 * jnp.pi)
+                        - 0.5 * n_k * jnp.log(2 * jnp.pi)
                     )
                 case "partial":
                     ll = -jnp.sum(jnp.log(jnp.abs(jnp.diag(Ui_t)))) - 0.5 * jnp.dot(
@@ -261,10 +224,7 @@ def sqinf_filter(
 
             return ll
 
-        def is_leaf(node):
-            return jax.tree.structure(node).num_leaves == 5
-
-        lls = jnp.array(jax.tree.map(likelihood_func, mapping_elts, is_leaf=is_leaf))
+        lls = jnp.array(jax.tree.map(likelihood_func, zs_tree, PHI_tree, S2_eps_tree, list(nupreds), list(Rpreds)))
         ll = jnp.sum(lls)
     elif likelihood == "none":
         ll = jnp.nan
@@ -272,8 +232,6 @@ def sqinf_filter(
         raise ValueError(
             "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
         )
-
-    nus, Rs, nupreds, Rpreds = (seq[0], seq[1], seq[2], seq[3])
 
     # fc_scan_elts = jnp.repeat(
     #    jnp.expand_shapes(jnp.zeros((r + 1, r)), axis=0), forecast, axis=0

@@ -120,16 +120,9 @@ def inf_filter(
         - `forecast` : number of forecast steps
     """
 
-    mapping_elts = jax.tree.map(
-        lambda z, phi, eps: (z, phi, eps), zs_tree, PHI_tree, S2_eps_tree
-    )
-
     r = nu_0.size
 
-    def informationify(tup: tuple):
-        z_k = tup[0]
-        PHI_k = tup[1]
-        S2_eps_k = tup[2]
+    def informationify(z_k, PHI_k, S2_eps_k):
 
         match S2_eps_shape:
             case 0 | 1:
@@ -141,10 +134,7 @@ def inf_filter(
 
         return jnp.vstack((i_k, I_k))
 
-    def is_leaf(node):
-        return jax.tree.structure(node).num_leaves == 3
-
-    scan_elts = jnp.stack(jax.tree.map(informationify, mapping_elts, is_leaf=is_leaf))
+    scan_elts = jnp.stack(jax.tree.map(informationify, zs_tree, PHI_tree, S2_eps_tree))
 
     # This is one situation where I do not know how to avoid inverting
     # a matrix explicitly...
@@ -199,70 +189,36 @@ def inf_filter(
     #    lambda t: (seq[0][t], PHI_tree[t], S2_eps_tree[t]),
     #    tuple(range(len(zs_tree))),
     # )
+    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
 
     if likelihood in ("full", "partial"):
-        mapping_elts = jax.tree.map(
-            lambda t: (
-                zs_tree[t],
-                PHI_tree[t],
-                S2_eps_tree[t],
-                seq[2][t],
-                seq[3][t],
-            ),
-            tuple(range(len(zs_tree))),
-        )
 
-        def likelihood_func(tree):
-            z = tree[0]
-            nobs = z.shape[0]
-            PHI = tree[1]
-            S2_eps = tree[2]
-            nu_pred = tree[3]
-            Q_pred = tree[4]
+        def likelihood_func(z_k, PHI_k, S2_eps_k, nu_pred, Q_pred):
+            n = z_k.size
             cholQ = jax.scipy.linalg.cho_factor(Q_pred)
 
-            e = z - PHI @ jax.scipy.linalg.cho_solve(cholQ, nu_pred)
+            e_k = z_k - PHI_k @ jax.scipy.linalg.cho_solve(cholQ, nu_pred)
             Sigma_t = add_variance(
-                PHI @ jax.scipy.linalg.cho_solve(cholQ, PHI.T), S2_eps, S2_eps_shape
+                PHI_k @ jax.scipy.linalg.cho_solve(cholQ, PHI_k.T), S2_eps_k, S2_eps_shape
             )
             Ui_t = jnp.linalg.cholesky(Sigma_t)
 
-            # match S2_eps_shape:
-            #    case 0:
-            #        P_oprop = PHI @ jax.scipy.linalg.cho_solve(cholQ, PHI.T)
-            #        Sigma_t = jnp.fill_diagonal(
-            #            P_oprop, S2_eps + jnp.diag(P_oprop), inplace=False
-            #        )
-            #        chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-            #    case 1:
-            #        P_oprop = PHI @ jax.scipy.linalg.cho_solve(cholQ, PHI.T)
-            #        Sigma_t = jnp.fill_diagonal(
-            #            P_oprop, jnp.diag(S2_eps) + jnp.diag(P_oprop), inplace=False
-            #        )
-            #        chol_Sigma_t = jnp.linalg.cholesky(Sigma_t)
-            #    case 2:
-            #        chol_Sigma_t = jnp.linalg.cholesky(
-            #            PHI @ jax.scipy.linalg.cho_solve(cholQ, PHI.T) + S2_eps
-            #        )
-
-            s = st(Ui_t, e, lower=True)
+            s = st(Ui_t, e_k, lower=True)
 
             match likelihood:
                 case "full":
                     ll = (
                         -jnp.sum(jnp.log(jnp.diag(Ui_t)))
                         - 0.5 * jnp.dot(s, s)
-                        - 0.5 * nobs * jnp.log(2 * jnp.pi)
+                        - 0.5 * n * jnp.log(2 * jnp.pi)
                     )
                 case "partial":
                     ll = -jnp.sum(jnp.log(jnp.diag(Ui_t))) - 0.5 * jnp.dot(s, s)
 
             return ll
 
-        def is_leaf(node):
-            return jax.tree.structure(node).num_leaves == 5
 
-        lls = jnp.array(jax.tree.map(likelihood_func, mapping_elts, is_leaf=is_leaf))
+        lls = jnp.array(jax.tree.map(likelihood_func, zs_tree, PHI_tree, S2_eps_tree, list(nupreds), list(Qpreds)))
         ll = jnp.sum(lls)
     elif likelihood == "none":
         ll = jnp.nan
@@ -271,7 +227,6 @@ def inf_filter(
             "Invalid option for 'likelihood'. Choose from 'full', 'partial', 'none' (default: 'partial')."
         )
 
-    nus, Qs, nupreds, Qpreds = (seq[0], seq[1], seq[2], seq[3])
 
     fc_scan_elts = jnp.tile(jnp.zeros((r + 1, r)), (forecast, 1, 1))
 

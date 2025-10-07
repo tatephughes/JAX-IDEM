@@ -376,6 +376,7 @@ log_marginal_sqrt = model.get_log_like(radar_data, method="sqrt", likelihood='fu
 log_marginal_inf = model.get_log_like(radar_data, method="inf", likelihood='full')
 log_marginal_sqinf = model.get_log_like(radar_data, method="sqinf", likelihood='full')
 log_marginal_pkal = model.get_log_like(radar_data, method="parallel", likelihood='full')
+log_marginal_psqrt = model.get_log_like(radar_data, method="psqrt", likelihood='full')
 
 nreps = 5
 
@@ -386,6 +387,7 @@ time_sqrt  = utils.time_jit(key, log_marginal_sqrt, model.params, n=nreps)
 time_inf   = utils.time_jit(key, log_marginal_inf, model.params, n=nreps)
 time_sqinf = utils.time_jit(key, log_marginal_sqinf, model.params, n=nreps)
 time_pkal  = utils.time_jit(key, log_marginal_pkal, model.params, n=nreps)
+time_psqrt  = utils.time_jit(key, log_marginal_psqrt, model.params, n=nreps)
 
 data = [
     ["kal", time_kal.compile_time, time_kal.average_time * 1000, time_kal.value],
@@ -395,6 +397,7 @@ data = [
     ["sqrt", time_sqrt.compile_time, time_sqrt.average_time * 1000, time_sqrt.value],
     ["sqinf", time_sqinf.compile_time, time_sqinf.average_time * 1000, time_sqinf.value],
     ["pkal", time_pkal.compile_time, time_pkal.average_time * 1000, time_pkal.value],
+    ["psqrt", time_psqrt.compile_time, time_psqrt.average_time * 1000, time_psqrt.value],
 ]
 
 df = pd.DataFrame(data, columns=["Method", "Compile Time (s)", "Average Time (ms)", "Log Likelihood"])
