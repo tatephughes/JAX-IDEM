@@ -826,11 +826,9 @@ class Model:
 
         vec_ker = jax.vmap(jax.vmap(kernel_func, in_axes=(None, 0)), in_axes=(0, None))
         K = vec_ker(self.process_grid.coords, self.process_grid.coords)
-        # TODO: Investigate better, faster, more accurate ways to ocmpute this?
-        return (
-            solve(self.GRAM, self.PHI_proc.T @ K @ self.PHI_proc)
-            * self.process_grid.area**2
-        )
+        # TODO: Investigate better, faster, more accurate ways to compute this?
+        # The assumption that the GRAM matrix is pdef breaks often in 32bit.
+        return (solve(self.GRAM, self.PHI_proc.T @ K @ self.PHI_proc, assume_a='pos') * self.process_grid.area**2)
 
     def fit_mle(
         self,
@@ -997,6 +995,7 @@ def gen_example_idem(
     S2_eta=0.05**2,
     S2_eps=0.1**2,
     beta=None,
+    kernel=None,
     covariate_labels=["Intercept"],
 ):
     """
@@ -1033,34 +1032,35 @@ def gen_example_idem(
 
     if process_basis is None:
         process_basis = place_basis()
-    if k_spat_inv:
-        K_basis = (
-            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-        )
-        k = (
-            jnp.array([150.0]),
-            jnp.array([0.002]),
-            jnp.array([-0.1]),
-            jnp.array([0.1]),
-        )
-        kernel = param_exp_kernel(K_basis, k)
-    else:
-        K_basis = (
-            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-            place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
-            place_basis(nres=1),
-            place_basis(nres=1),
-        )
-        k = (
-            jnp.array([200]),
-            jnp.array([0.002]),
-            0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
-            0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
-        )
-        kernel = param_exp_kernel(K_basis, k)
+    if kernel is None:
+        if k_spat_inv:
+            K_basis = (
+                place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+                place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+                place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+                place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+            )
+            k = (
+                jnp.array([150.0]),
+                jnp.array([0.002]),
+                jnp.array([-0.1]),
+                jnp.array([0.1]),
+            )
+            kernel = param_exp_kernel(K_basis, k)
+        else:
+            K_basis = (
+                place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+                place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+                place_basis(nres=1),
+                place_basis(nres=1),
+            )
+            k = (
+                jnp.array([200]),
+                jnp.array([0.002]),
+                0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
+                0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
+            )
+            kernel = param_exp_kernel(K_basis, k)
 
     nbasis = process_basis.nbasis
 
@@ -1125,7 +1125,11 @@ def init_model(
 
     const_basis = utils.constant_basis
 
+    b = 0.5 * width
+    a = 1/(jnp.sqrt(2)*jnp.pi*b)
+
     if k_spat_inv:
+        
         K_basis = (
             const_basis,
             const_basis,
@@ -1133,8 +1137,8 @@ def init_model(
             const_basis,
         )
         k = (
-            jnp.array([150.0]),
-            jnp.array([0.002 * width]),
+            jnp.array([a]),
+            jnp.array([b]),
             jnp.array([0.0]),
             jnp.array([0.0]),
         )
@@ -1155,8 +1159,8 @@ def init_model(
             ),
         )
         k = (
-            jnp.array([200]),
-            jnp.array([0.002 * width]),
+            jnp.array([a]),
+            jnp.array([b]),
             0.1 * rand.normal(keys[0], shape=(K_basis[2].nbasis,)),
             0.1 * rand.normal(keys[1], shape=(K_basis[3].nbasis,)),
         )

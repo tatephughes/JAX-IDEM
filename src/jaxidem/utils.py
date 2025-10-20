@@ -436,10 +436,10 @@ class st_data:
         covariates: Float[Array, "n ncovs"] = None,
         covariate_labels: List[str] = None,
     ):
-        self.x = x
-        self.y = y
+        self.x = jnp.array(x)
+        self.y = jnp.array(y)
         self.times = times
-        self.z = z.astype(y.dtype)
+        self.z = jnp.array(z) # huh?
         if covariates is None:
             self.covariates = jnp.ones((x.size, 1))
             self.covariate_labels = ["Intercept"]
@@ -465,27 +465,29 @@ class st_data:
 
         full_times = jnp.arange(jnp.min(unique_times), jnp.max(unique_times) + dt, dt)
         self.full_times = full_times
-        time_indices = [0]
-        for time in full_times[1:]:
-            i = 0
-            while times[0] + i * dt <= unique_times[-1]:
-                if jnp.allclose(time, times[0] + i * dt):
-                    time_indices.append(i)
-                i = i + 1
-        if len(full_times) != len(time_indices):
+        time_indices = jnp.searchsorted(full_times, times)
+        #time_indices = [0]
+        #for time in full_times[1:]:
+        #    i = 0
+        #    while times[0] + i * dt <= unique_times[-1]:
+        #        if jnp.allclose(time, times[0] + i * dt):
+        #            time_indices.append(i)
+        #        i = i + 1
+        if times.size != time_indices.size:
             raise ValueError(
                 "Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modelling."
             )
 
-        def associate(time):
-            index = jnp.argwhere(
-                jnp.isclose(full_times, time), size=1, fill_value=jnp.nan
-            )
-            return index[0][0]
+        #def associate(time):
+        #    index = jnp.argwhere(
+        #        jnp.isclose(full_times, time), size=1, fill_value=jnp.nan
+        #    )
+        #    return index[0][0]
 
-        self.t = jl.map(associate, times)
+        #self.t = jl.map(associate, times)
+        self.t = time_indices
 
-        self.T = len(self.full_times)
+        self.T = self.full_times.size
 
         self.coords = jnp.unique(self.data_array[:, 0:2], axis=0)
 
@@ -495,21 +497,12 @@ class st_data:
         ymax = jnp.max(self.coords[:, 1])
         self.bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
 
-        self.zs_tree = [
-            self.data_array[:, 3][jnp.where(self.times == time)]
-            for time in self.full_times
-        ]
-        self.X_obs_tree = [
-            self.covariates[jnp.where(self.times == time)] for time in self.full_times
-        ]
-        self.coords_tree = [
-            self.data_array[:, 0:2][jnp.where(self.times == time)]
-            for time in self.full_times
-        ]
 
-        self.tilding_elts = [
-            [self.zs_tree[i], self.X_obs_tree[i]] for i in range(len(self.zs_tree))
-        ]
+        self.zs_tree = jax.tree.map(lambda i: z[jnp.where(self.t == i)], full_times.tolist())
+        self.X_obs_tree = jax.tree.map(lambda i: self.covariates[jnp.where(self.t == i)], full_times.tolist())
+        self.coords_tree = jax.tree.map(lambda i: self.data_array[:, 0:2][jnp.where(self.t == i)], full_times.tolist())
+        self.tilding_elts = jax.tree.map(lambda a, b: (a, b), self.zs_tree, self.X_obs_tree)
+
 
     @partial(jax.jit, static_argnames=["self"])
     def tildify(

@@ -46,7 +46,7 @@ def ikal_filter(
 ) -> KalmanResults:
     
     r = m_0.size
-    n = zs_tree[0].size
+    #n = zs_tree[0].size
 
     def informationify(z_k, PHI_k, S2_eps_k):
 

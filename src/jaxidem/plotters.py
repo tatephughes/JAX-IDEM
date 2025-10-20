@@ -172,7 +172,8 @@ def plotly_st_grid(st,
 def plotly_st_scatter(st,
                       title="Spatio-Temporal Field",
                       colorscale="Viridis",
-                      mark_size=5
+                      mark_size=5,
+                      name='scatter'
                       ):
 
     T = st.T
@@ -192,6 +193,7 @@ def plotly_st_scatter(st,
             x=x.tolist(),
             y=y.tolist(),
             mode="markers",
+            name=name,
             marker=dict(
                 size = mark_size,
                 color=z.tolist(),

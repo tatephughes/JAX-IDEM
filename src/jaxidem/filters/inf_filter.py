@@ -195,11 +195,10 @@ def inf_filter(
 
         def likelihood_func(z_k, PHI_k, S2_eps_k, nu_pred, Q_pred):
             n = z_k.size
-            cholQ = jax.scipy.linalg.cho_factor(Q_pred)
 
-            e_k = z_k - PHI_k @ jax.scipy.linalg.cho_solve(cholQ, nu_pred)
+            e_k = z_k - PHI_k @ solve(Q_pred, nu_pred, assume_a = 'pos')
             Sigma_t = add_variance(
-                PHI_k @ jax.scipy.linalg.cho_solve(cholQ, PHI_k.T), S2_eps_k, S2_eps_shape
+                PHI_k @ solve(Q_pred, PHI_k.T, assume_a = 'pos'), S2_eps_k, S2_eps_shape
             )
             Ui_t = jnp.linalg.cholesky(Sigma_t)
 
@@ -216,7 +215,6 @@ def inf_filter(
                     ll = -jnp.sum(jnp.log(jnp.diag(Ui_t))) - 0.5 * jnp.dot(s, s)
 
             return ll
-
 
         lls = jnp.array(jax.tree.map(likelihood_func, zs_tree, PHI_tree, S2_eps_tree, list(nupreds), list(Qpreds)))
         ll = jnp.sum(lls)

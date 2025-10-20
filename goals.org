@@ -292,3 +292,20 @@ Tomorrow, i want to have some comparisons between the filters in the sydney rada
 - Fix psqrt
 - Send the rischardson paper
 - flesh out paper and READ
+
+* 9th October
+
+- ireland https://www.met.ie/climate/available-data/historical-data
+- urban observatory
+
+- flesh out subsections
+  - look at literature and use that as a reference for the structure
+
+- think about lower dim psqrt
+
+- Print and read all the papers while cuddling dog for emotional support
+
+- Write a good vignette
+
+
+- german air, get it working idiot
