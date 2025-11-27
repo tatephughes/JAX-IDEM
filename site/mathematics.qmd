@@ -1079,6 +1079,7 @@ $$ {#eq-lag1smooth}
 
 Very similar formulas can be found for square-root and information variations.
 
+## Square-Root Smoother
 
 <!--
 # EM Algorithm (NEEDS A LOT OF WORK, PROBABLY IGNORE FOR NOW)

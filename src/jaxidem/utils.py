@@ -164,6 +164,7 @@ def outer_op(
 
 @jax.jit
 def bisquare(s: Float[Array, "2"], params: Float[Array, "3"]) -> float:
+    
     """Generic 2D bisquare function
     Parameters
     ----------
@@ -498,9 +499,10 @@ class st_data:
         self.bounds = jnp.array([[xmin, xmax], [ymin, ymax]])
 
 
-        self.zs_tree = jax.tree.map(lambda i: z[jnp.where(self.t == i)], full_times.tolist())
-        self.X_obs_tree = jax.tree.map(lambda i: self.covariates[jnp.where(self.t == i)], full_times.tolist())
-        self.coords_tree = jax.tree.map(lambda i: self.data_array[:, 0:2][jnp.where(self.t == i)], full_times.tolist())
+        # These lines can take a while...
+        self.zs_tree = jax.tree.map(lambda i: z[jnp.where(self.t == i)], list(range(self.T)))
+        self.X_obs_tree = jax.tree.map(lambda i: self.covariates[jnp.where(self.t == i)], list(range(self.T)))
+        self.coords_tree = jax.tree.map(lambda i: self.data_array[:, 0:2][jnp.where(self.t == i)], list(range(self.T)))
         self.tilding_elts = jax.tree.map(lambda a, b: (a, b), self.zs_tree, self.X_obs_tree)
 
 

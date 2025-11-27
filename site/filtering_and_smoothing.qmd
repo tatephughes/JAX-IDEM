@@ -205,6 +205,91 @@ fig3.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), ya
 fig3.show()
 ```
 
+## Smoothing
+
+```{python}
+m_post, P_post = filt.kal_smoother(filt_results['ms'],
+                                   filt_results['Ps'],
+                                   S2_eta,
+                                   S2_eta_shape,
+                                   M
+                                   )
+
+
+mpost_df = pd.DataFrame(list(m_post), columns = ["x", "y"])
+
+combined_df = pd.concat([alphas_df.assign(line='True Process'), mpost_df.assign(line='Smoothed Process Means')])
+
+# Creating the line plot with custom colors
+fig_smooth = px.line(combined_df, x='x', y='y', color='line',
+                     color_discrete_sequence=['blue', 'red'], height=200)  # Specify colors here
+
+fig_smooth.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
+# Show the plot
+fig_smooth.show()
+
+```
+
+## Backwards Sampling
+
+Yet to be fully integrated into the package is backward sampling. 
+This is similar to smoothing but draws from the sampled distribution, without explicitely computing the smoothing distribution.
+This is useful for Gibbs samplers, for example.
+
+```{python}
+import jax.lax as jl
+import jax.random as jr
+from jax.random import multivariate_normal as smvn
+from functools import partial
+from jaxidem.utils import add_variance
+from jax.scipy.linalg import solve
+
+
+ms = filt_results['ms']
+Ps = filt_results['Ps']
+
+def sample_alphas(key):
+
+    def backsample(carry, x):
+
+        alpha_tp = carry
+        m_tt, P_tt, key = x
+
+        mpred = M @ m_tt
+        Ppred = add_variance(M @ P_tt @ M.T, S2_eta, S2_eta_shape)
+        
+        C = solve(Ppred, M @ P_tt).T
+
+        alpha_t = smvn(key, m_tt + C @ (alpha_tp - mpred), P_tt + C @ Ppred @ C.T)
+        
+        return alpha_t, alpha_t
+
+    keys = jr.split(key, ms.shape[0])
+    
+    xs = (jnp.flip(ms[:-1], axis=0),
+          jnp.flip(Ps[:-1], axis=0),
+          keys[1:])
+
+    alpha_T = smvn(keys[0], ms[-1], Ps[-1])
+    
+    carry, seq = jl.scan(
+        backsample,
+        (alpha_T),
+        xs,
+    )
+
+    return jnp.vstack([jnp.flip(seq, axis=0), alpha_T[None,:]])
+
+key = jax.random.PRNGKey(2)
+keys = jax.random.split(key, 50000)
+
+alphass = jl.map(lambda k: sample_alphas(k), keys)
+means = jnp.mean(alphass, axis=0)
+
+print("Average relative Tolerance:")
+print(jnp.mean(((means - m_post)/m_post)[-2]))
+```
+
 # Information Filter
 
 Similarily, we can apply the information filter.
@@ -293,6 +378,33 @@ fig5.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), ya
 # Show the plot
 fig5.show()
 ```
+## Square-root Smoother
+
+
+```{python}
+m_post, U_post = filt.sqrt_smoother(filt_results3['ms'],
+                                    filt_results3['Us'],
+                                    S2_eta,
+                                    S2_eta_shape,
+                                    M
+                                    )
+
+
+mpost_df = pd.DataFrame(list(m_post), columns = ["x", "y"])
+
+combined_df = pd.concat([alphas_df.assign(line='True Process'), mpost_df.assign(line='Smoothed Process Means')])
+
+# Creating the line plot with custom colors
+fig_smooth = px.line(combined_df, x='x', y='y', color='line',
+                     color_discrete_sequence=['blue', 'red'], height=200)  # Specify colors here
+
+fig_smooth.update_layout(xaxis=dict(scaleanchor="y", scaleratio=1, title='X Axis'), yaxis=dict(scaleanchor="x", scaleratio=1, title='Y Axis'))
+# Show the plot
+fig_smooth.show()
+
+```
+
+
 
 # Square Root Information filter
 
@@ -377,7 +489,7 @@ fig6.show()
 ```
 
 ```{python}
-jnp.abs(filt_resultsp['ms'] - filt_results['ms']).max() 
+jnp.abs(filt_resultsp['ms'] - filt_results['ms'][1:]).max() 
 ```
 
 ```{python}
@@ -411,7 +523,7 @@ fig6.show()
 ```
 
 ```{python}
-jnp.abs(filt_resultsps['ms'] - filt_results['ms']).max() 
+jnp.abs(filt_resultsps['ms'] - filt_results['ms'][1:]).max() 
 ```
 
 

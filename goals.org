@@ -307,5 +307,42 @@ Tomorrow, i want to have some comparisons between the filters in the sydney rada
 
 - Write a good vignette
 
-
 - german air, get it working idiot
+
+** Vignette/Examples
+
+I want 3 examples
+
+- Sydney Radar as a simple low-T image data set (high n, relatively low r)
+
+- A station-based data set with missing data and potentially low n (German air OR a subset of the Urban Observatory data), with high T
+
+- A bigger image data set with reasonably high T (maybe daily over a month)
+
+
+* 
+
+- Please support geopandas
+- Do the simulation study! work it all out!
+  - and prep to send to NCC
+
+* Set alerts in google scholar for papers being published (like sarkka, cressie etc)
+
+- expand literature review
+- plug in the smoothers
+- read the sqrt parallel kalman filter papers
+  - look at simulation smoothers too?
+
+* Link overleaf to github (or just git)
+- code up the block gibbs thing and compare to marginal metropolis
+- Write up compressed Kalman (and do stabilised and sqrt)
+
+
+* TODO Make filt_results a proper class with methods to get any filtered quantity (in a lazy way) regardless of the type of filter used. If this is possible in python.
+
+
+
+* TODO More stable smoother (and backward sampler)
+* TODO Git hygeine >:(
+* TODO Posterior for beta
+* TODO Finish an initial Gibbs sampler

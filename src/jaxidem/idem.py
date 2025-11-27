@@ -526,7 +526,7 @@ class Model:
 
             return objective
 
-        elif method in ("inf", "sqinf", "parallel", "ikalman", "psqrt"):
+        elif method in ("inf", "sqinf", "parallel", "sikalman", "ikalman", "psqrt"):
             zs_tree = obs_data.zs_tree
 
             obs_locs_tree = obs_data.coords_tree
@@ -564,6 +564,11 @@ class Model:
                     init_vec = m_0
                     init_mat = P_0
                     filterer = filts.ikal_filter
+                case "sikalman":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.sikal_filter
+
 
             @jax.jit
             def objective(params):
@@ -603,6 +608,148 @@ class Model:
                 f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf', 'parallel']."
             )
 
+    def get_filter(
+        self,
+        obs_data,
+        method="sqrt",
+        m_0=None,
+        P_0=None,
+        likelihood="partial",
+        negative=False,
+    ):
+        nbasis = self.nbasis
+
+        if method in ("sqrt", "kalman", "skalman"):
+            zs_tree = obs_data.zs_tree
+            # ADD A CHECK THAT DATA N AND LOCATION IS CONSTANT
+            obs_locs = obs_data.coords_tree[0]
+            PHI_obs = self.process_basis.mfun(obs_locs)
+
+            if m_0 is None:
+                m_0 = jnp.zeros(nbasis)
+            if P_0 is None:
+                P_0 = 100 * jnp.eye(nbasis)
+
+            match method:
+                case "sqrt":
+                    init_mat = jnp.linalg.cholesky(P_0, upper=True)
+                    filterer = filts.sqrt_filter
+                case "kalman":
+                    init_mat = P_0
+                    filterer = filts.kal_filter
+                case "skalman":
+                    init_mat = P_0
+                    filterer = filts.skal_filter
+
+            @jax.jit
+            def objective(params):
+                (
+                    log_S2_eps,
+                    log_S2_eta,
+                    ks,
+                    beta,
+                ) = params
+                ztildes_tree = obs_data.tildify(beta)
+                logks1, logks2, ks3, ks4 = ks
+                ks1 = jnp.exp(logks1)
+                ks2 = jnp.exp(logks2)
+                S2_eta = jnp.exp(log_S2_eta)
+                S2_eps = jnp.exp(log_S2_eps)
+                M = self.con_M((ks1, ks2, ks3, ks4))
+                filt_results = filterer(
+                    m_0,
+                    init_mat,
+                    M,
+                    PHI_obs,
+                    S2_eta,
+                    S2_eps,
+                    ztildes_tree,
+                    likelihood=likelihood,
+                    S2_eta_shape=self.S2_eta_shape,
+                    S2_eps_shape=self.S2_eps_shape,
+                )
+                return filt_results
+            return objective
+
+        elif method in ("inf", "sqinf", "parallel", "sikalman", "ikalman", "psqrt"):
+            zs_tree = obs_data.zs_tree
+
+            obs_locs_tree = obs_data.coords_tree
+
+            PHI_obs_tree = jax.tree.map(self.process_basis.mfun, obs_locs_tree)
+
+            if m_0 is None:
+                m_0 = jnp.zeros(nbasis)
+            if P_0 is None:
+                P_0 = 100 * jnp.eye(nbasis)
+
+            if self.S2_eps_shape != 0:
+                raise ValueError(
+                    "Non-iid measurement errors are not supported for method='inf' or 'sqinf'. Please use methof='kalman' or 'sqrt'."
+                )
+
+            match method:
+                case "sqinf":
+                    init_vec = jnp.linalg.solve(P_0, m_0)
+                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0), upper=True)
+                    filterer = filts.sqinf_filter
+                case "inf":
+                    init_vec = jnp.linalg.solve(P_0, m_0)
+                    init_mat = jnp.linalg.inv(P_0)
+                    filterer = filts.inf_filter
+                case "parallel":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.pkal_filter
+                case "psqrt":
+                    init_vec = m_0
+                    init_mat = jnp.linalg.cholesky(P_0)
+                    filterer = filts.psqrt_filter
+                case "ikalman":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.ikal_filter
+                case "sikalman":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.sikal_filter
+
+
+            @jax.jit
+            def objective(params):
+                (
+                    log_S2_eps,
+                    log_S2_eta,
+                    ks,
+                    beta,
+                ) = params
+                ztildes_tree = obs_data.tildify(beta)
+                logks1, logks2, ks3, ks4 = ks
+                ks1 = jnp.exp(logks1)
+                ks2 = jnp.exp(logks2)
+                S2_eta = jnp.exp(log_S2_eta)
+                S2_eps = jnp.exp(log_S2_eps)
+                M = self.con_M((ks1, ks2, ks3, ks4))
+                filt_results = filterer(
+                    init_vec,
+                    init_mat,
+                    M,
+                    PHI_obs_tree,
+                    S2_eta,
+                    [S2_eps for _ in range(obs_data.T)],
+                    ztildes_tree,
+                    likelihood=likelihood,
+                    S2_eta_shape=self.S2_eta_shape,
+                    S2_eps_shape=0,
+                )
+                return filt_results
+            return objective
+        else:
+            raise ValueError(
+                f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf', 'parallel']."
+            )
+
+        
     def filter(
         self,
         obs_data,
@@ -614,7 +761,7 @@ class Model:
     ):
         nbasis = self.nbasis
 
-        if method in ("sqrt", "kalman"):
+        if method in ("sqrt", "kalman", "skalman"):
             zs_tree = obs_data.zs_tree
             # ADD A CHECK THAT DATA N AND LOCATION IS CONSTANT
             obs_locs = obs_data.coords_tree[0]
@@ -632,6 +779,9 @@ class Model:
                 case "kalman":
                     init_mat = P_0
                     filterer = filts.kal_filter
+                case "skalman":
+                    init_mat = P_0
+                    filterer = filts.skal_filter
 
             (
                 log_S2_eta,
@@ -667,7 +817,7 @@ class Model:
 
             return (filt_data, filt_results)
 
-        elif method in ("inf", "sqinf"):
+        elif method in ("inf", "sqinf", "parallel", "ikalman", "sikalman", "psqrt"):
             zs_tree = obs_data.zs_tree
 
             obs_locs_tree = obs_data.coords_tree
@@ -684,15 +834,33 @@ class Model:
                     "Non-iid measurement errors are not supported for method='inf' or 'sqinf'. Please use methof='kalman' or 'sqrt'."
                 )
             nu_0 = jnp.linalg.solve(P_0, m_0)
-
             match method:
                 case "sqinf":
-                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0))
+                    init_vec = jnp.linalg.solve(P_0, m_0)
+                    init_mat = jnp.linalg.cholesky(jnp.linalg.inv(P_0), upper=True)
                     filterer = filts.sqinf_filter
                 case "inf":
+                    init_vec = jnp.linalg.solve(P_0, m_0)
                     init_mat = jnp.linalg.inv(P_0)
                     filterer = filts.inf_filter
+                case "parallel":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.pkal_filter
+                case "psqrt":
+                    init_vec = m_0
+                    init_mat = jnp.linalg.cholesky(P_0)
+                    filterer = filts.psqrt_filter
+                case "ikalman":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.ikal_filter
+                case "sikalman":
+                    init_vec = m_0
+                    init_mat = P_0
+                    filterer = filts.sikal_filter
 
+                    
             (
                 log_S2_eta,
                 log_S2_eps,
@@ -751,6 +919,41 @@ class Model:
                 f"Invalid method, {method}, Please select one of ['kalman', 'sqrt', 'inf', 'sqinf']."
             )
 
+    def smooth(self,
+               filt_results,
+               method="kalman"):
+
+        if method == "kalman":
+            ms = filt_results['ms']
+            Ps = filt_results['Ps']
+            (
+                log_S2_eta,
+                log_S2_eps,
+                ks,
+                beta,
+            ) = self.params
+            
+            logks1, logks2, ks3, ks4 = ks
+            ks1 = jnp.exp(logks1)
+            ks2 = jnp.exp(logks2)
+            S2_eta = jnp.exp(log_S2_eta)
+            S2_eps = jnp.exp(log_S2_eps)
+            
+            M = self.con_M((ks1, ks2, ks3, ks4))
+
+            m_post, P_post = filts.kal_smoother(ms, Ps, S2_eta, self.S2_eta_shape, M)
+
+            smooth_data = basis_params_to_st_data(
+                m_post, self.process_basis, self.process_grid
+            )
+
+            return smooth_data
+            
+        else:
+            raise ValueError(
+                f"Not implemented!"
+            )
+        
     def update(self, params):
         (
             log_S2_eta,
@@ -779,21 +982,6 @@ class Model:
         )
 
         return newmodel
-
-    def smooth(self, ms, Ps, mpreds, Ppreds):
-        """NOT FULLY IMPLEMENTED"""
-        M = self.M
-        nbasis = ms[-1].shape[0]
-
-        carry, seq = kalman_smoother(ms, Ps, mpreds, Ppreds, M)
-
-        return (
-            jnp.vstack([jnp.flip(seq[0], axis=1), ms[-1]]),
-            jnp.concatenate(
-                [jnp.flip(seq[1], axis=1), jnp.reshape(Ps[-1], (1, nbasis, nbasis))]
-            ),
-            jnp.flip(seq[2], axis=1),
-        )
 
     @partial(jax.jit, static_argnames=["self"])
     def con_M(self, ks):

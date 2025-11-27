@@ -168,7 +168,7 @@ def plotly_st_grid(st,
     return frames
 
 
-# creates frames of scattered data
+# creates traces of scattered data
 def plotly_st_scatter(st,
                       title="Spatio-Temporal Field",
                       colorscale="Viridis",
@@ -183,7 +183,7 @@ def plotly_st_scatter(st,
     zmin = float(jnp.nanmin(st.z))
     zmax = float(jnp.nanmax(st.z))
 
-    frames = []
+    traces = []
     for t in range(T):
         x = st.coords_tree[t][:,0]
         y = st.coords_tree[t][:,1]
@@ -204,16 +204,9 @@ def plotly_st_scatter(st,
             ),
             showlegend=False
         )
-        frames.append(go.Frame(name=str(t), data=[trace]))
-        
-    coloraxis = dict(
-        colorscale=colorscale,
-        cmin=float(zmin),
-        cmax=float(zmax),
-        colorbar=dict(title="z")  # customize as needed
-    )
-        
-    return frames
+        traces.append(trace)
+                
+    return traces
 
 
 def make_st_fig(frames, ncols=3, spacing = [0.02, 0.02]):
@@ -250,27 +243,36 @@ def make_st_fig(frames, ncols=3, spacing = [0.02, 0.02]):
     return fig
 
 
-def make_interactive_fig(frames):
+def make_interactive_fig(traces):
+
+    fig = go.Figure()
     
-    fig = go.Figure(
-        data=frames[0].data,  # initial frame
-        frames=frames         # all frames
-    )
+    for trace in traces:
+        fig.add_trace(trace)
+
+    fig.data[10].visible = True
+
+    steps = []
+    for i in range(len(fig.data)):
+        step = dict(
+            method="update",
+            args=[{"visible": [False] * len(fig.data)},
+                  {"title": "Slider switched to step: " + str(i)}],  # layout attribute
+        )
+        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+        steps.append(step)
+
+    sliders = [dict(
+        active=10,
+        currentvalue={"prefix": "T: "},
+        pad={"t": 50},
+        steps=steps
+    )]
     
     fig.update_layout(
-        sliders=[{
-            "active": 0,
-            "pad": {"t": 50},
-            "steps": [{
-                "label": f"{i}",
-                "method": "animate",
-                "args": [[f.name], {"mode": "immediate",
-                                    "frame": {"duration": 0, "redraw": True},
-                                    "transition": {"duration": 0}}]
-            } for i, f in enumerate(frames)]
-        }]
+        sliders=sliders
     )
-
+        
     return fig
 
 

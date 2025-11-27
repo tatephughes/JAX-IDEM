@@ -215,8 +215,8 @@ def sqrt_filter(
 
     filt_results = SqrtResults(
         ll=ll,
-        ms=ms,
-        Us=Us,
+        ms=jnp.vstack([m_0[None,:], ms]),
+        Us=jnp.vstack([U_0[None,:,:], Us]),
         m_preds=mpreds,
         U_preds=Upreds,
         m_forecast=seq_fc[0],
@@ -224,3 +224,54 @@ def sqrt_filter(
     )
 
     return filt_results
+
+
+def sqrt_smoother(ms,
+                  Us,
+                  S2_eta,
+                  S2_eta_shape,
+                  M,
+                  ):
+
+    r = ms.shape[1]
+    
+    match S2_eta_shape:
+        case 0:
+            sigma_eta = jnp.sqrt(S2_eta) * jnp.eye(r)
+        case 1:
+            sigma_eta = jnp.diag(jnp.sqrt(S2_eta))
+        case 2:
+            sigma_eta = jnp.linalg.cholesky(S2_eta)
+
+    I = jnp.eye(r)
+            
+    def backsmooth(carry, x):
+
+        m_tpT, U_tpT = carry
+        m_tt, U_tt = x
+
+        mpred = M @ m_tt
+        Upred = qr_R(U_tt@M.T, sigma_eta)
+
+        C = (st(Upred, st(Upred.T, M @ U_tt.T @ U_tt, lower=True), lower=False)).T
+
+        U_t = qr_R(Upred, sigma_eta)
+        
+        m_tT = C @ (m_tpT - mpred)
+        U_tT = qr_R(U_t @ C.T, U_tt @ (I - C@M).T)
+
+        return (m_tT, U_tT), (m_tT, U_tT)
+
+    xs = (jnp.flip(ms[:-2], axis=0),
+          jnp.flip(Us[:-2], axis=0),)
+    
+    carry, seq = jl.scan(
+        backsmooth,
+        (ms[-1], Us[-1]),
+        xs,
+    )
+
+    m_post, U_post = (jnp.vstack([jnp.flip(seq[0], axis=0), ms[None, -1]]),
+                      jnp.vstack([jnp.flip(seq[1], axis=0), Us[None, -1]]))
+
+    return m_post, U_post

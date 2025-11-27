@@ -154,8 +154,9 @@ def inf_filter(
 
         S_t = Minv.T @ Q_tt @ Minv
 
+        # For some reason, assume_a = 'pos' breaks it; perhaps J_t can hace zero singvals?
         J_t = solve(
-            add_variance(S_t, S2_eta_inv, S2_eta_shape).T, S_t.T, assume_a="pos"
+            add_variance(S_t, S2_eta_inv, S2_eta_shape).T, S_t.T, assume_a = 'sym'
         ).T
 
         # match S2_eta_shape:
@@ -245,3 +246,20 @@ def inf_filter(
     )
 
     return filt_results
+
+
+"""
+def inf_smoother(
+        nus,
+        Qs,
+        S2_eta,
+        S2_eta_shape,
+        M,
+        ):
+
+    def backsmooth(carry, x):
+        
+        nu_tpT, Q_tpT = carry
+        nu_tt, Q_tt = x
+
+"""

@@ -84,3 +84,8 @@ jax.iml
 # results
 site/results/*
 **/*.quarto_ipynb
+
+
+# Extra nonsense
+ltximg/*
+site/.jupyter_cache

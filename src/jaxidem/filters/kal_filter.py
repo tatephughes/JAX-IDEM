@@ -183,8 +183,8 @@ def kal_filter(
 
     filt_results = KalmanResults(
         ll=ll,
-        ms=ms,
-        Ps=Ps,
+        ms=jnp.vstack([m_0[None,:], ms]),
+        Ps=jnp.vstack([P_0[None,:,:], Ps]),
         m_preds=mpreds,
         P_preds=Ppreds,
         m_forecast=seq_fc[0],
@@ -192,3 +192,48 @@ def kal_filter(
     )
 
     return filt_results
+
+
+
+def kal_smoother(
+        ms,
+        Ps,
+        S2_eta,
+        S2_eta_shape,
+        M,
+        ):
+
+    """RTS Smoother"""
+
+    # TEMPORARY!!!
+    #S2_eta = S2_eta * jnp.eye(ms[0].size)
+    
+    def backsmooth(carry, x):
+
+        m_tpT, P_tpT = carry
+        m_tt, P_tt = x
+
+        mpred = M@ m_tt
+        Ppred = add_variance(M @ P_tt @ M.T, S2_eta, S2_eta_shape)
+        
+        
+        C = solve(Ppred, M @ P_tt).T
+
+        m_tT = m_tt + C @ (m_tpT - mpred)
+        P_tT = P_tt + C @ (P_tpT - Ppred) @ C.T
+
+        return (m_tT, P_tT), (m_tT, P_tT)
+
+    xs = (jnp.flip(ms[:-1], axis=0),
+          jnp.flip(Ps[:-1], axis=0),)
+    
+    carry, seq = jl.scan(
+        backsmooth,
+        (ms[-1], Ps[-1]),
+        xs,
+    )
+
+    m_post, P_post = (jnp.vstack([jnp.flip(seq[0], axis=0), ms[None, -1]]),
+                      jnp.vstack([jnp.flip(seq[1], axis=0), Ps[None, -1]]))
+
+    return m_post, P_post
