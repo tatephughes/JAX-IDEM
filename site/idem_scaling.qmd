@@ -1,0 +1,412 @@
+---
+title: "Scaling IDE models"
+execute: 
+  cache: true
+---
+
+# Simulation
+
+We create a simple model with downward-movement and diffusion, on 400 cosine basis functions.
+
+```{python}
+#| output: false
+#| eval: true
+
+import jax
+# Some filters, particularily the sqrt filters, may work in 32-bit, but expect instabilities.
+jax.config.update("jax_enable_x64", True)
+import jax.numpy as jnp
+
+# Module imports
+import jaxidem.utils as utils
+import jaxidem.idem as idem
+
+seed = 4
+key = jax.random.PRNGKey(seed)
+keys = jax.random.split(key, 10)
+
+
+T = 20
+nobs = 400
+process_basis = utils.place_cosine_basis(N=10) 
+
+# This puts a point of mass at 0.1,0.9 and a point of 0 at 0.9, 0.1.
+# Using the least squares estimator, this creates a point at the corner.
+inp_data = jnp.array([[0.1, 0.9, 100],
+                      [0.9, 0.1, 0]])
+
+
+# create a 'ball' at the top left using least squares
+PHI = process_basis.mfun(inp_data[:,0:2])
+alpha_0 = jnp.linalg.pinv(PHI.T@PHI)@PHI.T @ inp_data[:,2]
+
+
+
+# this function creates models like in this example. for practical uses, use `init_model`.
+
+# Fudged numbers to look at least a little interesting.
+K_basis = (
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+)
+# These values create reasonable drift and diffusion at
+s = 0.0001
+k = (
+    jnp.array([1/(2*jnp.pi*s)]), # Scale parameter    (θ_1)
+    jnp.array([2*s]), # Shape paramter  (θ_2)
+    jnp.array([-0.02]), # X-axis drift    (θ_3) 
+    jnp.array([0.02]), # Y-axis drift     (θ_4)
+)
+kernel = idem.param_exp_kernel(K_basis, k)
+
+model = idem.gen_example_idem(keys[0],
+                              process_basis = process_basis,
+                              beta = jnp.array([0.0]),
+                              kernel=kernel)
+
+
+
+
+coords = jax.random.uniform(
+                keys[0],
+                shape=(nobs, 2),
+                minval=0,
+                maxval=1,
+            )
+times = jnp.repeat(jnp.arange(1, T + 1), coords.shape[0])
+rep_coords = jnp.tile(coords, (T, 1))
+x = rep_coords[:,0]
+y = rep_coords[:,1]
+
+
+process_data, obs_data = model.simulate(keys[1], x, y, times, alpha_0 = alpha_0)
+
+# For normalising axes
+zmin = float(jnp.nanmin(obs_data.z))
+zmax = float(jnp.nanmax(obs_data.z))
+zbounds = [zmin, zmax]
+```
+
+```{python}
+#| output: false
+#| echo: false
+
+
+import plotly.graph_objects as go
+import plotly.figure_factory as ff
+from plotly.subplots import make_subplots
+
+# creates frames of scattered data
+def plotly_st_scatter(st,
+                      title="Spatio-Temporal Field",
+                      colorscale="Viridis",
+                      mark_size=5,
+                      name='scatter',
+                      zbounds = None,
+                      ):
+
+    T = st.T
+
+    klass = go.Scattergl
+
+    if zbounds is None:
+        zmin = float(jnp.nanmin(st.z))
+        zmax = float(jnp.nanmax(st.z))
+    else:
+        zmin = zbounds[0]
+        zmax = zbounds[1]
+
+    traces = []
+    frames = []
+    for t in range(T):
+        x = st.coords_tree[t][:,0]
+        y = st.coords_tree[t][:,1]
+        z = st.zs_tree[t]
+
+        trace = go.Scattergl(
+            x=x.tolist(),
+            y=y.tolist(),
+            mode="markers",
+            name=name,
+            marker=dict(
+                size = mark_size,
+                color=z.tolist(),
+                colorscale=colorscale,
+                cmin=zmin,
+                cmax=zmax,
+                showscale=True
+            ),
+            showlegend=False
+        )
+        frames.append(go.Frame(name=str(t), data=[trace]))
+        traces.append(trace)
+        
+    coloraxis = dict(
+        colorscale=colorscale,
+        cmin=float(zmin),
+        cmax=float(zmax),
+        colorbar=dict(title="z")  # customize as needed
+    )
+        
+    return frames, traces
+
+
+
+
+def make_interactive_fig(traces):
+
+    fig = go.Figure()
+    
+    for trace in traces:
+        fig.add_trace(trace)
+
+    fig.data[10].visible = True
+
+    steps = []
+    for i in range(len(fig.data)):
+        step = dict(
+            method="update",
+            args=[{"visible": [False] * len(fig.data)},
+                  {"title": "Time: " + str(i)}],  # layout attribute
+        )
+        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+        steps.append(step)
+
+    sliders = [dict(
+        active=10,
+        currentvalue={"prefix": "T: "},
+        pad={"t": 50},
+        steps=steps
+    )]
+    
+    fig.update_layout(
+        sliders=sliders
+    )
+        
+    return fig
+
+import jaxidem.plotters as plotters
+
+```
+
+:::{.columns}
+::: {.column width="50%"}
+```{python}
+frames, traces = plotly_st_scatter(process_data, title="Observations", mark_size=20, zbounds=zbounds)
+process_fig = make_interactive_fig(traces)
+
+# Apply the catppuccin mocha theme to match these notebooks
+plotters.apply_catppuccin_mocha(process_fig, fontsize = 20)
+
+process_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
+ 
+process_fig.show()
+```
+:::
+::: {.column width="50%"}
+
+```{python}
+frames, traces = plotly_st_scatter(obs_data, title="Observations", mark_size=20, zbounds=zbounds)
+obs_fig = make_interactive_fig(traces)
+
+# Apply the catppuccin mocha theme to match these notebooks
+plotters.apply_catppuccin_mocha(obs_fig, fontsize = 20)
+
+obs_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
+
+obs_fig.show()
+```
+:::
+:::
+
+
+
+[WORKING ON HEATMAP PLOTTING. THIS IS FINE FOR NOW]
+
+
+Once we simulate the data, we can 'filter' across it, recovering the means and variances of the process. 
+This is built-in the the method `idem.Model.filter`
+
+
+```{python}
+
+# Some filters dont work yet!
+filt_data, filt_results = model.filter(
+    obs_data,
+    method="kalman",
+)
+
+frames, traces = plotly_st_scatter(filt_data, title="Observations", mark_size=20, zbounds=zbounds)
+filt_fig = make_interactive_fig(traces)
+
+# Apply the catppuccin mocha theme to match these notebooks
+plotters.apply_catppuccin_mocha(filt_fig, fontsize = 20)
+
+filt_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
+
+filt_fig.show()
+```
+
+(there is a scale difference; I should force all plots to use the same scale!)
+
+```{python}
+
+# Some smoothers dont work yet!
+smooth_data = model.smooth( 
+    filt_results,
+    method="kalman",
+)
+
+frames, traces = plotly_st_scatter(smooth_data, title="Observations", mark_size=20, zbounds=zbounds)
+smooth_fig = make_interactive_fig(traces)
+
+# Apply the catppuccin mocha theme to match these notebooks
+plotters.apply_catppuccin_mocha(smooth_fig, fontsize = 20)
+
+smooth_fig.update_layout(
+    xaxis=dict(showticklabels=False),
+    yaxis=dict(showticklabels=False, scaleanchor="x")
+)
+
+smooth_fig.show()
+```
+
+
+```{python}
+#| output: false
+#| eval: true
+
+log_marginal_kal = model.get_log_like(obs_data, method="kalman", likelihood='full')
+log_marginal_skal = model.get_log_like(obs_data, method="skalman", likelihood='full')
+log_marginal_ikal = model.get_log_like(obs_data, method="ikalman", likelihood='full')
+log_marginal_sikal = model.get_log_like(obs_data, method="sikalman", likelihood='full')
+log_marginal_sqrt = model.get_log_like(obs_data, method="sqrt", likelihood='full')
+log_marginal_inf = model.get_log_like(obs_data, method="inf", likelihood='full')
+log_marginal_sqinf = model.get_log_like(obs_data, method="sqinf", likelihood='full')
+log_marginal_pkal = model.get_log_like(obs_data, method="parallel", likelihood='full')
+#log_marginal_psqrt = model.get_log_like(obs_data, method="psqrt", likelihood='full')
+
+nreps = 1
+
+time_kal   = utils.time_jit(key, log_marginal_kal, model.params, n=nreps)
+time_skal  = utils.time_jit(key, log_marginal_skal, model.params, n=nreps)
+time_ikal  = utils.time_jit(key, log_marginal_ikal, model.params, n=nreps)
+time_sikal  = utils.time_jit(key, log_marginal_sikal, model.params, n=nreps)
+time_inf   = utils.time_jit(key, log_marginal_inf, model.params, n=nreps)
+time_sqrt  = utils.time_jit(key, log_marginal_sqrt, model.params, n=nreps)
+time_sqinf = utils.time_jit(key, log_marginal_sqinf, model.params, n=nreps)
+time_pkal  = utils.time_jit(key, log_marginal_pkal, model.params, n=nreps)
+#time_psqrt = utils.time_jit(key, log_marginal_psqrt, model.params, n=nreps)
+
+data = [
+    ["kal",   time_kal.compile_time,   time_kal.average_time * 1000,   time_kal.value],
+    ["skal",  time_skal.compile_time,  time_skal.average_time * 1000,  time_skal.value],
+    ["ikal",  time_ikal.compile_time,  time_ikal.average_time * 1000,  time_ikal.value],
+    ["sikal",  time_sikal.compile_time,  time_sikal.average_time * 1000,  time_sikal.value],
+    ["inf",   time_inf.compile_time,   time_inf.average_time * 1000,   time_inf.value],
+    ["sqrt",  time_sqrt.compile_time,  time_sqrt.average_time * 1000,  time_sqrt.value],
+    ["sqinf", time_sqinf.compile_time, time_sqinf.average_time * 1000, time_sqinf.value],
+    ["pkal",  time_pkal.compile_time,  time_pkal.average_time * 1000,  time_pkal.value],
+#    ["psqrt", time_psqrt.compile_time, time_psqrt.average_time * 1000, time_psqrt.value],
+]
+
+import pandas as pd
+
+df = pd.DataFrame(data, columns=["Method", "Compile Time (s)", "Average Time (ms)", "Log Likelihood"])
+
+
+```
+
+```{python}
+#| eval: true
+#| output: true
+
+print(f"Results for IDEM with nbasis={model.nbasis}, nobs = {nobs}, T = {T}")
+print(f"Precision: {model.M.dtype}")
+
+print(df.to_markdown(index=False))
+```
+
+
+
+# Fitting
+
+```{python}
+
+
+# Fudged numbers to look at least a little interesting.
+K_basis = (
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+    utils.place_basis(nres=1, min_knot_num=1, basis_fun=lambda s, r: 1),
+)
+# These values create reasonable drift and diffusion at
+s = 0.0005
+k = (
+    jnp.array([1/(2*jnp.pi*s)]), # Scale parameter    (θ_1)
+    jnp.array([2*s]), # Shape paramter  (θ_2)
+    jnp.array([0.]), # X-axis drift    (θ_3) 
+    jnp.array([0.]), # Y-axis drift     (θ_4)
+)
+kernel = idem.param_exp_kernel(K_basis, k)
+
+shell_model = idem.gen_example_idem(keys[0],
+                                    process_basis = process_basis,
+                                    beta = jnp.array([0.0]),
+                                    kernel=kernel)
+
+bound_di = jnp.max(shell_model.process_grid.ngrids * shell_model.process_grid.deltas)
+
+
+print(f"\nTrue Parameters:\n{idem.format_params(model.params)}\n")    
+
+print(f"\nInitial Parameters:\n{idem.format_params(shell_model.params)}\n")
+
+nll_val_grad = jax.value_and_grad(
+    shell_model.get_log_like(
+        obs_data, method='sqrt', likelihood="partial", negative=True
+    )
+)
+
+import optax
+
+optimizer=optax.adam(1e-2)
+
+nll, _ = nll_val_grad(shell_model.params)
+params = shell_model.params
+opt_state = optimizer.init(params)
+
+
+print(
+    f"""The log likelihood (up to a constant) of the initial model is
+    {-nll}"""
+)
+
+for i in range(10):
+    nllprev = nll
+    nll, grad = nll_val_grad(params)
+    updates, opt_state = optimizer.update(grad, opt_state, params=params)
+    params = optax.apply_updates(params, updates)
+
+
+print(
+    f"""The final log likelihood (up to a constant) of the fit model is
+    {-nll}"""
+)
+
+new_fitted_model = shell_model.update(params)
+
+print(f"\nFinal Parameters:\n{idem.format_params(new_fitted_model.params)}\n")    
+```

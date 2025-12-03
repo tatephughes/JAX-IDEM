@@ -148,6 +148,7 @@ def param_exp_kernel(K_basis: tuple, k: tuple):
     return Kernel(basis=K_basis, params=k, function=kernel)
 
 
+# BEING DEPRECIATED just using a dictionary now.
 class IdemParams(NamedTuple):
     """
     The parameters of an IDEM, as described in .
@@ -279,6 +280,7 @@ class Model:
 
         self.nbasis = process_basis.nbasis
 
+        # should be a dictionary
         trans_kernel_params = (
             jnp.log(self.kernel.params[0]),
             jnp.log(self.kernel.params[1]),
@@ -286,12 +288,19 @@ class Model:
             self.kernel.params[3],
         )
 
-        self.params = IdemParams(
-            log_S2_eps=jnp.log(S2_eps),
-            log_S2_eta=jnp.log(S2_eta),
-            trans_kernel_params=trans_kernel_params,
-            beta=self.beta,
-        )
+        #self.params = IdemParams(
+        #    log_S2_eps=jnp.log(S2_eps),
+        #    log_S2_eta=jnp.log(S2_eta),
+        #    trans_kernel_params=trans_kernel_params,
+        #    beta=self.beta,
+        #)
+
+        self.params = {
+            "log_S2_eps": jnp.log(S2_eps),
+            "log_S2_eta": jnp.log(S2_eta),
+            "trans_kernel_params": trans_kernel_params,
+            "beta": self.beta,
+        }
 
         self.nparams = sum(arr.size for arr in jax.tree.leaves(self.params))
 
@@ -494,12 +503,16 @@ class Model:
 
             @jax.jit
             def objective(params):
-                (
-                    log_S2_eps,
-                    log_S2_eta,
-                    ks,
-                    beta,
-                ) = params
+                #(
+                #    log_S2_eps,
+                #    log_S2_eta,
+                #    ks,
+                #    beta,
+                    #) = params
+                log_S2_eps = params['log_S2_eps']
+                log_S2_eta = params['log_S2_eta']
+                beta = params['beta']
+                ks = params['trans_kernel_params']
                 ztildes_tree = obs_data.tildify(beta)
                 logks1, logks2, ks3, ks4 = ks
                 ks1 = jnp.exp(logks1)
@@ -572,12 +585,16 @@ class Model:
 
             @jax.jit
             def objective(params):
-                (
-                    log_S2_eps,
-                    log_S2_eta,
-                    ks,
-                    beta,
-                ) = params
+                #(
+                #    log_S2_eps,
+                #    log_S2_eta,
+                #    ks,
+                #    beta,
+                #) = params
+                log_S2_eps = params['log_S2_eps']
+                log_S2_eta = params['log_S2_eta']
+                beta = params['beta']
+                ks = params['trans_kernel_params']
                 ztildes_tree = obs_data.tildify(beta)
                 logks1, logks2, ks3, ks4 = ks
                 ks1 = jnp.exp(logks1)
@@ -643,12 +660,16 @@ class Model:
 
             @jax.jit
             def objective(params):
-                (
-                    log_S2_eps,
-                    log_S2_eta,
-                    ks,
-                    beta,
-                ) = params
+                #(
+                #    log_S2_eps,
+                #    log_S2_eta,
+                #    ks,
+                #    beta,
+                #) = params
+                log_S2_eps = params['log_S2_eps']
+                log_S2_eta = params['log_S2_eta']
+                beta = params['beta']
+                ks = params['trans_kernel_params']
                 ztildes_tree = obs_data.tildify(beta)
                 logks1, logks2, ks3, ks4 = ks
                 ks1 = jnp.exp(logks1)
@@ -717,12 +738,16 @@ class Model:
 
             @jax.jit
             def objective(params):
-                (
-                    log_S2_eps,
-                    log_S2_eta,
-                    ks,
-                    beta,
-                ) = params
+                #(
+                #    log_S2_eps,
+                #    log_S2_eta,
+                #    ks,
+                #    beta,
+                #) = params
+                log_S2_eps = params['log_S2_eps']
+                log_S2_eta = params['log_S2_eta']
+                beta = params['beta']
+                ks = params['trans_kernel_params']
                 ztildes_tree = obs_data.tildify(beta)
                 logks1, logks2, ks3, ks4 = ks
                 ks1 = jnp.exp(logks1)
@@ -783,12 +808,16 @@ class Model:
                     init_mat = P_0
                     filterer = filts.skal_filter
 
-            (
-                log_S2_eta,
-                log_S2_eps,
-                ks,
-                beta,
-            ) = self.params
+            #(
+            #    log_S2_eta,
+            #    log_S2_eps,
+            #    ks,
+            #    beta,
+            #) = self.params
+            log_S2_eps = params['log_S2_eps']
+            log_S2_eta = params['log_S2_eta']
+            beta = params['beta']
+            ks = params['trans_kernel_params']
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)
@@ -861,12 +890,16 @@ class Model:
                     filterer = filts.sikal_filter
 
                     
-            (
-                log_S2_eta,
-                log_S2_eps,
-                ks,
-                beta,
-            ) = self.params
+            #(
+            #    log_S2_eta,
+            #    log_S2_eps,
+            #    ks,
+            #    beta,
+            #) = self.params
+            log_S2_eps = params['log_S2_eps']
+            log_S2_eta = params['log_S2_eta']
+            beta = params['beta']
+            ks = params['trans_kernel_params']
             ztildes_tree = obs_data.tildify(beta)
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)
