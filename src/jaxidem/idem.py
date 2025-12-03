@@ -310,7 +310,7 @@ class Model:
                 self.S2_eps = S2_eps
                 self.S2_eps_shape = len(jax.tree.flatten(S2_eps_tree)[0][0].shape)
                 self.eps_type = "pytree"
-
+                
     # @partial(jax.jit, static_argnames=["self", "alpha_0"])
     def simulate_basis(self, key, T, alpha_0=None):
         if alpha_0 is None:
