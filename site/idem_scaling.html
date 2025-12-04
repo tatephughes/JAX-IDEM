@@ -122,7 +122,7 @@ if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.M
 <section id="simulation" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Simulation</h1>
 <p>We create a simple model with downward-movement and diffusion, on 400 cosine basis functions.</p>
-<div id="ecc1fd56" class="cell" data-execution_count="1">
+<div id="ecc1fd56" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Some filters, particularily the sqrt filters, may work in 32-bit, but expect instabilities.</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>jax.config.update(<span class="st">"jax_enable_x64"</span>, <span class="va">True</span>)</span>
@@ -201,7 +201,7 @@ if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.M
 </div>
 <div class="columns">
 <div class="column" style="width:50%;">
-<div id="4e829d7d" class="cell" data-execution_count="3">
+<div id="4e829d7d" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>frames, traces <span class="op">=</span> plotly_st_scatter(process_data, title<span class="op">=</span><span class="st">"Observations"</span>, mark_size<span class="op">=</span><span class="dv">20</span>, zbounds<span class="op">=</span>zbounds)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>process_fig <span class="op">=</span> make_interactive_fig(traces)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -244,7 +244,7 @@ if (outputEl) {{
 </div>
 </div>
 </div><div class="column" style="width:50%;">
-<div id="1945b152" class="cell" data-execution_count="4">
+<div id="1945b152" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>frames, traces <span class="op">=</span> plotly_st_scatter(obs_data, title<span class="op">=</span><span class="st">"Observations"</span>, mark_size<span class="op">=</span><span class="dv">20</span>, zbounds<span class="op">=</span>zbounds)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>obs_fig <span class="op">=</span> make_interactive_fig(traces)</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -290,7 +290,7 @@ if (outputEl) {{
 </div>
 <p>[WORKING ON HEATMAP PLOTTING. THIS IS FINE FOR NOW]</p>
 <p>Once we simulate the data, we can ‘filter’ across it, recovering the means and variances of the process. This is built-in the the method <code>idem.Model.filter</code></p>
-<div id="ec84a0e5" class="cell" data-execution_count="5">
+<div id="ec84a0e5" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Some filters dont work yet!</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>filt_data, filt_results <span class="op">=</span> model.<span class="bu">filter</span>(</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    obs_data,</span>
@@ -339,7 +339,7 @@ if (outputEl) {{
 </div>
 </div>
 <p>(there is a scale difference; I should force all plots to use the same scale!)</p>
-<div id="3131c47f" class="cell" data-execution_count="6">
+<div id="3131c47f" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Some smoothers dont work yet!</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>smooth_data <span class="op">=</span> model.smooth( </span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    filt_results,</span>
@@ -387,7 +387,7 @@ if (outputEl) {{
                         })                };            </script>        </div>
 </div>
 </div>
-<div id="a8b96c84" class="cell" data-execution_count="7">
+<div id="a8b96c84" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>log_marginal_kal <span class="op">=</span> model.get_log_like(obs_data, method<span class="op">=</span><span class="st">"kalman"</span>, likelihood<span class="op">=</span><span class="st">'full'</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>log_marginal_skal <span class="op">=</span> model.get_log_like(obs_data, method<span class="op">=</span><span class="st">"skalman"</span>, likelihood<span class="op">=</span><span class="st">'full'</span>)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>log_marginal_ikal <span class="op">=</span> model.get_log_like(obs_data, method<span class="op">=</span><span class="st">"ikalman"</span>, likelihood<span class="op">=</span><span class="st">'full'</span>)</span>
@@ -426,7 +426,7 @@ if (outputEl) {{
 <span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.DataFrame(data, columns<span class="op">=</span>[<span class="st">"Method"</span>, <span class="st">"Compile Time (s)"</span>, <span class="st">"Average Time (ms)"</span>, <span class="st">"Log Likelihood"</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="488e96c4" class="cell" data-execution_count="8">
+<div id="488e96c4" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Results for IDEM with nbasis=</span><span class="sc">{</span>model<span class="sc">.</span>nbasis<span class="sc">}</span><span class="ss">, nobs = </span><span class="sc">{</span>nobs<span class="sc">}</span><span class="ss">, T = </span><span class="sc">{</span>T<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Precision: </span><span class="sc">{</span>model<span class="sc">.</span>M<span class="sc">.</span>dtype<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -449,7 +449,7 @@ Precision: float64
 </section>
 <section id="fitting" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Fitting</h1>
-<div id="a7609182" class="cell" data-execution_count="9">
+<div id="a7609182" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fudged numbers to look at least a little interesting.</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>K_basis <span class="op">=</span> (</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    utils.place_basis(nres<span class="op">=</span><span class="dv">1</span>, min_knot_num<span class="op">=</span><span class="dv">1</span>, basis_fun<span class="op">=</span><span class="kw">lambda</span> s, r: <span class="dv">1</span>),</span>

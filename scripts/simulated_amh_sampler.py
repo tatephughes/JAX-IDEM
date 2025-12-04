@@ -1,10 +1,18 @@
+print("Script started. Importing modules...", flush=True)
+
 import jax
 # Some filters, particularily the sqrt filters, may work in 32-bit, but expect instabilities.
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
+from jax.scipy.linalg import solve
+from jax.scipy.linalg import solve_triangular as st
+from jax.scipy.stats.multivariate_normal import logpdf as lmvn
+from jax.scipy.stats.norm import logpdf as lpnorm
+
 # Module imports
 import jaxidem.utils as utils
+from jaxidem.utils import add_variance
 import jaxidem.idem as idem
 import jaxidem.filters as filts
 
@@ -12,20 +20,27 @@ import jax.lax as jl
 import jax.random as jr
 from jax.random import multivariate_normal as smvn
 from jax.random import normal as snorm
+
 from functools import partial
-from jaxidem.utils import add_variance
-from jax.scipy.linalg import solve
-from jax.scipy.linalg import solve_triangular as st
-
-
-from jax.scipy.stats.multivariate_normal import logpdf as lmvn
-from jax.scipy.stats.norm import logpdf as lpnorm
 
 from tqdm.auto import tqdm
 
-seed = 4
-key = jax.random.PRNGKey(seed)
-keys = jax.random.split(key, 10)
+import csv
+from datetime import datetime
+import os
+import pickle
+
+print("This is adaptive metropolis with a prior on the simulated data example.")
+
+print("Current Time:", datetime.now().strftime("%H:%M:%S"), flush=True)
+print("Creating model...", flush=True)
+
+seed = 67
+key = jr.PRNGKey(seed)
+keys = jr.split(key, 10)
+
+
+amh_n = 10000
 
 
 T = 20
@@ -71,7 +86,7 @@ model = idem.gen_example_idem(keys[0],
 
 
 
-coords = jax.random.uniform(
+coords = jr.uniform(
                 keys[0],
                 shape=(nobs, 2),
                 minval=0,
@@ -120,7 +135,20 @@ model_0 = idem.gen_example_idem(keys[0],
                                 S2_eps = 0.01**2)
 
 
+
+print("Done!", flush=True)
+print("Current Time:", datetime.now().strftime("%H:%M:%S"), flush=True)
+print("Creating log marginal...", flush=True)
+
+
 log_marginal = model_0.get_log_like(obs_data, method="sqinf", likelihood='partial', P_0 = 1000*jnp.eye(process_basis.nbasis))
+
+
+
+print('Log marginal made!', flush=True)
+print("Current Time:", datetime.now().strftime("%H:%M:%S"), flush=True)
+print("Creating priors and posterior...", flush=True)
+
 
 alp_eta_0 = 2
 lam_eta_0 = model_0.S2_eta
@@ -165,39 +193,106 @@ def log_post(params):
     return log_marginal(params) + log_beta_prior + log_eta_prior + log_eps_prior + log_kern_prior
 
     
-print('Log posterior made!')
+print('Log posterior made!', flush=True)
+print("Current Time:", datetime.now().strftime("%H:%M:%S"), flush=True)
 
 
 
-# Build the kernel
-inverse_mass_matrix = 0.01*jnp.ones(model_0.nparams)
-num_integration_steps = 20
-step_size = 1e-5
 
-import blackjax
+#directory = os.path.dirname(os.path.abspath(__file__))
+#directory = "~/Projects/JAX-IDEM/scripts/"
 
-hmc = blackjax.hmc(log_post, step_size, inverse_mass_matrix, num_integration_steps=25)
-
-# Initialize the state
-state = hmc.init(model_0.params)
-
-hmc_sample = []
-
-# Iterate
-step = jax.jit(hmc.step)
+script_path = os.path.abspath(__file__)
+directory = os.path.dirname(script_path)
 
 
-sample_key = jr.PRNGKey(67)
 
-hmc_n = 100
-accepted = 0
-for i in tqdm(range(hmc_n), desc="Sampling... "):
+current_datetime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+csv_file = os.path.join(directory, f'results/{current_datetime}_results_adaptive_prior.csv')
 
-    hmc_key = jax.random.fold_in(sample_key, i)
-    state, info = step(hmc_key, state)
 
-    accepted = accepted + info.is_accepted
-    hmc_sample.append(state.position)
 
-    print(f"\nCurrent offsets: {state.position['trans_kernel_params'][2:]}")
-    print(f"Acc Ratio; {accepted / (i+1)}")
+
+back_key, sample_key = jr.split(key, 2)
+
+
+
+
+
+init = model_0.params
+init_flat, unflat = utils.flatten_and_unflatten(init)
+
+
+init_mean = init_flat
+x = init_mean
+x_mean = init_mean
+accept_count = 0
+d = x.shape[0]
+prop_cov = 0.1*jnp.eye(d)
+
+mix = True
+
+acc_count = 0
+
+
+
+
+for j in range(1, amh_n):
+    
+    amh_key = jr.fold_in(sample_key, j)
+
+    mix_key, prop_key, acc_key = jr.split(amh_key, 3)
+    
+    #keys = jr.split(prop_key,3)
+    eps = 0.01
+
+    
+    prop = jl.cond((j <= 5*d) | (mix & (jr.uniform(mix_key) < eps)),
+                   lambda key: jr.normal(key, shape=(d,))/(jnp.sqrt(100*d)) + x, # 'Safe' sampler
+                   lambda key: jr.multivariate_normal(key, x, prop_cov), # 'Adaptive' sampler
+                   prop_key)
+    
+    # Compute the log Hastings ratio
+    alpha = log_post(unflat(prop)) - log_post(unflat(x))
+    
+    log_prob = jnp.minimum(0.0, alpha)
+  
+    u = jr.uniform(acc_key)
+
+    x, is_accepted = jl.cond((jnp.log(u) < log_prob),
+                                 0, lambda _: (prop, 1),
+                                 0, lambda _: (x, 0))
+
+    acc_count = acc_count + is_accepted
+    
+    # update empirical mean
+    x_mean = (x_mean*j + x)/(j+1)
+  
+    # update proposal covariance
+    prop_cov = jnp.select(condlist   = [mix | (j<5*d), (not mix) & (j>=5*d)],
+                              choicelist = [
+                                prop_cov*((j-1)/j) +
+                                (j*jnp.outer(x_mean-x_mean, x_mean-x_mean) +
+                                 jnp.outer(x - x_mean, x - x_mean)
+                                 )*5.6644/(j*d),
+                                prop_cov*((j-1)/j) +
+                                (j*jnp.outer(x_mean-x_mean, x_mean-x_mean) +
+                                 jnp.outer(x - x_mean, x - x_mean) +
+                                 0.01*jnp.identity(d)
+                                 )*5.6644/(j*d)],
+                              default = 1)
+
+    #with open(csv_file, mode='a', newline='') as file:
+    #    writer = csv.writer(file)
+    #    writer.writerow(jnp.concatenate([jnp.array([is_accepted]), x]))
+
+
+    
+    if j%10 == 0:
+        print(f"Acceptance rate is {acc_count/j}")
+        print(f"Current value is {x}")
+        # Save the PyTree to a file using pickle
+        with open(os.path.join(directory, 'pickles/adaptive_params_prior.pkl'), 'wb') as file:
+            pickle.dump((j, x, x_mean, prop_cov), file)
+        
+

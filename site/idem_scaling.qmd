@@ -1,7 +1,7 @@
 ---
 title: "Scaling IDE models"
 execute: 
-  cache: true
+  cache: false
 ---
 
 # Simulation
@@ -285,7 +285,7 @@ smooth_fig.show()
 
 ```{python}
 #| output: false
-#| eval: true
+#| eval: false
 
 log_marginal_kal = model.get_log_like(obs_data, method="kalman", likelihood='full')
 log_marginal_skal = model.get_log_like(obs_data, method="skalman", likelihood='full')
@@ -343,7 +343,7 @@ print(df.to_markdown(index=False))
 # Fitting
 
 ```{python}
-
+#| eval: false
 
 # Fudged numbers to look at least a little interesting.
 K_basis = (

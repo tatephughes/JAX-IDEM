@@ -814,10 +814,10 @@ class Model:
             #    ks,
             #    beta,
             #) = self.params
-            log_S2_eps = params['log_S2_eps']
-            log_S2_eta = params['log_S2_eta']
-            beta = params['beta']
-            ks = params['trans_kernel_params']
+            log_S2_eps = self.params['log_S2_eps']
+            log_S2_eta = self.params['log_S2_eta']
+            beta = self.params['beta']
+            ks = self.params['trans_kernel_params']
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)
@@ -896,10 +896,10 @@ class Model:
             #    ks,
             #    beta,
             #) = self.params
-            log_S2_eps = params['log_S2_eps']
-            log_S2_eta = params['log_S2_eta']
-            beta = params['beta']
-            ks = params['trans_kernel_params']
+            log_S2_eps = self.params['log_S2_eps']
+            log_S2_eta = self.params['log_S2_eta']
+            beta = self.params['beta']
+            ks = self.params['trans_kernel_params']
             ztildes_tree = obs_data.tildify(beta)
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)

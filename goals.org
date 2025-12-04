@@ -338,7 +338,8 @@ I want 3 examples
 - Write up compressed Kalman (and do stabilised and sqrt)
 
 
-* TODO Make filt_results a proper class with methods to get any filtered quantity (in a lazy way) regardless of the type of filter used. If this is possible in python.
+* DONE Make filt_results a proper class with methods to get any filtered quantity (in a lazy way) regardless of the type of filter used. If this is possible in python.
+- this is a bad idea, don't do it (though there must be some way of improving this...)
 
 
 
