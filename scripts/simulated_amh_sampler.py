@@ -44,19 +44,21 @@ amh_n = 10000
 
 
 T = 20
-nobs = 400
+nobs = 100
 process_basis = utils.place_cosine_basis(N=10) 
 
 # This puts a point of mass at 0.1,0.9 and a point of 0 at 0.9, 0.1.
 # Using the least squares estimator, this creates a point at the corner.
 inp_data = jnp.array([[0.1, 0.9, 100],
-                      [0.9, 0.1, 0]])
+#                      [0.9, 0.1, 0],
+                      [0.3, 0.9, 100],
+                      [0.1, 0.7, 100],
+                      [0.3, 0.7, 100]])
 
 
 # create a 'ball' at the top left using least squares
 PHI = process_basis.mfun(inp_data[:,0:2])
 alpha_0 = jnp.linalg.pinv(PHI.T@PHI)@PHI.T @ inp_data[:,2]
-
 
 
 # this function creates models like in this example. for practical uses, use `init_model`.
@@ -72,9 +74,9 @@ K_basis = (
 s = 0.0001
 k = (
     jnp.array([1/(2*jnp.pi*s)]), # Scale parameter    (θ_1)
-    jnp.array([2*s]), # Shape paramter  (θ_2)
-    jnp.array([-0.02]), # X-axis drift    (θ_3) 
-    jnp.array([0.02]), # Y-axis drift     (θ_4)
+    jnp.array([0.5*s]), # Shape paramter  (θ_2)
+    jnp.array([-0.025]), # X-axis drift    (θ_3) 
+    jnp.array([0.025]), # Y-axis drift     (θ_4)
 )
 kernel = idem.param_exp_kernel(K_basis, k)
 
@@ -244,7 +246,7 @@ for j in range(1, amh_n):
     mix_key, prop_key, acc_key = jr.split(amh_key, 3)
     
     #keys = jr.split(prop_key,3)
-    eps = 0.01
+    eps = 0.05
 
     
     prop = jl.cond((j <= 5*d) | (mix & (jr.uniform(mix_key) < eps)),
@@ -282,9 +284,9 @@ for j in range(1, amh_n):
                                  )*5.6644/(j*d)],
                               default = 1)
 
-    #with open(csv_file, mode='a', newline='') as file:
-    #    writer = csv.writer(file)
-    #    writer.writerow(jnp.concatenate([jnp.array([is_accepted]), x]))
+    with open(csv_file, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(jnp.concatenate([jnp.array([is_accepted]), x]))
 
 
     

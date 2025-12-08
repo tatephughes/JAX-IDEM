@@ -959,13 +959,17 @@ class Model:
         if method == "kalman":
             ms = filt_results['ms']
             Ps = filt_results['Ps']
-            (
-                log_S2_eta,
-                log_S2_eps,
-                ks,
-                beta,
-            ) = self.params
-            
+            #(
+            #    log_S2_eta,
+            #    log_S2_eps,
+            #    ks,
+            #    beta,
+                #) = self.params
+
+            log_S2_eps = self.params['log_S2_eps']
+            log_S2_eta = self.params['log_S2_eta']
+            beta = self.params['beta']
+            ks = self.params['trans_kernel_params']
             logks1, logks2, ks3, ks4 = ks
             ks1 = jnp.exp(logks1)
             ks2 = jnp.exp(logks2)

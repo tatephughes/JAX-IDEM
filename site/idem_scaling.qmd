@@ -27,13 +27,16 @@ keys = jax.random.split(key, 10)
 
 
 T = 20
-nobs = 400
+nobs = 100
 process_basis = utils.place_cosine_basis(N=10) 
 
 # This puts a point of mass at 0.1,0.9 and a point of 0 at 0.9, 0.1.
 # Using the least squares estimator, this creates a point at the corner.
 inp_data = jnp.array([[0.1, 0.9, 100],
-                      [0.9, 0.1, 0]])
+#                      [0.9, 0.1, 0],
+                      [0.3, 0.9, 100],
+                      [0.1, 0.7, 100],
+                      [0.3, 0.7, 100]])
 
 
 # create a 'ball' at the top left using least squares
@@ -55,9 +58,9 @@ K_basis = (
 s = 0.0001
 k = (
     jnp.array([1/(2*jnp.pi*s)]), # Scale parameter    (θ_1)
-    jnp.array([2*s]), # Shape paramter  (θ_2)
-    jnp.array([-0.02]), # X-axis drift    (θ_3) 
-    jnp.array([0.02]), # Y-axis drift     (θ_4)
+    jnp.array([0.5*s]), # Shape paramter  (θ_2)
+    jnp.array([-0.025]), # X-axis drift    (θ_3) 
+    jnp.array([0.025]), # Y-axis drift     (θ_4)
 )
 kernel = idem.param_exp_kernel(K_basis, k)
 
@@ -242,6 +245,7 @@ This is built-in the the method `idem.Model.filter`
 filt_data, filt_results = model.filter(
     obs_data,
     method="kalman",
+#    P_0 = 10*jnp.eye(model.nbasis)
 )
 
 frames, traces = plotly_st_scatter(filt_data, title="Observations", mark_size=20, zbounds=zbounds)
@@ -329,7 +333,7 @@ df = pd.DataFrame(data, columns=["Method", "Compile Time (s)", "Average Time (ms
 ```
 
 ```{python}
-#| eval: true
+#| eval: false
 #| output: true
 
 print(f"Results for IDEM with nbasis={model.nbasis}, nobs = {nobs}, T = {T}")

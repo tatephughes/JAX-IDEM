@@ -1,5 +1,5 @@
 ---
-title: "Gibbs Sampling with Forward-Filtering Backward-Sampling"
+title: "Synthetic Data Example"
 ---
 
 # Simulation
@@ -30,7 +30,7 @@ keys = jax.random.split(key, 10)
 
 T = 20
 nobs = 400
-process_basis = utils.place_cosine_basis(N=10) 
+process_basis = utils.place_cosine_basis(N=20) 
 
 # This puts a point of mass at 0.1,0.9 and a point of 0 at 0.9, 0.1.
 # Using the least squares estimator, this creates a point at the corner.
