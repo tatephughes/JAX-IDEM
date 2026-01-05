@@ -35,12 +35,12 @@ print("This is adaptive metropolis with a prior on the simulated data example.")
 print("Current Time:", datetime.now().strftime("%H:%M:%S"), flush=True)
 print("Creating model...", flush=True)
 
-seed = 67
+seed = 2
 key = jr.PRNGKey(seed)
 keys = jr.split(key, 10)
 
 
-amh_n = 10000
+amh_n = 100000
 
 
 T = 20
@@ -211,6 +211,7 @@ directory = os.path.dirname(script_path)
 
 current_datetime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 csv_file = os.path.join(directory, f'results/{current_datetime}_results_adaptive_prior.csv')
+pickle_file = os.path.join(directory, f'results/{current_datetime}_results_adaptive.pickle')
 
 
 
@@ -250,39 +251,46 @@ for j in range(1, amh_n):
 
     
     prop = jl.cond((j <= 5*d) | (mix & (jr.uniform(mix_key) < eps)),
-                   lambda key: jr.normal(key, shape=(d,))/(jnp.sqrt(100*d)) + x, # 'Safe' sampler
+                   lambda key: jr.normal(key, shape=(d,))/(jnp.sqrt(1000*d)) + x, # 'Safe' sampler
                    lambda key: jr.multivariate_normal(key, x, prop_cov), # 'Adaptive' sampler
                    prop_key)
     
     # Compute the log Hastings ratio
-    alpha = log_post(unflat(prop)) - log_post(unflat(x))
+
+    val = log_post(unflat(x))
+    alpha = log_post(unflat(prop)) - val
     
     log_prob = jnp.minimum(0.0, alpha)
   
     u = jr.uniform(acc_key)
 
-    x, is_accepted = jl.cond((jnp.log(u) < log_prob),
+    x_new, is_accepted = jl.cond((jnp.log(u) < log_prob),
                                  0, lambda _: (prop, 1),
                                  0, lambda _: (x, 0))
 
     acc_count = acc_count + is_accepted
     
     # update empirical mean
-    x_mean = (x_mean*j + x)/(j+1)
+    x_mean_new = (x_mean*j + x_new)/(j+1)
   
     # update proposal covariance
-    prop_cov = jnp.select(condlist   = [mix | (j<5*d), (not mix) & (j>=5*d)],
+    # update proposal covariance
+    prop_cov_new = jnp.select(condlist   = [mix | (j<2*d), (not mix) & (j>=2*d)],
                               choicelist = [
-                                prop_cov*((j-1)/j) +
-                                (j*jnp.outer(x_mean-x_mean, x_mean-x_mean) +
-                                 jnp.outer(x - x_mean, x - x_mean)
-                                 )*5.6644/(j*d),
-                                prop_cov*((j-1)/j) +
-                                (j*jnp.outer(x_mean-x_mean, x_mean-x_mean) +
-                                 jnp.outer(x - x_mean, x - x_mean) +
-                                 0.01*jnp.identity(d)
-                                 )*5.6644/(j*d)],
+                                  prop_cov*((j-1)/j) +
+                                  (j*jnp.outer(x_mean-x_mean_new, x_mean-x_mean_new) +
+                                   jnp.outer(x_new - x_mean_new, x_new - x_mean_new)
+                                   )*5.6644/(j*d),
+                                  prop_cov*((j-1)/j) +
+                                  (j*jnp.outer(x_mean-x_mean_new, x_mean-x_mean_new) +
+                                   jnp.outer(x_new - x_mean_new, x_new - x_mean_new) +
+                                   0.01*jnp.identity(d)
+                                   )*5.6644/(j*d)],
                               default = 1)
+
+    x= x_new
+    x_mean = x_mean_new
+    prop_cov = prop_cov_new
 
     with open(csv_file, mode='a', newline='') as file:
         writer = csv.writer(file)
@@ -291,10 +299,12 @@ for j in range(1, amh_n):
 
     
     if j%10 == 0:
-        print(f"Acceptance rate is {acc_count/j}")
-        print(f"Current value is {x}")
+        print(f"Acceptance rate is {acc_count/j}", flush=True)
+        print(f"Current value is {x}", flush=True)
         # Save the PyTree to a file using pickle
-        with open(os.path.join(directory, 'pickles/adaptive_params_prior.pkl'), 'wb') as file:
+        with open(pickle_file, 'wb') as file:
             pickle.dump((j, x, x_mean, prop_cov), file)
+
+        print(f"Current density is {val}", flush=True)
         
 

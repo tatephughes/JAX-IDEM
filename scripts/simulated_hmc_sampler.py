@@ -17,6 +17,10 @@ from jaxidem.utils import add_variance
 from jax.scipy.linalg import solve
 from jax.scipy.linalg import solve_triangular as st
 
+import csv
+from datetime import datetime
+import os
+import pickle
 
 from jax.scipy.stats.multivariate_normal import logpdf as lmvn
 from jax.scipy.stats.norm import logpdf as lpnorm
@@ -35,8 +39,10 @@ process_basis = utils.place_cosine_basis(N=10)
 # This puts a point of mass at 0.1,0.9 and a point of 0 at 0.9, 0.1.
 # Using the least squares estimator, this creates a point at the corner.
 inp_data = jnp.array([[0.1, 0.9, 100],
-                      [0.9, 0.1, 0]])
-
+#                      [0.9, 0.1, 0],
+                      [0.3, 0.9, 100],
+                      [0.1, 0.7, 100],
+                      [0.3, 0.7, 100]])
 
 # create a 'ball' at the top left using least squares
 PHI = process_basis.mfun(inp_data[:,0:2])
@@ -57,9 +63,9 @@ K_basis = (
 s = 0.0001
 k = (
     jnp.array([1/(2*jnp.pi*s)]), # Scale parameter    (θ_1)
-    jnp.array([2*s]), # Shape paramter  (θ_2)
-    jnp.array([-0.02]), # X-axis drift    (θ_3) 
-    jnp.array([0.02]), # Y-axis drift     (θ_4)
+    jnp.array([0.5*s]), # Shape paramter  (θ_2)
+    jnp.array([-0.025]), # X-axis drift    (θ_3) 
+    jnp.array([0.025]), # Y-axis drift     (θ_4)
 )
 kernel = idem.param_exp_kernel(K_basis, k)
 
@@ -169,17 +175,34 @@ print('Log posterior made!')
 
 
 
+script_path = os.path.abspath(__file__)
+directory = os.path.dirname(script_path)
+
+
+
+current_datetime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+csv_file = os.path.join(directory, f'results/{current_datetime}_results_hmc_chain.csv')
+
+# Read adaptive results for tuning
+import pickle
+
+with open(os.path.join(directory, "results/results_adaptive.pickle"), 'rb') as file:
+    j, x, x_mean, prop_cov = pickle.load(file)
+
+_, unflat = utils.flatten_and_unflatten(model_0.params)
+
 # Build the kernel
-inverse_mass_matrix = 0.01*jnp.ones(model_0.nparams)
-num_integration_steps = 20
+#inverse_mass_matrix = 0.01*jnp.ones(model_0.nparams)
+imm = prop_cov
+num_integration_steps = 10
 step_size = 1e-5
 
 import blackjax
 
-hmc = blackjax.hmc(log_post, step_size, inverse_mass_matrix, num_integration_steps=25)
+hmc = blackjax.hmc(log_post, step_size, imm, num_integration_steps=25)
 
 # Initialize the state
-state = hmc.init(model_0.params)
+state = hmc.init(unflat(x_mean))
 
 hmc_sample = []
 
@@ -191,7 +214,7 @@ sample_key = jr.PRNGKey(67)
 
 hmc_n = 100
 accepted = 0
-for i in tqdm(range(hmc_n), desc="Sampling... "):
+for i in range(hmc_n):
 
     hmc_key = jax.random.fold_in(sample_key, i)
     state, info = step(hmc_key, state)
@@ -199,5 +222,10 @@ for i in tqdm(range(hmc_n), desc="Sampling... "):
     accepted = accepted + info.is_accepted
     hmc_sample.append(state.position)
 
-    print(f"\nCurrent offsets: {state.position['trans_kernel_params'][2:]}")
+    print(f"\nCurrent offsets: {state.position['trans_kernel_params'][2:]}", flush=True)
     print(f"Acc Ratio; {accepted / (i+1)}")
+
+    with open(csv_file, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(jnp.concatenate([jnp.array([info.is_accepted]), utils.flatten(state.position)[0]]))
+
