@@ -1451,9 +1451,9 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
 
 
 def format_params(params):
-    kernel_string = f"Kernel Parameters: \n\t shape:{jnp.exp(params[2][0]).tolist()}\n\t scale: {jnp.exp(params[2][1]).tolist()}\n\t offsets {params[2][2].tolist()}, {params[2][3].tolist()}"
-    var_string = f"Variance Parameters: {jnp.exp(params[0]).tolist()}, {jnp.exp(params[1]).tolist()}"
-    coeff_string = f"Coefficient Parameters: {params[3].tolist()}"
+    kernel_string = f"Kernel Parameters: \n\t shape:{jnp.exp(params['trans_kernel_params'][0]).tolist()}\n\t scale: {jnp.exp(params['trans_kernel_params'][1]).tolist()}\n\t offsets {params['trans_kernel_params'][2].tolist()}, {params['trans_kernel_params'][3].tolist()}"
+    var_string = f"Variance Parameters: {jnp.exp(params['log_S2_eps']).tolist()}, {jnp.exp(params['log_S2_eta']).tolist()}"
+    coeff_string = f"Coefficient Parameters: {params['beta'].tolist()}"
     return "\n".join([kernel_string, var_string, coeff_string])
 
 

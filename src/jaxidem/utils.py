@@ -439,7 +439,7 @@ class st_data:
     ):
         self.x = jnp.array(x)
         self.y = jnp.array(y)
-        self.times = times
+        self.times = jnp.array(times, dtype=self.x.dtype)
         self.z = jnp.array(z) # huh?
         if covariates is None:
             self.covariates = jnp.ones((x.size, 1))
@@ -476,7 +476,7 @@ class st_data:
         #        i = i + 1
         if times.size != time_indices.size:
             raise ValueError(
-                "Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modelling."
+                "Not all times where found on the regular lattice using the smallest time difference. st_data is only for spatial data that can be places on a regular time lattice with the mimimum difference between two time points. Providing a custom dt can fix this, but the data set will not be ideal for discrete-time modelling."
             )
 
         #def associate(time):
@@ -522,8 +522,45 @@ class st_data:
         # ztildes_tree = [ztildes[jnp.where(self.times==time)] for time in self.full_times]
         ztildes_tree = jax.tree.map(entilden, self.tilding_elts, is_leaf=is_leaf)
         return ztildes_tree
+    
+    def __getitem__(self, key):
 
+        if not isinstance(key, tuple):
+            time_key, space_key = key, slice(None)
+        else:
+            time_key, space_key = key
 
+        # force full_times to be a float
+        full_times = jnp.array(self.full_times[time_key], dtype=self.x.dtype)
+        full_coords = self.coords[space_key]
+
+        data_array_timesliced = self.data_array[jnp.isin(self.data_array[:,2], full_times)]
+
+        eq = data_array_timesliced[:,:2][:, None, :] == full_coords[None, :, :]
+        
+        # row_matches shape (N, M): True where both coords match
+        row_matches = eq.all(axis=2)
+        # mask shape (N,): True if row matches any allowed coord
+        mask = row_matches.any(axis=1) 
+        
+        data_array = data_array_timesliced[mask]
+        
+        return st_data(x = data_array[:,0],
+                       y = data_array[:,1],
+                       times = data_array[:,2],
+                       z = data_array[:,3],
+                       covariates = data_array[:,4:],
+                       covariate_labels = self.covariate_labels)
+    
+#    def select(
+#            self,
+#            indices: slice
+#    ):
+#
+#        x = self.x[]
+#
+#        return st_data(x, y, times, z, dt, covariates, covariate_labels)
+    
 def pd_to_st(df: pd.DataFrame, xlabel, ylabel, tlabel, zlabel, covariate_labels=None):
     """
     Converts a pandas DataFrame into a `st_data` object for spatio-temporal modeling.

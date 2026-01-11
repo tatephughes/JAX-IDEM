@@ -168,22 +168,27 @@ def plotly_st_grid(st,
     return frames
 
 
-# creates traces of scattered data
 def plotly_st_scatter(st,
                       title="Spatio-Temporal Field",
                       colorscale="Viridis",
                       mark_size=5,
-                      name='scatter'
+                      name='scatter',
+                      zbounds = None,
                       ):
 
     T = st.T
 
     klass = go.Scattergl
 
-    zmin = float(jnp.nanmin(st.z))
-    zmax = float(jnp.nanmax(st.z))
+    if zbounds is None:
+        zmin = float(jnp.nanmin(st.z))
+        zmax = float(jnp.nanmax(st.z))
+    else:
+        zmin = zbounds[0]
+        zmax = zbounds[1]
 
     traces = []
+    frames = []
     for t in range(T):
         x = st.coords_tree[t][:,0]
         y = st.coords_tree[t][:,1]
@@ -204,9 +209,17 @@ def plotly_st_scatter(st,
             ),
             showlegend=False
         )
+        frames.append(go.Frame(name=str(t), data=[trace]))
         traces.append(trace)
-                
-    return traces
+        
+    coloraxis = dict(
+        colorscale=colorscale,
+        cmin=float(zmin),
+        cmax=float(zmax),
+        colorbar=dict(title="z")  # customize as needed
+    )
+        
+    return frames, traces
 
 
 def make_st_fig(frames, ncols=3, spacing = [0.02, 0.02]):
@@ -215,31 +228,34 @@ def make_st_fig(frames, ncols=3, spacing = [0.02, 0.02]):
     Combines a list of plotly frames into a grid plot.
     """
     
-    nframes = len(frames)
-    nrows = int(jnp.ceil(nframes / ncols))
+    fig = go.Figure()
+    
+    for trace in traces:
+        fig.add_trace(trace)
 
-    fig = make_subplots(
-        rows=nrows, cols=ncols,
-        subplot_titles=[f"t = {int(ti)+1}" for ti in range(nframes)],
-        horizontal_spacing=spacing[0],
-        vertical_spacing=spacing[1]
+    fig.data[10].visible = True
+
+    steps = []
+    for i in range(len(fig.data)):
+        step = dict(
+            method="update",
+            args=[{"visible": [False] * len(fig.data)},
+                  {"title": "Time: " + str(i)}],  # layout attribute
+        )
+        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+        steps.append(step)
+
+    sliders = [dict(
+        active=10,
+        currentvalue={"prefix": "T: "},
+        pad={"t": 50},
+        steps=steps
+    )]
+    
+    fig.update_layout(
+        sliders=sliders
     )
-
-    for idx, fr in enumerate(frames):
-        row = int(jnp.floor(idx /ncols)) + 1
-        col = int(idx % ncols) + 1
-        fig.add_trace(fr.data[0], row=row, col=col)
-
-    for i in range(1, nrows * ncols + 1):
-        fig.update_xaxes(matches='x', row=(i-1)//ncols + 1, col=(i-1)%ncols + 1)
-        fig.update_yaxes(matches='y', row=(i-1)//ncols + 1, col=(i-1)%ncols + 1)
-            
-    # Also anchor y to x for square cells
-    for c in range(1, 4):
-        fig.update_yaxes(scaleanchor=f"x{c}", row=1, col=c)
-    fig.update_xaxes(constrain="domain")
-    fig.update_yaxes(scaleanchor="x", scaleratio=1.0)
-
+        
     return fig
 
 
