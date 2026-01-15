@@ -1450,7 +1450,7 @@ def basis_params_to_st_data(alphas, process_basis, process_grid, times=None):
     return data
 
 
-def format_params(params):
+def format_params(params, float_format="{:.4g}"):
     kernel_string = f"Kernel Parameters: \n\t shape:{jnp.exp(params['trans_kernel_params'][0]).tolist()}\n\t scale: {jnp.exp(params['trans_kernel_params'][1]).tolist()}\n\t offsets {params['trans_kernel_params'][2].tolist()}, {params['trans_kernel_params'][3].tolist()}"
     var_string = f"Variance Parameters: {jnp.exp(params['log_S2_eps']).tolist()}, {jnp.exp(params['log_S2_eta']).tolist()}"
     coeff_string = f"Coefficient Parameters: {params['beta'].tolist()}"

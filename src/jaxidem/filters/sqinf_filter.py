@@ -130,10 +130,8 @@ def sqinf_filter(
             case 0:
                 i_k = PHI_k.T @ z_k / S2_eps_k
                 # Below cholesky _should_ be faster, but is much less stable; why?
-                # R_k = safe_qr(PHI_k) / jnp.sqrt(S2_eps_k)
-                # R_k = jnp.linalg.qr((PHI_k), mode="r") / jnp.sqrt(S2_eps_k)
-                # R_k = safe_cholesky(PHI_k.T @ PHI_k / S2_eps_k)
-                R_k = jnp.linalg.cholesky(PHI_k.T @ PHI_k / S2_eps_k, upper=True)
+                R_k = jnp.linalg.qr((PHI_k), mode="r") / jnp.sqrt(S2_eps_k)
+                # R_k = jnp.linalg.cholesky(PHI_k.T @ PHI_k / S2_eps_k, upper=True)
             case 1:
                 sigma_eps = jnp.diag(jnp.sqrt(S2_eps_k))
                 i_k = PHI_k.T @ st(

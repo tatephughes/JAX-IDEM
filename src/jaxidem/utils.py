@@ -506,6 +506,34 @@ class st_data:
         self.tilding_elts = jax.tree.map(lambda a, b: (a, b), self.zs_tree, self.X_obs_tree)
 
 
+
+    def __repr__(self):
+         return f"st_data({self.data_array})"
+
+    def show_table(self, n=5, float_format="{:.4g}"):
+        arr = jax.device_get(self.data_array)   # host NumPy array
+        
+        colnames = ["x", "y", "times", "z"] + self.covariate_labels
+        df = pd.DataFrame(arr, columns=colnames)
+        top = df.head(n)
+        bot = df.tail(n)
+
+        
+        
+        if len(df) > 2*n:
+            top_string = top.to_string(index=False, float_format=lambda x: float_format.format(x))
+            bot_string = bot.to_string(index=False, float_format=lambda x: float_format.format(x))
+
+            return top_string + "\n ...\n" + bot_string
+        else:
+            return df.to_string(index=False, float_format=lambda x: float_format.format(x))
+
+     
+    def __str__(self):
+
+        return self.show_table()
+        
+        
     @partial(jax.jit, static_argnames=["self"])
     def tildify(
         self,
@@ -549,8 +577,8 @@ class st_data:
                        y = data_array[:,1],
                        times = data_array[:,2],
                        z = data_array[:,3],
-                       covariates = data_array[:,4:],
-                       covariate_labels = self.covariate_labels)
+                       covariates = data_array[:,5:],
+                       covariate_labels = self.covariate_labels[1:])
     
 #    def select(
 #            self,
