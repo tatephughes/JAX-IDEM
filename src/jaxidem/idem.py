@@ -608,7 +608,7 @@ class Model:
                     M,
                     PHI_obs_tree,
                     S2_eta,
-                    [S2_eps for _ in range(obs_data.T)],
+                    [S2_eps for _ in range(obs_data.T)], # maybe fix later idk
                     ztildes_tree,
                     likelihood=likelihood,
                     S2_eta_shape=self.S2_eta_shape,
@@ -1457,16 +1457,16 @@ def format_params(params, float_format="{:.4g}"):
     return "\n".join([kernel_string, var_string, coeff_string])
 
 
-def print_params(params: IdemParams):
-    print("Parameters:")
-    print(f"  S2_eps: {jnp.exp(params.log_S2_eps).tolist()}")
-    print(f"  S2_eta: {jnp.exp(params.log_S2_eta).tolist()}")
-    print(f"  Kernel Parameters:")
-    print(f"    Scale: {jnp.exp(params.trans_kernel_params[0]).tolist()}")
-    print(f"    Shape: {jnp.exp(params.trans_kernel_params[1]).tolist()}")
-    print(f"    Offset X: {params.trans_kernel_params[2].tolist()}")
-    print(f"    Offset Y: {params.trans_kernel_params[3].tolist()}")
-    print(f"  beta: {params.beta.tolist()}")
+# def print_params(params: IdemParams):
+#     print("Parameters:")
+#     print(f"  S2_eps: {jnp.exp(params.log_S2_eps).tolist()}")
+#     print(f"  S2_eta: {jnp.exp(params.log_S2_eta).tolist()}")
+#     print(f"  Kernel Parameters:")
+#     print(f"    Scale: {jnp.exp(params.trans_kernel_params[0]).tolist()}")
+#     print(f"    Shape: {jnp.exp(params.trans_kernel_params[1]).tolist()}")
+#     print(f"    Offset X: {params.trans_kernel_params[2].tolist()}")
+#     print(f"    Offset Y: {params.trans_kernel_params[3].tolist()}")
+#     print(f"  beta: {params.beta.tolist()}")
 
 
 if __name__ == "__main__":

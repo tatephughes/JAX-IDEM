@@ -132,9 +132,11 @@ def psqrt_filter(
     Uc_1 = qr_R(U1pred@(I - K_1@PHI_tree[0]).T, S_eps_tree[0]@K_1.T)
 
     nu_1 = M.T @ PHI_tree[0].T @ st(W_1, st(W_1.T, zs_tree[0], lower=False),lower=True)
-    Uj_1 = qr_R(st(W_1.T, PHI_tree[0]@M, lower=True), jnp.zeros((zs_tree[0].size, r)))
-
-    first_elt = (A_1, b_1, Uc_1, nu_1, Uj_1)
+    #Uj_1 = qr_R(st(W_1.T, PHI_tree[0]@M, lower=True), jnp.zeros((zs_tree[0].size, r)))
+    Uj_1 = jnp.linalg.qr(st(W_1.T, PHI_tree[0]@M, lower=True), mode='r')
+    Uj_1f = jnp.pad(Uj_1,pad_width=((0,r-zs_tree[0].size),(0,0)), mode='empty')
+    
+    first_elt = (A_1, b_1, Uc_1, nu_1, Uj_1f)
 
     def get_element(z_k, PHI_k, S_eps_k):
 
@@ -152,9 +154,11 @@ def psqrt_filter(
         Uc_k = qr_R(S_eta @ imkp.T, S_eps_k @ K_k.T)
 
         nu_k = M.T @ PHI_k.T @ st(W_k, st(W_k.T, z_k, lower=True),lower=False)
-        Uj_k = qr_R(st(W_k.T, PHI_k@M, lower=True), jnp.zeros((n, r)))
+        #Uj_k = qr_R(st(W_k.T, PHI_k@M, lower=True), jnp.zeros((n, r)))
+        Uj_k = jnp.linalg.qr(st(W_k.T, PHI_k@M, lower=True), mode='r')
+        Uj_kf = jnp.pad(Uj_k, pad_width=((0,r-z_k.size),(0,0)), mode='empty')
         
-        return (A_k, b_k, Uc_k, nu_k, Uj_k)
+        return (A_k, b_k, Uc_k, nu_k, Uj_kf)
 
     elts = jax.tree.map(get_element, zs_tree[1:], PHI_tree[1:], S_eps_tree[1:])
 
@@ -178,6 +182,8 @@ def psqrt_filter(
 
         # J_j is only invertible under specific circumstances!
         nu_ij = A_i.T @ J_j @ st(sjpjcj, st(sjpjcj.T, nu_j - J_j @ b_i, lower=True), lower=False) + nu_i
+
+        # This line is likely the culprit of it currently not working.
         Uj_ij = qr_R(st(sjpjcj.T, J_j, lower=True) @ A_i, Uj_i)
 
         return (A_ij, b_ij, Uc_ij, nu_ij, Uj_ij)
